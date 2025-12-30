@@ -8,17 +8,34 @@ plugins {
 
 android {
     signingConfigs {
-        getByName("debug") {
-            storeFile = file("C:\\Users\\HP\\.android\\tasselsigningkey.jks")
-            storePassword = "daddyy"
-            keyAlias = "key0"
-            keyPassword = "daddyy"
-        }
         create("release") {
-            storeFile = file("C:\\Users\\HP\\.android\\tasselsigningkey.jks")
-            storePassword = "daddyy"
-            keyAlias = "key0"
-            keyPassword = "daddyy"
+            val envStoreFile = System.getenv("SIGNING_STORE_FILE")
+            val envStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+            val envKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+            val envKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+
+            if (envStoreFile != null) {
+                // CI environment
+                storeFile = file(envStoreFile)
+                storePassword = envStorePassword
+                keyAlias = envKeyAlias
+                keyPassword = envKeyPassword
+            } else {
+                // Local development - load from local.properties
+                val localPropsFile = rootProject.file("local.properties")
+                if (localPropsFile.exists()) {
+                    val localProps = java.util.Properties().apply {
+                        localPropsFile.inputStream().use { load(it) }
+                    }
+                    val localStoreFile = localProps.getProperty("signing.storeFile")
+                    if (localStoreFile != null) {
+                        storeFile = file(localStoreFile)
+                        storePassword = localProps.getProperty("signing.storePassword")
+                        keyAlias = localProps.getProperty("signing.keyAlias")
+                        keyPassword = localProps.getProperty("signing.keyPassword")
+                    }
+                }
+            }
         }
     }
     namespace = "com.github.jayteealao.playster"
@@ -44,6 +61,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
