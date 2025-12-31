@@ -68,52 +68,43 @@ jobs:
             echo "SIGNING_KEY_PASSWORD=${{ secrets.SIGNING_KEY_PASSWORD }}"
           } >> $GITHUB_ENV
 
+      - name: Check for google-services secret
+        id: has_google_services
+        env:
+          B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -n "$B64" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Decode google-services.json
+        if: ${{ steps.has_google_services.outputs.present == 'true' }}
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
-          set -euo pipefail
-          if [ -z "${GOOGLE_SERVICES_JSON_B64:-}" ]; then
-            echo "GOOGLE_SERVICES_JSON_B64 is empty."
-            exit 1
-          fi
           mkdir -p app
           printf '%s' "$GOOGLE_SERVICES_JSON_B64" \
             | tr -d '\r\n\t ' \
             | base64 -d > app/google-services.json
-          if ! command -v jq >/dev/null 2>&1; then
-            sudo apt-get update -y && sudo apt-get install -y jq
-          fi
-          jq type app/google-services.json
-          echo "google-services.json decoded and valid."
+          echo "google-services.json decoded."
 
-      - name: Build APK + AAB
+      - name: Build APK
         run: |
-          ./gradlew --no-daemon clean assembleRelease bundleRelease
+          ./gradlew --no-daemon clean assembleDebug
 
-      - name: Find outputs
+      - name: Find APK
         id: find_outputs
         run: |
           VERSION="${{ github.event.inputs.version_name }}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-          APK=$(find . -type f -path "*/build/outputs/apk/*elease/*.apk" ! -name "*-unsigned.apk" ! -name "*-unaligned.apk" | head -n1)
-          AAB=$(find . -type f -path "*/build/outputs/bundle/*elease/*.aab" | head -n1)
-          MAP=$(find . -type f -path "*/build/outputs/mapping/*elease/mapping.txt" | head -n1 || true)
-
+          APK=$(find . -type f -path "*/build/outputs/apk/debug/*.apk" | head -n1)
           echo "apk=${APK}" >> "$GITHUB_OUTPUT"
-          echo "aab=${AAB}" >> "$GITHUB_OUTPUT"
-          echo "mapping=${MAP}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload build artifacts
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: playster-v${{ github.event.inputs.version_name }}
           retention-days: 30
-          path: |
-            ${{ steps.find_outputs.outputs.apk }}
-            ${{ steps.find_outputs.outputs.aab }}
-            ${{ steps.find_outputs.outputs.mapping }}
+          path: ${{ steps.find_outputs.outputs.apk }}
 
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
@@ -126,7 +117,4 @@ jobs:
 
             Manual release build triggered by @${{ github.actor }}
           draft: true
-          files: |
-            ${{ steps.find_outputs.outputs.apk }}
-            ${{ steps.find_outputs.outputs.aab }}
-            ${{ steps.find_outputs.outputs.mapping }}
+          files: ${{ steps.find_outputs.outputs.apk }}
