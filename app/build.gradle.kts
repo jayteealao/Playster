@@ -1,4 +1,5 @@
-@Suppress("DSL_SCOPE_VIOLATION") // TODO: Remove once KTIJ-19369 is fixed
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -24,7 +25,7 @@ android {
                 // Local development - load from local.properties
                 val localPropsFile = rootProject.file("local.properties")
                 if (localPropsFile.exists()) {
-                    val localProps = java.util.Properties().apply {
+                    val localProps = Properties().apply {
                         localPropsFile.inputStream().use { load(it) }
                     }
                     val localStoreFile = localProps.getProperty("signing.storeFile")
