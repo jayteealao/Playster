@@ -9,23 +9,32 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -35,6 +44,9 @@ import androidx.credentials.PasswordCredential
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.github.jayteealao.playster.ui.theme.Cyan500
+import com.github.jayteealao.playster.ui.theme.Gray900
+import com.github.jayteealao.playster.ui.theme.Purple500
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInCredential
@@ -57,14 +69,6 @@ fun AuthScreen(
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
-    var email by remember {
-        mutableStateOf("")
-    }
-
-    var password by remember {
-        mutableStateOf("")
-    }
 
     val oneTapClient = Identity.getSignInClient(context)
 
@@ -102,12 +106,10 @@ fun AuthScreen(
                 if (account == null) {
                     authViewModel.saveLoginFailure(null)
                     Log.d(TAG, "Failure to sign in")
-
                 } else {
                     authViewModel.saveLoginSuccess(context, account)
                     Log.d(TAG, "Signed in as " + googleAccount.email)
                     onSignIn()
-
                 }
             }
             .addOnFailureListener { exception: Exception? ->
@@ -130,27 +132,17 @@ fun AuthScreen(
     }
 
     fun processCredentialSignIn(result: GetCredentialResponse) {
-        // Handle the successfully returned credential.
         val credential = result.credential
 
         when (credential) {
-            is PublicKeyCredential -> {
-                // Share responseJson such as a GetCredentialResponse on your server to
-                // validate and authenticate
-//                responseJson = credential.authenticationResponseJson
-            }
-
+            is PublicKeyCredential -> { }
             is PasswordCredential -> {
-                // Send ID and password to your server to validate and authenticate.
                 val username = credential.id
                 val password = credential.password
             }
-
             is CustomCredential -> {
                 if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     try {
-                        // Use googleIdTokenCredential and extract id to validate and
-                        // authenticate on your server.
                         val googleIdTokenCredential = GoogleIdTokenCredential
                             .createFrom(credential.data)
                         authViewModel.saveLoginSuccess(context, Account(googleIdTokenCredential.id, context.packageName))
@@ -158,13 +150,10 @@ fun AuthScreen(
                         Log.e(TAG, "Received an invalid google id token response", e)
                     }
                 } else {
-                    // Catch any unrecognized custom credential type here.
                     Log.e(TAG, "Unexpected type of credential")
                 }
             }
-
             else -> {
-                // Catch any unrecognized credential type here.
                 Log.e(TAG, "Unexpected type of credential")
             }
         }
@@ -221,61 +210,121 @@ fun AuthScreen(
                 processCredentialSignIn(result)
                 onSignIn()
             } catch (e: GetCredentialException) {
-//                handleFailure(e)
                 authViewModel.saveLoginFailure(e)
                 Log.d(TAG, "Failure to sign in")
             }
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    // New UI
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(Cyan500, Purple500),
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
+            )
     ) {
-        Text(text = "Sign in/Sign up")
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = email,
-            onValueChange = { email = it },
-            maxLines = 1,
-            label = {
-                Text(text = "Email")
-            }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = password,
-            onValueChange = { password = it },
-            maxLines = 1,
-            label = {
-                Text(text = "Password")
-            }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextButton(onClick = {
-            startOneTapSignIn()
-        }) {
-            Text(text = "One Tap Sign In")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        TextButton(
-            onClick = {
-                startLegacySignIn()
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Legacy Sign In")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        TextButton(
-            onClick = {
-                startCredentialSignIn()
-            }
-        ) {
-            Text(text = "Credential Sign In")
-        }
+            Spacer(modifier = Modifier.weight(0.35f))
 
-}
+            // Logo placeholder
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "P",
+                    style = MaterialTheme.typography.displayLarge,
+                    color = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Playster",
+                style = MaterialTheme.typography.displayLarge,
+                color = Color.White
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Your YouTube, organized",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f)
+            )
+
+            Spacer(modifier = Modifier.weight(0.35f))
+
+            // Google Sign In Button
+            Button(
+                onClick = { startLegacySignIn() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Gray900
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "G",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Sign in with Google",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Footer links
+            Row(
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Terms",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = " · ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = "Privacy",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+        }
+    }
 }
 
 private const val TAG = "AuthScreen"
