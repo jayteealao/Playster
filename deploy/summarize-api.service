@@ -1,0 +1,33 @@
+[Unit]
+Description=Summarize API Server
+After=network.target summarize-daemon.service
+Wants=summarize-daemon.service
+Documentation=https://github.com/steipete/summarize
+
+[Service]
+Type=simple
+User=summarize
+Group=summarize
+WorkingDirectory=/opt/summarize/api
+EnvironmentFile=/etc/summarize/summarize.env
+Environment=DAEMON_URL=http://127.0.0.1:8787
+Environment=HOST=0.0.0.0
+Environment=PORT=3000
+Environment=DB_PATH=/opt/summarize/api/data/jobs.db
+ExecStart=/usr/bin/node dist/index.js
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=summarize-api
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/summarize/api/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
