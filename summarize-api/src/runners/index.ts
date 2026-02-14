@@ -5,6 +5,8 @@ import type { Job } from "../db/jobs.js";
 import { updateJobStatus } from "../db/jobs.js";
 import type { EventStore } from "../events/event-store.js";
 import { runUrlJob } from "./url-runner.js";
+import { runRssJob } from "./rss-runner.js";
+import { runUploadJob } from "./upload-runner.js";
 
 let limiter: ReturnType<typeof pLimit> | null = null;
 
@@ -29,16 +31,10 @@ export function dispatchJob(
         await runUrlJob(job, config, eventStore, db);
         break;
       case "upload":
-        // Placeholder — not yet implemented
-        updateJobStatus(job.id, "failed", {
-          error: { message: "Upload jobs are not yet supported" },
-        });
+        await runUploadJob(job, config, eventStore, db);
         break;
       case "rss":
-        // Placeholder — not yet implemented
-        updateJobStatus(job.id, "failed", {
-          error: { message: "RSS jobs are not yet supported" },
-        });
+        await runRssJob(job, config, eventStore, db);
         break;
     }
   }).catch((err: unknown) => {
