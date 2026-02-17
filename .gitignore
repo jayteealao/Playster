@@ -25,3 +25,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+.firebase/
