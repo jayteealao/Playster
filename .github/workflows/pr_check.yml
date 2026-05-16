@@ -34,6 +34,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Fix gradlew perms & line endings
+        working-directory: android
         run: |
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
@@ -70,6 +71,7 @@ jobs:
 
       # --- Decode google-services.json ---
       - name: Decode google-services.json
+        working-directory: android
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
@@ -84,9 +86,10 @@ jobs:
       - name: Build debug APK
         id: build
         continue-on-error: true
+        working-directory: android
         run: |
           set -o pipefail
-          ./gradlew --no-daemon clean assembleDebug 2>&1 | tee build-log.txt
+          ./gradlew --no-daemon clean assembleDebug 2>&1 | tee ../build-log.txt
           status=${PIPESTATUS[0]}
           echo "build_status=$status" >> "$GITHUB_OUTPUT"
           exit "$status"
@@ -181,5 +184,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 7

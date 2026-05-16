@@ -35,6 +35,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Fix gradlew perms & line endings
+        working-directory: android
         run: |
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
@@ -77,6 +78,7 @@ jobs:
 
       - name: Decode google-services.json
         if: ${{ steps.has_google_services.outputs.present == 'true' }}
+        working-directory: android
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
@@ -87,6 +89,7 @@ jobs:
           echo "google-services.json decoded."
 
       - name: Build APK
+        working-directory: android
         run: |
           ./gradlew --no-daemon clean assembleDebug
 
@@ -96,7 +99,7 @@ jobs:
           VERSION="${{ github.event.inputs.version_name }}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-          APK=$(find . -type f -path "*/build/outputs/apk/debug/*.apk" | head -n1)
+          APK=$(find android -type f -path "android/*/build/outputs/apk/debug/*.apk" | head -n1)
           echo "apk=${APK}" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK

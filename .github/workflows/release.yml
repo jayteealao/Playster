@@ -30,6 +30,7 @@ jobs:
 
           # Windows-safe guard
       - name: Fix gradlew perms & line endings (Windows devs)
+        working-directory: android
         run: |
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
@@ -66,6 +67,7 @@ jobs:
 
       # --- Decode google-services.json ---
       - name: Decode google-services.json
+        working-directory: android
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
@@ -95,6 +97,7 @@ jobs:
       # --- Build (adjust module & tasks as needed) ---
       # If you have flavors, e.g., prod, replace with assembleProdRelease/bundleProdRelease
       - name: Build APK + AAB
+        working-directory: android
         run: |
           ./gradlew --no-daemon clean assembleRelease bundleRelease
 
@@ -102,9 +105,9 @@ jobs:
         if: always()
         run: |
           echo "=== APK outputs ==="
-          find . -type f -name "*.apk" -o -name "*.aab" | sort
+          find android -type f \( -name "*.apk" -o -name "*.aab" \) | sort
           echo "=== Mapping files ==="
-          find . -type f -name "mapping.txt" || echo "No mapping.txt found"
+          find android -type f -name "mapping.txt" || echo "No mapping.txt found"
 
       # Collect artifacts
       - name: Find outputs
@@ -114,9 +117,9 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
           # Find APK (case-insensitive for release/Release)
-          APK=$(find . -type f -path "*/build/outputs/apk/*elease/*.apk" ! -name "*-unsigned.apk" ! -name "*-unaligned.apk" | head -n1)
-          AAB=$(find . -type f -path "*/build/outputs/bundle/*elease/*.aab" | head -n1)
-          MAP=$(find . -type f -path "*/build/outputs/mapping/*elease/mapping.txt" | head -n1 || true)
+          APK=$(find android -type f -path "android/*/build/outputs/apk/*elease/*.apk" ! -name "*-unsigned.apk" ! -name "*-unaligned.apk" | head -n1)
+          AAB=$(find android -type f -path "android/*/build/outputs/bundle/*elease/*.aab" | head -n1)
+          MAP=$(find android -type f -path "android/*/build/outputs/mapping/*elease/mapping.txt" | head -n1 || true)
 
           echo "Found APK: ${APK}"
           echo "Found AAB: ${AAB}"
