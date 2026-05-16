@@ -57,7 +57,7 @@ export const setCookies = onRequest(async (req, res) => {
   if (!cookies || typeof cookies !== "string") {
     res
       .status(400)
-      .send('Missing cookies. Send as raw body or JSON { "cookies": "..." }.');
+      .send("Missing cookies. Send as raw body or JSON { \"cookies\": \"...\" }.");
     return;
   }
 
