@@ -1,0 +1,13 @@
+{
+  "name": "playster",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "backend:build": "pnpm --filter functions run build",
+    "backend:deploy": "pnpm --filter functions run deploy",
+    "summarizer:dev": "pnpm --filter summarize-api run dev",
+    "summarizer:build": "pnpm --filter summarize-api run build",
+    "summarizer:start": "pnpm --filter summarize-api run start",
+    "summarizer:test": "pnpm --filter summarize-api run test"
+  }
+}
