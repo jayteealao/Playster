@@ -1,0 +1,32 @@
+[Unit]
+Description=Summarize Daemon
+After=network.target
+Documentation=https://github.com/steipete/summarize
+
+[Service]
+Type=simple
+User=summarize
+Group=summarize
+WorkingDirectory=/opt/summarize/daemon
+EnvironmentFile=/etc/summarize/summarize.env
+Environment=HOME=/opt/summarize
+
+# Generate daemon.json from env vars before starting
+ExecStartPre=/opt/summarize/write-daemon-config.sh
+ExecStart=/usr/bin/node dist/cli.js daemon run
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=summarize-daemon
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/summarize/daemon /opt/summarize/.summarize /tmp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
