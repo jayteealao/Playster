@@ -9,7 +9,7 @@ export async function runUrlJob(
   job: Job,
   config: Config,
   eventStore: EventStore,
-  db: Database.Database,
+  _db: Database.Database,
 ): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.jobTimeout);

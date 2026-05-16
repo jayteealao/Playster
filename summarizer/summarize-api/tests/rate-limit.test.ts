@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, beforeAll, vi } from "vitest";
-import { buildApp, TEST_API_KEY, type TestContext } from "./setup.js";
+import { buildApp, type TestContext } from "./setup.js";
 
 // Mock dispatchJob
 vi.mock("../src/runners/index.js", () => ({
