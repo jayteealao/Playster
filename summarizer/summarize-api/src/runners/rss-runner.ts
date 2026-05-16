@@ -63,6 +63,14 @@ export async function runRssJob(
       );
     }
 
+    // Step 6b: SSRF-validate the item URL before delegating to the daemon.
+    // The feed itself was checked at Step 3, but an attacker-controlled feed
+    // could still hand us a private-IP item URL.
+    const itemValidation = await validateUrl(itemUrl);
+    if (!itemValidation.safe) {
+      throw new Error(`Blocked RSS item URL: ${itemValidation.error}`);
+    }
+
     const itemTitle = resolved.title ?? "Untitled";
     const itemGuid = resolved.guid ?? "";
 
