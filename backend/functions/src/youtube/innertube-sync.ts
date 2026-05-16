@@ -21,31 +21,41 @@ export async function syncWatchLater(): Promise<{ videoCount: number }> {
   const { getInnertubeClient } = await import("../auth/index.js");
   const innertube = await getInnertubeClient();
 
-  // Fetch the library to access the Watch Later section
-  const library = await innertube.getLibrary();
-  const watchLaterSection = library.watch_later;
-
-  if (!watchLaterSection) {
-    throw new Error("Watch Later section not found in library.");
-  }
-
-  // Get the full Watch Later playlist via getAll()
-  const watchLaterPlaylist = await watchLaterSection.getAll();
-
-  // Extract playlist metadata if available (Playlist type has `info`)
+  // Fetch the Watch Later playlist directly by its well-known ID rather than
+  // navigating through getLibrary(). The library layout shifts between YouTube
+  // UI revisions (and differs for Premium users), but the playlist ID "WL" is
+  // stable. This is what `youtubei.js` recommends for known playlists.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const playlistAny = watchLaterPlaylist as any;
+  const playlistAny = (await innertube.getPlaylist(WATCH_LATER_ID)) as any;
   const playlistInfo = playlistAny.info ?? null;
-  const rawItems: InnertubeVideoItem[] = playlistAny.items ?? [];
+  const rawItems: InnertubeVideoItem[] = playlistAny.videos ?? playlistAny.items ?? [];
 
-  // Collect all items including continuations
+  // Collect all items including continuations. Watch Later in particular has
+  // been progressively restricted by Google and `getContinuation()` on it can
+  // throw a youtubei.js-internal error (e.g. "command.getApiPath is not a
+  // function") when YouTube returns a dialog command instead of more items.
+  // Treat that as end-of-list rather than a hard failure so we at least
+  // persist the first page (~100 videos) and the playlist metadata.
   const allItems: InnertubeVideoItem[] = [...rawItems];
   let current = playlistAny;
 
   while (current.has_continuation) {
-    current = await current.getContinuation();
-    if (current.items) {
-      allItems.push(...(current.items as InnertubeVideoItem[]));
+    try {
+      current = await current.getContinuation();
+    } catch (err) {
+      console.warn(
+        "[innertube-sync] continuation failed, stopping pagination:",
+        err instanceof Error ? err.message : err,
+      );
+      break;
+    }
+    const items = (current.videos ?? current.items) as
+      | InnertubeVideoItem[]
+      | undefined;
+    if (items?.length) {
+      allItems.push(...items);
+    } else {
+      break;
     }
   }
 
