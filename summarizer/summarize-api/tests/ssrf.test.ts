@@ -42,14 +42,23 @@ describe("SSRF protection", () => {
     it("blocks IPv6 link-local fe80::", () => {
       expect(isPrivateIp("fe80::1")).toBe(true);
     });
+
+    it("returns false for hostnames (defers to DNS resolution)", () => {
+      // Regression: previously every hostname was misclassified as private
+      // because isPrivateIpv4 treated 'not 4 numeric octets' as malformed-and-block,
+      // short-circuiting before DNS could resolve real hostnames.
+      expect(isPrivateIp("example.com")).toBe(false);
+      expect(isPrivateIp("api.github.com")).toBe(false);
+      expect(isPrivateIp("not-an-ip")).toBe(false);
+    });
   });
 
   describe("validateUrl", () => {
-    it("allows public HTTPS URLs", async () => {
+    it("allows public hostnames that resolve to public IPs", async () => {
+      // Uses real DNS — example.com is IANA-reserved for documentation
+      // and consistently resolves to a public IP block.
       const result = await validateUrl("https://example.com");
-      // This may fail DNS in test env, but the scheme check passes
-      // The function resolves DNS so it depends on network
-      expect(result).toHaveProperty("safe");
+      expect(result.safe).toBe(true);
     });
 
     it("blocks non-http schemes (ftp)", async () => {

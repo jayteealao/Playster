@@ -1,5 +1,13 @@
 import dns from "node:dns";
 
+function isIpv4Literal(s: string): boolean {
+  const parts = s.split(".").map(Number);
+  return (
+    parts.length === 4 &&
+    parts.every((p) => Number.isInteger(p) && p >= 0 && p <= 255)
+  );
+}
+
 export function isPrivateIp(ip: string): boolean {
   // IPv6 checks
   if (ip.includes(":")) {
@@ -11,19 +19,19 @@ export function isPrivateIp(ip: string): boolean {
     if (normalized.startsWith("fe80")) return true;
     // IPv4-mapped IPv6 (::ffff:x.x.x.x)
     const v4Match = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (v4Match) return isPrivateIpv4(v4Match[1]);
+    if (v4Match && isIpv4Literal(v4Match[1])) return isPrivateIpv4(v4Match[1]);
     return false;
   }
 
+  // Not an IPv4 literal — caller (validateUrl) will resolve via DNS and
+  // re-check the resolved addresses. Treating malformed strings as private
+  // here would incorrectly block every hostname before DNS ever runs.
+  if (!isIpv4Literal(ip)) return false;
   return isPrivateIpv4(ip);
 }
 
 function isPrivateIpv4(ip: string): boolean {
   const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) {
-    return true; // Treat malformed as private (block them)
-  }
-
   const [a, b] = parts;
 
   // 0.0.0.0/8

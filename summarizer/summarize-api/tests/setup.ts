@@ -28,6 +28,84 @@ export interface TestContext {
   cleanup: () => Promise<void>;
 }
 
+export interface SummarizeDaemonOptions {
+  /** Chunks emitted in the SSE stream (joined as the final summary). */
+  chunks?: string[];
+  /** If set, POST /v1/summarize responds with this status/body. */
+  summarizeError?: { status: number; body: string };
+  /** If set, GET /v1/summarize/:id/events responds with this status/body. */
+  eventsError?: { status: number; body: string };
+}
+
+export interface SummarizeDaemonHandle {
+  url: string;
+  server: Server;
+  /** Authorization header captured on each incoming request. */
+  capturedAuth: string[];
+}
+
+/**
+ * Start a route-aware mock summarize-daemon that implements the contract
+ * runUrlJob expects: POST /v1/summarize (JSON) + GET /v1/summarize/:id/events (SSE).
+ * Use this for e2e tests that exercise the real runner; existing route-level
+ * tests use startMockDaemon below for the simpler /health-only stub.
+ */
+export function startSummarizeDaemon(
+  opts: SummarizeDaemonOptions = {},
+): Promise<SummarizeDaemonHandle> {
+  const chunks = opts.chunks ?? ["Hello ", "world"];
+  return new Promise((resolve) => {
+    const capturedAuth: string[] = [];
+    const server = createHttpServer((req, res) => {
+      capturedAuth.push(req.headers.authorization ?? "");
+
+      if (req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok" }));
+        return;
+      }
+
+      if (req.method === "POST" && req.url === "/v1/summarize") {
+        if (opts.summarizeError) {
+          res.writeHead(opts.summarizeError.status, { "Content-Type": "text/plain" });
+          res.end(opts.summarizeError.body);
+          return;
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ id: "daemon-test-123", status: "queued" }));
+        return;
+      }
+
+      if (req.method === "GET" && req.url && /^\/v1\/summarize\/[^/]+\/events$/.test(req.url)) {
+        if (opts.eventsError) {
+          res.writeHead(opts.eventsError.status, { "Content-Type": "text/plain" });
+          res.end(opts.eventsError.body);
+          return;
+        }
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        });
+        res.write(`event: status\ndata: ${JSON.stringify({ status: "running" })}\n\n`);
+        for (const chunk of chunks) {
+          res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
+        }
+        res.write("event: complete\ndata: {}\n\n");
+        res.end();
+        return;
+      }
+
+      res.writeHead(404);
+      res.end();
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address() as { port: number };
+      resolve({ url: `http://127.0.0.1:${addr.port}`, server, capturedAuth });
+    });
+  });
+}
+
 /**
  * Start a mock daemon HTTP server that responds to /health and
  * acts as a stub for URL job proxy requests.
