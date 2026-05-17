@@ -1,0 +1,155 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const bindingSpies = vi.hoisted(() => ({
+  bindSettingsStorage: vi.fn(),
+  bindSidepanelLifecycle: vi.fn(),
+}));
+
+vi.mock("../apps/chrome-extension/src/entrypoints/sidepanel/bindings", () => ({
+  bindSettingsStorage: bindingSpies.bindSettingsStorage,
+  bindSidepanelLifecycle: bindingSpies.bindSidepanelLifecycle,
+}));
+
+import { bootstrapSidepanel } from "../apps/chrome-extension/src/entrypoints/sidepanel/bootstrap-runtime";
+
+describe("sidepanel bootstrap runtime", () => {
+  beforeEach(() => {
+    bindingSpies.bindSettingsStorage.mockReset();
+    bindingSpies.bindSidepanelLifecycle.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("hydrates settings, binds lifecycle, and pings", async () => {
+    const calls: string[] = [];
+    const loadedSettings = {
+      autoSummarize: true,
+      chatEnabled: false,
+      automationEnabled: false,
+      slidesLayout: "gallery",
+      fontSize: 16,
+      lineHeight: 1.6,
+      fontFamily: "IBM Plex Sans",
+      model: "openai/gpt-5.4",
+      token: "",
+    };
+
+    bootstrapSidepanel({
+      ensurePanelPort: async () => {
+        calls.push("ensure");
+      },
+      loadSettings: async () => loadedSettings,
+      getPendingSettingsSnapshot: () => ({ chatEnabled: true }),
+      clearPendingSettingsSnapshot: () => {
+        calls.push("clear-pending");
+      },
+      setSettingsHydrated: (value) => {
+        calls.push(`hydrated:${value}`);
+      },
+      typographyController: {
+        setCurrentFontSize: (value) => calls.push(`font:${value}`),
+        setCurrentLineHeight: (value) => calls.push(`line:${value}`),
+      },
+      setAutoValue: (value) => calls.push(`auto:${value}`),
+      setChatEnabledValue: (value) => calls.push(`chat:${value}`),
+      setAutomationEnabledValue: (value) => calls.push(`automation:${value}`),
+      setSlidesLayoutValue: (value) => calls.push(`layout:${value}`),
+      setSlidesLayoutInputValue: (value) => calls.push(`layout-input:${value}`),
+      hideAutomationNotice: () => calls.push("hide-automation"),
+      appearanceControls: {
+        setAutoValue: (value) => calls.push(`appearance-auto:${value}`),
+        initializeFromSettings: (settings) => calls.push(`init:${settings.model}`),
+      },
+      applyChatEnabled: () => calls.push("apply-chat"),
+      applySlidesLayout: () => calls.push("apply-layout"),
+      setDefaultModelPresets: () => calls.push("defaults"),
+      setModelValue: (value) => calls.push(`model:${value}`),
+      setModelPlaceholderFromDiscovery: () => calls.push("placeholder"),
+      updateModelRowUI: () => calls.push("model-row"),
+      setModelRefreshDisabled: (value) => calls.push(`model-disabled:${value}`),
+      toggleDrawerClosed: () => calls.push("drawer"),
+      renderMarkdownDisplay: () => calls.push("render"),
+      sendReady: () => calls.push("ready"),
+      scheduleAutoKick: () => calls.push("auto-kick"),
+      sendPing: () => calls.push("ping"),
+      bindSettingsStorage: { getSettingsHydrated: () => true } as never,
+      bindSidepanelLifecycle: { sendReady: () => {} } as never,
+    });
+
+    await vi.advanceTimersByTimeAsync(25_000);
+
+    expect(bindingSpies.bindSettingsStorage).toHaveBeenCalledTimes(1);
+    expect(bindingSpies.bindSidepanelLifecycle).toHaveBeenCalledTimes(1);
+    expect(calls).toContain("hide-automation");
+    expect(calls).toContain("model-disabled:true");
+    expect(calls).toContain("chat:true");
+    expect(calls).toContain("ready");
+    expect(calls).toContain("ping");
+  });
+
+  it("uses loaded settings directly when there is no pending snapshot", async () => {
+    const calls: string[] = [];
+
+    bootstrapSidepanel({
+      ensurePanelPort: async () => {
+        calls.push("ensure");
+      },
+      loadSettings: async () => ({
+        autoSummarize: false,
+        chatEnabled: true,
+        automationEnabled: true,
+        slidesLayout: "strip",
+        fontSize: 14,
+        lineHeight: 1.4,
+        fontFamily: "Skolar",
+        model: "openai/gpt-5.4",
+        token: "abc123",
+      }),
+      getPendingSettingsSnapshot: () => null,
+      clearPendingSettingsSnapshot: () => {
+        calls.push("clear-pending");
+      },
+      setSettingsHydrated: (value) => {
+        calls.push(`hydrated:${value}`);
+      },
+      typographyController: {
+        setCurrentFontSize: (value) => calls.push(`font:${value}`),
+        setCurrentLineHeight: (value) => calls.push(`line:${value}`),
+      },
+      setAutoValue: (value) => calls.push(`auto:${value}`),
+      setChatEnabledValue: (value) => calls.push(`chat:${value}`),
+      setAutomationEnabledValue: (value) => calls.push(`automation:${value}`),
+      setSlidesLayoutValue: (value) => calls.push(`layout:${value}`),
+      setSlidesLayoutInputValue: (value) => calls.push(`layout-input:${value}`),
+      hideAutomationNotice: () => calls.push("hide-automation"),
+      appearanceControls: {
+        setAutoValue: (value) => calls.push(`appearance-auto:${value}`),
+        initializeFromSettings: (settings) => calls.push(`init:${settings.slidesLayout}`),
+      },
+      applyChatEnabled: () => calls.push("apply-chat"),
+      applySlidesLayout: () => calls.push("apply-layout"),
+      setDefaultModelPresets: () => calls.push("defaults"),
+      setModelValue: (value) => calls.push(`model:${value}`),
+      setModelPlaceholderFromDiscovery: () => calls.push("placeholder"),
+      updateModelRowUI: () => calls.push("model-row"),
+      setModelRefreshDisabled: (value) => calls.push(`model-disabled:${value}`),
+      toggleDrawerClosed: () => calls.push("drawer"),
+      renderMarkdownDisplay: () => calls.push("render"),
+      sendReady: () => calls.push("ready"),
+      scheduleAutoKick: () => calls.push("auto-kick"),
+      sendPing: () => calls.push("ping"),
+      bindSettingsStorage: { getSettingsHydrated: () => true } as never,
+      bindSidepanelLifecycle: { sendReady: () => {} } as never,
+    });
+
+    await vi.advanceTimersByTimeAsync(25_000);
+
+    expect(calls).not.toContain("hide-automation");
+    expect(calls).toContain("model-disabled:false");
+    expect(calls).toContain("chat:true");
+    expect(calls).toContain("layout:strip");
+  });
+});

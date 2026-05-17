@@ -1,0 +1,2146 @@
+diff --git a/dist/array.d.mts b/dist/array.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..a10ffb43f37c3c7845e1ddfcc10e178862365c8a
+--- /dev/null
++++ b/dist/array.d.mts
+@@ -0,0 +1,27 @@
++declare function toArray<T>(v: T | T[] | undefined | null): T[];
++declare const fromLength: (length: number) => number[];
++declare const first: <T>(v: T[]) => T | undefined;
++declare const last: <T>(v: T[]) => T | undefined;
++declare const isEmpty: <T>(v: T[]) => boolean;
++declare const has: <T>(v: T[], t: T) => boolean;
++declare const add: <T>(v: T[], ...items: T[]) => T[];
++declare const remove: <T>(v: T[], ...items: T[]) => T[];
++declare const removeAt: <T>(v: T[], i: number) => T[];
++declare const insertAt: <T>(v: T[], i: number, ...items: T[]) => T[];
++declare const uniq: <T>(v: T[]) => T[];
++declare const diff: <T>(a: T[], b: T[]) => T[];
++declare const addOrRemove: <T>(v: T[], item: T) => T[];
++declare function clear<T>(v: T[]): T[];
++type IndexOptions = {
++    step?: number | undefined;
++    loop?: boolean | undefined;
++};
++declare function nextIndex<T>(v: T[], idx: number, opts?: IndexOptions): number;
++declare function next<T>(v: T[], idx: number, opts?: IndexOptions): T | undefined;
++declare function prevIndex<T>(v: T[], idx: number, opts?: IndexOptions): number;
++declare function prev<T>(v: T[], index: number, opts?: IndexOptions): T | undefined;
++declare function chunk<T>(v: T[], size: number): T[][];
++declare function flatArray<T>(arr: T[]): T[];
++declare function partition<T>(arr: T[], fn: (value: T) => boolean): [T[], T[]];
++
++export { type IndexOptions, add, addOrRemove, chunk, clear, diff, first, flatArray, fromLength, has, insertAt, isEmpty, last, next, nextIndex, partition, prev, prevIndex, remove, removeAt, toArray, uniq };
+diff --git a/dist/array.d.ts b/dist/array.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..a10ffb43f37c3c7845e1ddfcc10e178862365c8a
+--- /dev/null
++++ b/dist/array.d.ts
+@@ -0,0 +1,27 @@
++declare function toArray<T>(v: T | T[] | undefined | null): T[];
++declare const fromLength: (length: number) => number[];
++declare const first: <T>(v: T[]) => T | undefined;
++declare const last: <T>(v: T[]) => T | undefined;
++declare const isEmpty: <T>(v: T[]) => boolean;
++declare const has: <T>(v: T[], t: T) => boolean;
++declare const add: <T>(v: T[], ...items: T[]) => T[];
++declare const remove: <T>(v: T[], ...items: T[]) => T[];
++declare const removeAt: <T>(v: T[], i: number) => T[];
++declare const insertAt: <T>(v: T[], i: number, ...items: T[]) => T[];
++declare const uniq: <T>(v: T[]) => T[];
++declare const diff: <T>(a: T[], b: T[]) => T[];
++declare const addOrRemove: <T>(v: T[], item: T) => T[];
++declare function clear<T>(v: T[]): T[];
++type IndexOptions = {
++    step?: number | undefined;
++    loop?: boolean | undefined;
++};
++declare function nextIndex<T>(v: T[], idx: number, opts?: IndexOptions): number;
++declare function next<T>(v: T[], idx: number, opts?: IndexOptions): T | undefined;
++declare function prevIndex<T>(v: T[], idx: number, opts?: IndexOptions): number;
++declare function prev<T>(v: T[], index: number, opts?: IndexOptions): T | undefined;
++declare function chunk<T>(v: T[], size: number): T[][];
++declare function flatArray<T>(arr: T[]): T[];
++declare function partition<T>(arr: T[], fn: (value: T) => boolean): [T[], T[]];
++
++export { type IndexOptions, add, addOrRemove, chunk, clear, diff, first, flatArray, fromLength, has, insertAt, isEmpty, last, next, nextIndex, partition, prev, prevIndex, remove, removeAt, toArray, uniq };
+diff --git a/dist/array.js b/dist/array.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a05c64bf5e52e241b7533eba3deb8faf880711
+--- /dev/null
++++ b/dist/array.js
+@@ -0,0 +1,137 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/array.ts
++var array_exports = {};
++__export(array_exports, {
++  add: () => add,
++  addOrRemove: () => addOrRemove,
++  chunk: () => chunk,
++  clear: () => clear,
++  diff: () => diff,
++  first: () => first,
++  flatArray: () => flatArray,
++  fromLength: () => fromLength,
++  has: () => has,
++  insertAt: () => insertAt,
++  isEmpty: () => isEmpty,
++  last: () => last,
++  next: () => next,
++  nextIndex: () => nextIndex,
++  partition: () => partition,
++  prev: () => prev,
++  prevIndex: () => prevIndex,
++  remove: () => remove,
++  removeAt: () => removeAt,
++  toArray: () => toArray,
++  uniq: () => uniq
++});
++module.exports = __toCommonJS(array_exports);
++function toArray(v) {
++  if (v == null) return [];
++  return Array.isArray(v) ? v : [v];
++}
++var fromLength = (length) => Array.from(Array(length).keys());
++var first = (v) => v[0];
++var last = (v) => v[v.length - 1];
++var isEmpty = (v) => v.length === 0;
++var has = (v, t) => v.indexOf(t) !== -1;
++var add = (v, ...items) => v.concat(items);
++var remove = (v, ...items) => v.filter((t) => !items.includes(t));
++var removeAt = (v, i) => v.filter((_, idx) => idx !== i);
++var insertAt = (v, i, ...items) => [...v.slice(0, i), ...items, ...v.slice(i)];
++var uniq = (v) => Array.from(new Set(v));
++var diff = (a, b) => {
++  const set = new Set(b);
++  return a.filter((t) => !set.has(t));
++};
++var addOrRemove = (v, item) => has(v, item) ? remove(v, item) : add(v, item);
++function clear(v) {
++  while (v.length > 0) v.pop();
++  return v;
++}
++function nextIndex(v, idx, opts = {}) {
++  const { step = 1, loop = true } = opts;
++  const next2 = idx + step;
++  const len = v.length;
++  const last2 = len - 1;
++  if (idx === -1) return step > 0 ? 0 : last2;
++  if (next2 < 0) return loop ? last2 : 0;
++  if (next2 >= len) return loop ? 0 : idx > len ? len : idx;
++  return next2;
++}
++function next(v, idx, opts = {}) {
++  return v[nextIndex(v, idx, opts)];
++}
++function prevIndex(v, idx, opts = {}) {
++  const { step = 1, loop = true } = opts;
++  return nextIndex(v, idx, { step: -step, loop });
++}
++function prev(v, index, opts = {}) {
++  return v[prevIndex(v, index, opts)];
++}
++function chunk(v, size) {
++  return v.reduce((rows, value, index) => {
++    if (index % size === 0) rows.push([value]);
++    else last(rows)?.push(value);
++    return rows;
++  }, []);
++}
++function flatArray(arr) {
++  return arr.reduce((flat, item) => {
++    if (Array.isArray(item)) {
++      return flat.concat(flatArray(item));
++    }
++    return flat.concat(item);
++  }, []);
++}
++function partition(arr, fn) {
++  return arr.reduce(
++    ([pass, fail], value) => {
++      if (fn(value)) pass.push(value);
++      else fail.push(value);
++      return [pass, fail];
++    },
++    [[], []]
++  );
++}
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  add,
++  addOrRemove,
++  chunk,
++  clear,
++  diff,
++  first,
++  flatArray,
++  fromLength,
++  has,
++  insertAt,
++  isEmpty,
++  last,
++  next,
++  nextIndex,
++  partition,
++  prev,
++  prevIndex,
++  remove,
++  removeAt,
++  toArray,
++  uniq
++});
+diff --git a/dist/array.mjs b/dist/array.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..0a4af84656ccc53fea5e9bcae9c67457c1e4d438
+--- /dev/null
++++ b/dist/array.mjs
+@@ -0,0 +1,94 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/array.ts
++function toArray(v) {
++  if (v == null) return [];
++  return Array.isArray(v) ? v : [v];
++}
++var fromLength = (length) => Array.from(Array(length).keys());
++var first = (v) => v[0];
++var last = (v) => v[v.length - 1];
++var isEmpty = (v) => v.length === 0;
++var has = (v, t) => v.indexOf(t) !== -1;
++var add = (v, ...items) => v.concat(items);
++var remove = (v, ...items) => v.filter((t) => !items.includes(t));
++var removeAt = (v, i) => v.filter((_, idx) => idx !== i);
++var insertAt = (v, i, ...items) => [...v.slice(0, i), ...items, ...v.slice(i)];
++var uniq = (v) => Array.from(new Set(v));
++var diff = (a, b) => {
++  const set = new Set(b);
++  return a.filter((t) => !set.has(t));
++};
++var addOrRemove = (v, item) => has(v, item) ? remove(v, item) : add(v, item);
++function clear(v) {
++  while (v.length > 0) v.pop();
++  return v;
++}
++function nextIndex(v, idx, opts = {}) {
++  const { step = 1, loop = true } = opts;
++  const next2 = idx + step;
++  const len = v.length;
++  const last2 = len - 1;
++  if (idx === -1) return step > 0 ? 0 : last2;
++  if (next2 < 0) return loop ? last2 : 0;
++  if (next2 >= len) return loop ? 0 : idx > len ? len : idx;
++  return next2;
++}
++function next(v, idx, opts = {}) {
++  return v[nextIndex(v, idx, opts)];
++}
++function prevIndex(v, idx, opts = {}) {
++  const { step = 1, loop = true } = opts;
++  return nextIndex(v, idx, { step: -step, loop });
++}
++function prev(v, index, opts = {}) {
++  return v[prevIndex(v, index, opts)];
++}
++function chunk(v, size) {
++  return v.reduce((rows, value, index) => {
++    if (index % size === 0) rows.push([value]);
++    else last(rows)?.push(value);
++    return rows;
++  }, []);
++}
++function flatArray(arr) {
++  return arr.reduce((flat, item) => {
++    if (Array.isArray(item)) {
++      return flat.concat(flatArray(item));
++    }
++    return flat.concat(item);
++  }, []);
++}
++function partition(arr, fn) {
++  return arr.reduce(
++    ([pass, fail], value) => {
++      if (fn(value)) pass.push(value);
++      else fail.push(value);
++      return [pass, fail];
++    },
++    [[], []]
++  );
++}
++export {
++  add,
++  addOrRemove,
++  chunk,
++  clear,
++  diff,
++  first,
++  flatArray,
++  fromLength,
++  has,
++  insertAt,
++  isEmpty,
++  last,
++  next,
++  nextIndex,
++  partition,
++  prev,
++  prevIndex,
++  remove,
++  removeAt,
++  toArray,
++  uniq
++};
+diff --git a/dist/chunk-MXGZDBDQ.mjs b/dist/chunk-MXGZDBDQ.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d3183500d3aa7f924e37682da7aa09003916261
+--- /dev/null
++++ b/dist/chunk-MXGZDBDQ.mjs
+@@ -0,0 +1,15 @@
++var __defProp = Object.defineProperty;
++var __typeError = (msg) => {
++  throw TypeError(msg);
++};
++var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
++var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
++var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
++var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
++var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
++
++export {
++  __publicField,
++  __privateGet,
++  __privateAdd
++};
+diff --git a/dist/equal.d.mts b/dist/equal.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..74355494e389c7baf1f3326f67fdec3916aa1756
+--- /dev/null
++++ b/dist/equal.d.mts
+@@ -0,0 +1,3 @@
++declare const isEqual: (a: any, b: any) => boolean;
++
++export { isEqual };
+diff --git a/dist/equal.d.ts b/dist/equal.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..74355494e389c7baf1f3326f67fdec3916aa1756
+--- /dev/null
++++ b/dist/equal.d.ts
+@@ -0,0 +1,3 @@
++declare const isEqual: (a: any, b: any) => boolean;
++
++export { isEqual };
+diff --git a/dist/equal.js b/dist/equal.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..e133425dbf4227b9fb59a258ac7fb688c029113e
+--- /dev/null
++++ b/dist/equal.js
+@@ -0,0 +1,62 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/equal.ts
++var equal_exports = {};
++__export(equal_exports, {
++  isEqual: () => isEqual
++});
++module.exports = __toCommonJS(equal_exports);
++var isArrayLike = (value) => value?.constructor.name === "Array";
++var isArrayEqual = (a, b) => {
++  if (a.length !== b.length) return false;
++  for (let i = 0; i < a.length; i++) {
++    if (!isEqual(a[i], b[i])) return false;
++  }
++  return true;
++};
++var isEqual = (a, b) => {
++  if (Object.is(a, b)) return true;
++  if (a == null && b != null || a != null && b == null) return false;
++  if (typeof a?.isEqual === "function" && typeof b?.isEqual === "function") {
++    return a.isEqual(b);
++  }
++  if (typeof a === "function" && typeof b === "function") {
++    return a.toString() === b.toString();
++  }
++  if (isArrayLike(a) && isArrayLike(b)) {
++    return isArrayEqual(Array.from(a), Array.from(b));
++  }
++  if (!(typeof a === "object") || !(typeof b === "object")) return false;
++  const keys = Object.keys(b ?? /* @__PURE__ */ Object.create(null));
++  const length = keys.length;
++  for (let i = 0; i < length; i++) {
++    const hasKey = Reflect.has(a, keys[i]);
++    if (!hasKey) return false;
++  }
++  for (let i = 0; i < length; i++) {
++    const key = keys[i];
++    if (!isEqual(a[key], b[key])) return false;
++  }
++  return true;
++};
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  isEqual
++});
+diff --git a/dist/equal.mjs b/dist/equal.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a3ba79e5c6745620dc3e21216bb0e82298a9ec3f
+--- /dev/null
++++ b/dist/equal.mjs
+@@ -0,0 +1,39 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/equal.ts
++var isArrayLike = (value) => value?.constructor.name === "Array";
++var isArrayEqual = (a, b) => {
++  if (a.length !== b.length) return false;
++  for (let i = 0; i < a.length; i++) {
++    if (!isEqual(a[i], b[i])) return false;
++  }
++  return true;
++};
++var isEqual = (a, b) => {
++  if (Object.is(a, b)) return true;
++  if (a == null && b != null || a != null && b == null) return false;
++  if (typeof a?.isEqual === "function" && typeof b?.isEqual === "function") {
++    return a.isEqual(b);
++  }
++  if (typeof a === "function" && typeof b === "function") {
++    return a.toString() === b.toString();
++  }
++  if (isArrayLike(a) && isArrayLike(b)) {
++    return isArrayEqual(Array.from(a), Array.from(b));
++  }
++  if (!(typeof a === "object") || !(typeof b === "object")) return false;
++  const keys = Object.keys(b ?? /* @__PURE__ */ Object.create(null));
++  const length = keys.length;
++  for (let i = 0; i < length; i++) {
++    const hasKey = Reflect.has(a, keys[i]);
++    if (!hasKey) return false;
++  }
++  for (let i = 0; i < length; i++) {
++    const key = keys[i];
++    if (!isEqual(a[key], b[key])) return false;
++  }
++  return true;
++};
++export {
++  isEqual
++};
+diff --git a/dist/functions.d.mts b/dist/functions.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e6c89c133b44ac61307aa49427a5db8f168b4ede
+--- /dev/null
++++ b/dist/functions.d.mts
+@@ -0,0 +1,15 @@
++type MaybeFunction<T> = T | (() => T);
++type Nullable<T> = T | null | undefined;
++declare const runIfFn: <T>(v: T | undefined, ...a: T extends (...a: any[]) => void ? Parameters<T> : never) => T extends (...a: any[]) => void ? NonNullable<ReturnType<T>> : NonNullable<T>;
++declare const cast: <T>(v: unknown) => T;
++declare const identity: (v: VoidFunction) => void;
++declare const noop: () => void;
++declare const callAll: <T extends (...a: any[]) => void>(...fns: (T | null | undefined)[]) => (...a: Parameters<T>) => void;
++declare const uuid: () => string;
++declare function match<V extends string | number = string, R = unknown>(key: V, record: Record<V, R | ((...args: any[]) => R)>, ...args: any[]): R;
++declare const tryCatch: <R>(fn: () => R, fallback: () => R) => R;
++declare function throttle<T extends (...args: any[]) => void>(fn: T, wait?: number): T;
++declare function debounce<T extends (...args: any[]) => void>(fn: T, wait?: number): T;
++declare const hash: (value: string) => string;
++
++export { type MaybeFunction, type Nullable, callAll, cast, debounce, hash, identity, match, noop, runIfFn, throttle, tryCatch, uuid };
+diff --git a/dist/functions.d.ts b/dist/functions.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e6c89c133b44ac61307aa49427a5db8f168b4ede
+--- /dev/null
++++ b/dist/functions.d.ts
+@@ -0,0 +1,15 @@
++type MaybeFunction<T> = T | (() => T);
++type Nullable<T> = T | null | undefined;
++declare const runIfFn: <T>(v: T | undefined, ...a: T extends (...a: any[]) => void ? Parameters<T> : never) => T extends (...a: any[]) => void ? NonNullable<ReturnType<T>> : NonNullable<T>;
++declare const cast: <T>(v: unknown) => T;
++declare const identity: (v: VoidFunction) => void;
++declare const noop: () => void;
++declare const callAll: <T extends (...a: any[]) => void>(...fns: (T | null | undefined)[]) => (...a: Parameters<T>) => void;
++declare const uuid: () => string;
++declare function match<V extends string | number = string, R = unknown>(key: V, record: Record<V, R | ((...args: any[]) => R)>, ...args: any[]): R;
++declare const tryCatch: <R>(fn: () => R, fallback: () => R) => R;
++declare function throttle<T extends (...args: any[]) => void>(fn: T, wait?: number): T;
++declare function debounce<T extends (...args: any[]) => void>(fn: T, wait?: number): T;
++declare const hash: (value: string) => string;
++
++export { type MaybeFunction, type Nullable, callAll, cast, debounce, hash, identity, match, noop, runIfFn, throttle, tryCatch, uuid };
+diff --git a/dist/functions.js b/dist/functions.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..dab27ffb56b05050cdd7a84e70fe226b3098e13f
+--- /dev/null
++++ b/dist/functions.js
+@@ -0,0 +1,136 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/functions.ts
++var functions_exports = {};
++__export(functions_exports, {
++  callAll: () => callAll,
++  cast: () => cast,
++  debounce: () => debounce,
++  hash: () => hash,
++  identity: () => identity,
++  match: () => match,
++  noop: () => noop,
++  runIfFn: () => runIfFn,
++  throttle: () => throttle,
++  tryCatch: () => tryCatch,
++  uuid: () => uuid
++});
++module.exports = __toCommonJS(functions_exports);
++var import_guard = require("./guard.js");
++var runIfFn = (v, ...a) => {
++  const res = typeof v === "function" ? v(...a) : v;
++  return res ?? void 0;
++};
++var cast = (v) => v;
++var identity = (v) => v();
++var noop = () => {
++};
++var callAll = (...fns) => (...a) => {
++  fns.forEach(function(fn) {
++    fn?.(...a);
++  });
++};
++var uuid = /* @__PURE__ */ (() => {
++  let id = 0;
++  return () => {
++    id++;
++    return id.toString(36);
++  };
++})();
++function match(key, record, ...args) {
++  if (key in record) {
++    const fn = record[key];
++    return (0, import_guard.isFunction)(fn) ? fn(...args) : fn;
++  }
++  const error = new Error(`No matching key: ${JSON.stringify(key)} in ${JSON.stringify(Object.keys(record))}`);
++  Error.captureStackTrace?.(error, match);
++  throw error;
++}
++var tryCatch = (fn, fallback) => {
++  try {
++    return fn();
++  } catch (error) {
++    if (error instanceof Error) {
++      Error.captureStackTrace?.(error, tryCatch);
++    }
++    return fallback?.();
++  }
++};
++function throttle(fn, wait = 0) {
++  let lastCall = 0;
++  let timeout = null;
++  return ((...args) => {
++    const now = Date.now();
++    const timeSinceLastCall = now - lastCall;
++    if (timeSinceLastCall >= wait) {
++      if (timeout) {
++        clearTimeout(timeout);
++        timeout = null;
++      }
++      fn(...args);
++      lastCall = now;
++    } else if (!timeout) {
++      timeout = setTimeout(() => {
++        fn(...args);
++        lastCall = Date.now();
++        timeout = null;
++      }, wait - timeSinceLastCall);
++    }
++  });
++}
++function debounce(fn, wait = 0) {
++  let timeout = null;
++  return ((...args) => {
++    if (timeout) {
++      clearTimeout(timeout);
++      timeout = null;
++    }
++    timeout = setTimeout(() => {
++      fn(...args);
++    }, wait);
++  });
++}
++var toChar = (code) => String.fromCharCode(code + (code > 25 ? 39 : 97));
++function toName(code) {
++  let name = "";
++  let x;
++  for (x = Math.abs(code); x > 52; x = x / 52 | 0) name = toChar(x % 52) + name;
++  return toChar(x % 52) + name;
++}
++function toPhash(h, x) {
++  let i = x.length;
++  while (i) h = h * 33 ^ x.charCodeAt(--i);
++  return h;
++}
++var hash = (value) => toName(toPhash(5381, value) >>> 0);
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  callAll,
++  cast,
++  debounce,
++  hash,
++  identity,
++  match,
++  noop,
++  runIfFn,
++  throttle,
++  tryCatch,
++  uuid
++});
+diff --git a/dist/functions.mjs b/dist/functions.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4c977900ccce55bb729a6de082aefae4b45009c
+--- /dev/null
++++ b/dist/functions.mjs
+@@ -0,0 +1,103 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/functions.ts
++import { isFunction } from "./guard.mjs";
++var runIfFn = (v, ...a) => {
++  const res = typeof v === "function" ? v(...a) : v;
++  return res ?? void 0;
++};
++var cast = (v) => v;
++var identity = (v) => v();
++var noop = () => {
++};
++var callAll = (...fns) => (...a) => {
++  fns.forEach(function(fn) {
++    fn?.(...a);
++  });
++};
++var uuid = /* @__PURE__ */ (() => {
++  let id = 0;
++  return () => {
++    id++;
++    return id.toString(36);
++  };
++})();
++function match(key, record, ...args) {
++  if (key in record) {
++    const fn = record[key];
++    return isFunction(fn) ? fn(...args) : fn;
++  }
++  const error = new Error(`No matching key: ${JSON.stringify(key)} in ${JSON.stringify(Object.keys(record))}`);
++  Error.captureStackTrace?.(error, match);
++  throw error;
++}
++var tryCatch = (fn, fallback) => {
++  try {
++    return fn();
++  } catch (error) {
++    if (error instanceof Error) {
++      Error.captureStackTrace?.(error, tryCatch);
++    }
++    return fallback?.();
++  }
++};
++function throttle(fn, wait = 0) {
++  let lastCall = 0;
++  let timeout = null;
++  return ((...args) => {
++    const now = Date.now();
++    const timeSinceLastCall = now - lastCall;
++    if (timeSinceLastCall >= wait) {
++      if (timeout) {
++        clearTimeout(timeout);
++        timeout = null;
++      }
++      fn(...args);
++      lastCall = now;
++    } else if (!timeout) {
++      timeout = setTimeout(() => {
++        fn(...args);
++        lastCall = Date.now();
++        timeout = null;
++      }, wait - timeSinceLastCall);
++    }
++  });
++}
++function debounce(fn, wait = 0) {
++  let timeout = null;
++  return ((...args) => {
++    if (timeout) {
++      clearTimeout(timeout);
++      timeout = null;
++    }
++    timeout = setTimeout(() => {
++      fn(...args);
++    }, wait);
++  });
++}
++var toChar = (code) => String.fromCharCode(code + (code > 25 ? 39 : 97));
++function toName(code) {
++  let name = "";
++  let x;
++  for (x = Math.abs(code); x > 52; x = x / 52 | 0) name = toChar(x % 52) + name;
++  return toChar(x % 52) + name;
++}
++function toPhash(h, x) {
++  let i = x.length;
++  while (i) h = h * 33 ^ x.charCodeAt(--i);
++  return h;
++}
++var hash = (value) => toName(toPhash(5381, value) >>> 0);
++export {
++  callAll,
++  cast,
++  debounce,
++  hash,
++  identity,
++  match,
++  noop,
++  runIfFn,
++  throttle,
++  tryCatch,
++  uuid
++};
+diff --git a/dist/guard.d.mts b/dist/guard.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0820b52847384c0391a8f674b237606959e3a292
+--- /dev/null
++++ b/dist/guard.d.mts
+@@ -0,0 +1,14 @@
++type AnyFunction = (...args: any[]) => any;
++declare const isDev: () => boolean;
++declare const isArray: (v: any) => v is any[];
++declare const isBoolean: (v: any) => v is boolean;
++declare const isObjectLike: (v: any) => v is Record<string, any>;
++declare const isObject: (v: any) => v is Record<string, any>;
++declare const isNumber: (v: any) => v is number;
++declare const isString: (v: any) => v is string;
++declare const isFunction: (v: any) => v is AnyFunction;
++declare const isNull: (v: any) => v is null | undefined;
++declare const hasProp: <T extends string>(obj: any, prop: T) => obj is Record<T, any>;
++declare const isPlainObject: (v: any) => boolean;
++
++export { hasProp, isArray, isBoolean, isDev, isFunction, isNull, isNumber, isObject, isObjectLike, isPlainObject, isString };
+diff --git a/dist/guard.d.ts b/dist/guard.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0820b52847384c0391a8f674b237606959e3a292
+--- /dev/null
++++ b/dist/guard.d.ts
+@@ -0,0 +1,14 @@
++type AnyFunction = (...args: any[]) => any;
++declare const isDev: () => boolean;
++declare const isArray: (v: any) => v is any[];
++declare const isBoolean: (v: any) => v is boolean;
++declare const isObjectLike: (v: any) => v is Record<string, any>;
++declare const isObject: (v: any) => v is Record<string, any>;
++declare const isNumber: (v: any) => v is number;
++declare const isString: (v: any) => v is string;
++declare const isFunction: (v: any) => v is AnyFunction;
++declare const isNull: (v: any) => v is null | undefined;
++declare const hasProp: <T extends string>(obj: any, prop: T) => obj is Record<T, any>;
++declare const isPlainObject: (v: any) => boolean;
++
++export { hasProp, isArray, isBoolean, isDev, isFunction, isNull, isNumber, isObject, isObjectLike, isPlainObject, isString };
+diff --git a/dist/guard.js b/dist/guard.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ffb8ce36a14a680dc84bc29effea40cf699e63a
+--- /dev/null
++++ b/dist/guard.js
+@@ -0,0 +1,72 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/guard.ts
++var guard_exports = {};
++__export(guard_exports, {
++  hasProp: () => hasProp,
++  isArray: () => isArray,
++  isBoolean: () => isBoolean,
++  isDev: () => isDev,
++  isFunction: () => isFunction,
++  isNull: () => isNull,
++  isNumber: () => isNumber,
++  isObject: () => isObject,
++  isObjectLike: () => isObjectLike,
++  isPlainObject: () => isPlainObject,
++  isString: () => isString
++});
++module.exports = __toCommonJS(guard_exports);
++var isDev = () => process.env.NODE_ENV !== "production";
++var isArray = (v) => Array.isArray(v);
++var isBoolean = (v) => v === true || v === false;
++var isObjectLike = (v) => v != null && typeof v === "object";
++var isObject = (v) => isObjectLike(v) && !isArray(v);
++var isNumber = (v) => typeof v === "number" && !Number.isNaN(v);
++var isString = (v) => typeof v === "string";
++var isFunction = (v) => typeof v === "function";
++var isNull = (v) => v == null;
++var hasProp = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
++var baseGetTag = (v) => Object.prototype.toString.call(v);
++var fnToString = Function.prototype.toString;
++var objectCtorString = fnToString.call(Object);
++var isPlainObject = (v) => {
++  if (!isObjectLike(v) || baseGetTag(v) != "[object Object]" || isFrameworkElement(v)) return false;
++  const proto = Object.getPrototypeOf(v);
++  if (proto === null) return true;
++  const Ctor = hasProp(proto, "constructor") && proto.constructor;
++  return typeof Ctor == "function" && Ctor instanceof Ctor && fnToString.call(Ctor) == objectCtorString;
++};
++var isReactElement = (x) => typeof x === "object" && x !== null && "$$typeof" in x && "props" in x;
++var isVueElement = (x) => typeof x === "object" && x !== null && "__v_isVNode" in x;
++var isFrameworkElement = (x) => isReactElement(x) || isVueElement(x);
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  hasProp,
++  isArray,
++  isBoolean,
++  isDev,
++  isFunction,
++  isNull,
++  isNumber,
++  isObject,
++  isObjectLike,
++  isPlainObject,
++  isString
++});
+diff --git a/dist/guard.mjs b/dist/guard.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..cab05c4500f297220188ac61c2d40428b0412ca9
+--- /dev/null
++++ b/dist/guard.mjs
+@@ -0,0 +1,39 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/guard.ts
++var isDev = () => process.env.NODE_ENV !== "production";
++var isArray = (v) => Array.isArray(v);
++var isBoolean = (v) => v === true || v === false;
++var isObjectLike = (v) => v != null && typeof v === "object";
++var isObject = (v) => isObjectLike(v) && !isArray(v);
++var isNumber = (v) => typeof v === "number" && !Number.isNaN(v);
++var isString = (v) => typeof v === "string";
++var isFunction = (v) => typeof v === "function";
++var isNull = (v) => v == null;
++var hasProp = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
++var baseGetTag = (v) => Object.prototype.toString.call(v);
++var fnToString = Function.prototype.toString;
++var objectCtorString = fnToString.call(Object);
++var isPlainObject = (v) => {
++  if (!isObjectLike(v) || baseGetTag(v) != "[object Object]" || isFrameworkElement(v)) return false;
++  const proto = Object.getPrototypeOf(v);
++  if (proto === null) return true;
++  const Ctor = hasProp(proto, "constructor") && proto.constructor;
++  return typeof Ctor == "function" && Ctor instanceof Ctor && fnToString.call(Ctor) == objectCtorString;
++};
++var isReactElement = (x) => typeof x === "object" && x !== null && "$$typeof" in x && "props" in x;
++var isVueElement = (x) => typeof x === "object" && x !== null && "__v_isVNode" in x;
++var isFrameworkElement = (x) => isReactElement(x) || isVueElement(x);
++export {
++  hasProp,
++  isArray,
++  isBoolean,
++  isDev,
++  isFunction,
++  isNull,
++  isNumber,
++  isObject,
++  isObjectLike,
++  isPlainObject,
++  isString
++};
+diff --git a/dist/number.d.mts b/dist/number.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9258e4e72cfd5079f514a91431ae097ee826de65
+--- /dev/null
++++ b/dist/number.d.mts
+@@ -0,0 +1,41 @@
++declare const isNaN: (v: number) => boolean;
++declare const nan: (v: number) => number;
++declare const mod: (v: number, m: number) => number;
++declare const wrap: (v: number, vmax: number) => number;
++declare const getMinValueAtIndex: (i: number, v: number[], vmin: number) => number;
++declare const getMaxValueAtIndex: (i: number, v: number[], vmax: number) => number;
++declare const isValueAtMax: (v: number, vmax: number) => boolean;
++declare const isValueAtMin: (v: number, vmin: number) => boolean;
++declare const isValueWithinRange: (v: number, vmin: number | null | undefined, vmax: number | null | undefined) => boolean;
++declare const roundValue: (v: number, vmin: number, step: number) => number;
++declare const clampValue: (v: number, vmin: number, vmax: number) => number;
++declare const clampPercent: (v: number) => number;
++declare const getValuePercent: (v: number, vmin: number, vmax: number) => number;
++declare const getPercentValue: (p: number, vmin: number, vmax: number, step: number) => number;
++declare const roundToStepPrecision: (v: number, step: number) => number;
++declare const roundToDpr: (v: number, dpr: unknown) => number;
++declare const snapValueToStep: (v: number, vmin: number | undefined, vmax: number | undefined, step: number) => number;
++declare const setValueAtIndex: <T>(vs: T[], i: number, v: T) => T[];
++interface RangeContext {
++    min: number;
++    max: number;
++    step: number;
++    values: number[];
++}
++declare function getValueSetterAtIndex(index: number, ctx: RangeContext): (value: number) => number[];
++declare function getNextStepValue(index: number, ctx: RangeContext): number[];
++declare function getPreviousStepValue(index: number, ctx: RangeContext): number[];
++declare const getClosestValueIndex: (vs: number[], t: number) => number;
++declare const getClosestValue: (vs: number[], t: number) => number;
++declare const getValueRanges: (vs: number[], vmin: number, vmax: number, gap: number) => {
++    min: number;
++    max: number;
++    value: number;
++}[];
++declare const getValueTransformer: (va: number[], vb: number[]) => (v: number) => number;
++declare const toFixedNumber: (v: number, d?: number, b?: number) => number;
++declare const incrementValue: (v: number, s: number) => number;
++declare const decrementValue: (v: number, s: number) => number;
++declare const toPx: (v: number | string | undefined) => string | undefined;
++
++export { clampPercent, clampValue, decrementValue, getClosestValue, getClosestValueIndex, getMaxValueAtIndex, getMinValueAtIndex, getNextStepValue, getPercentValue, getPreviousStepValue, getValuePercent, getValueRanges, getValueSetterAtIndex, getValueTransformer, incrementValue, isNaN, isValueAtMax, isValueAtMin, isValueWithinRange, mod, nan, roundToDpr, roundToStepPrecision, roundValue, setValueAtIndex, snapValueToStep, toFixedNumber, toPx, wrap };
+diff --git a/dist/number.d.ts b/dist/number.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9258e4e72cfd5079f514a91431ae097ee826de65
+--- /dev/null
++++ b/dist/number.d.ts
+@@ -0,0 +1,41 @@
++declare const isNaN: (v: number) => boolean;
++declare const nan: (v: number) => number;
++declare const mod: (v: number, m: number) => number;
++declare const wrap: (v: number, vmax: number) => number;
++declare const getMinValueAtIndex: (i: number, v: number[], vmin: number) => number;
++declare const getMaxValueAtIndex: (i: number, v: number[], vmax: number) => number;
++declare const isValueAtMax: (v: number, vmax: number) => boolean;
++declare const isValueAtMin: (v: number, vmin: number) => boolean;
++declare const isValueWithinRange: (v: number, vmin: number | null | undefined, vmax: number | null | undefined) => boolean;
++declare const roundValue: (v: number, vmin: number, step: number) => number;
++declare const clampValue: (v: number, vmin: number, vmax: number) => number;
++declare const clampPercent: (v: number) => number;
++declare const getValuePercent: (v: number, vmin: number, vmax: number) => number;
++declare const getPercentValue: (p: number, vmin: number, vmax: number, step: number) => number;
++declare const roundToStepPrecision: (v: number, step: number) => number;
++declare const roundToDpr: (v: number, dpr: unknown) => number;
++declare const snapValueToStep: (v: number, vmin: number | undefined, vmax: number | undefined, step: number) => number;
++declare const setValueAtIndex: <T>(vs: T[], i: number, v: T) => T[];
++interface RangeContext {
++    min: number;
++    max: number;
++    step: number;
++    values: number[];
++}
++declare function getValueSetterAtIndex(index: number, ctx: RangeContext): (value: number) => number[];
++declare function getNextStepValue(index: number, ctx: RangeContext): number[];
++declare function getPreviousStepValue(index: number, ctx: RangeContext): number[];
++declare const getClosestValueIndex: (vs: number[], t: number) => number;
++declare const getClosestValue: (vs: number[], t: number) => number;
++declare const getValueRanges: (vs: number[], vmin: number, vmax: number, gap: number) => {
++    min: number;
++    max: number;
++    value: number;
++}[];
++declare const getValueTransformer: (va: number[], vb: number[]) => (v: number) => number;
++declare const toFixedNumber: (v: number, d?: number, b?: number) => number;
++declare const incrementValue: (v: number, s: number) => number;
++declare const decrementValue: (v: number, s: number) => number;
++declare const toPx: (v: number | string | undefined) => string | undefined;
++
++export { clampPercent, clampValue, decrementValue, getClosestValue, getClosestValueIndex, getMaxValueAtIndex, getMinValueAtIndex, getNextStepValue, getPercentValue, getPreviousStepValue, getValuePercent, getValueRanges, getValueSetterAtIndex, getValueTransformer, incrementValue, isNaN, isValueAtMax, isValueAtMin, isValueWithinRange, mod, nan, roundToDpr, roundToStepPrecision, roundValue, setValueAtIndex, snapValueToStep, toFixedNumber, toPx, wrap };
+diff --git a/dist/number.js b/dist/number.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..da61ea2ca6f7444ec553f745428e6d730fca8fbf
+--- /dev/null
++++ b/dist/number.js
+@@ -0,0 +1,202 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod2) => __copyProps(__defProp({}, "__esModule", { value: true }), mod2);
++
++// src/number.ts
++var number_exports = {};
++__export(number_exports, {
++  clampPercent: () => clampPercent,
++  clampValue: () => clampValue,
++  decrementValue: () => decrementValue,
++  getClosestValue: () => getClosestValue,
++  getClosestValueIndex: () => getClosestValueIndex,
++  getMaxValueAtIndex: () => getMaxValueAtIndex,
++  getMinValueAtIndex: () => getMinValueAtIndex,
++  getNextStepValue: () => getNextStepValue,
++  getPercentValue: () => getPercentValue,
++  getPreviousStepValue: () => getPreviousStepValue,
++  getValuePercent: () => getValuePercent,
++  getValueRanges: () => getValueRanges,
++  getValueSetterAtIndex: () => getValueSetterAtIndex,
++  getValueTransformer: () => getValueTransformer,
++  incrementValue: () => incrementValue,
++  isNaN: () => isNaN,
++  isValueAtMax: () => isValueAtMax,
++  isValueAtMin: () => isValueAtMin,
++  isValueWithinRange: () => isValueWithinRange,
++  mod: () => mod,
++  nan: () => nan,
++  roundToDpr: () => roundToDpr,
++  roundToStepPrecision: () => roundToStepPrecision,
++  roundValue: () => roundValue,
++  setValueAtIndex: () => setValueAtIndex,
++  snapValueToStep: () => snapValueToStep,
++  toFixedNumber: () => toFixedNumber,
++  toPx: () => toPx,
++  wrap: () => wrap
++});
++module.exports = __toCommonJS(number_exports);
++var { floor, abs, round, min, max, pow, sign } = Math;
++var isNaN = (v) => Number.isNaN(v);
++var nan = (v) => isNaN(v) ? 0 : v;
++var mod = (v, m) => (v % m + m) % m;
++var wrap = (v, vmax) => (v % vmax + vmax) % vmax;
++var getMinValueAtIndex = (i, v, vmin) => i === 0 ? vmin : v[i - 1];
++var getMaxValueAtIndex = (i, v, vmax) => i === v.length - 1 ? vmax : v[i + 1];
++var isValueAtMax = (v, vmax) => nan(v) >= vmax;
++var isValueAtMin = (v, vmin) => nan(v) <= vmin;
++var isValueWithinRange = (v, vmin, vmax) => {
++  const value = nan(v);
++  const minCheck = vmin == null || value >= vmin;
++  const maxCheck = vmax == null || value <= vmax;
++  return minCheck && maxCheck;
++};
++var roundValue = (v, vmin, step) => round((nan(v) - vmin) / step) * step + vmin;
++var clampValue = (v, vmin, vmax) => min(max(nan(v), vmin), vmax);
++var clampPercent = (v) => clampValue(v, 0, 1);
++var getValuePercent = (v, vmin, vmax) => (nan(v) - vmin) / (vmax - vmin);
++var getPercentValue = (p, vmin, vmax, step) => clampValue(roundValue(p * (vmax - vmin) + vmin, vmin, step), vmin, vmax);
++var roundToStepPrecision = (v, step) => {
++  let rv = v;
++  let ss = step.toString();
++  let pi = ss.indexOf(".");
++  let p = pi >= 0 ? ss.length - pi : 0;
++  if (p > 0) {
++    let pw = pow(10, p);
++    rv = round(rv * pw) / pw;
++  }
++  return rv;
++};
++var roundToDpr = (v, dpr) => typeof dpr === "number" ? floor(v * dpr + 0.5) / dpr : round(v);
++var snapValueToStep = (v, vmin, vmax, step) => {
++  const min2 = vmin != null ? Number(vmin) : 0;
++  const max2 = Number(vmax);
++  const remainder = (v - min2) % step;
++  let snapped = abs(remainder) * 2 >= step ? v + sign(remainder) * (step - abs(remainder)) : v - remainder;
++  snapped = roundToStepPrecision(snapped, step);
++  if (!isNaN(min2) && snapped < min2) {
++    snapped = min2;
++  } else if (!isNaN(max2) && snapped > max2) {
++    const stepsInRange = floor((max2 - min2) / step);
++    const largestValidStep = min2 + stepsInRange * step;
++    snapped = stepsInRange <= 0 || largestValidStep < min2 ? max2 : largestValidStep;
++  }
++  return roundToStepPrecision(snapped, step);
++};
++var setValueAtIndex = (vs, i, v) => {
++  if (vs[i] === v) return vs;
++  return [...vs.slice(0, i), v, ...vs.slice(i + 1)];
++};
++function getValueSetterAtIndex(index, ctx) {
++  const minValueAtIndex = getMinValueAtIndex(index, ctx.values, ctx.min);
++  const maxValueAtIndex = getMaxValueAtIndex(index, ctx.values, ctx.max);
++  let nextValues = ctx.values.slice();
++  return function setValue(value) {
++    let nextValue = snapValueToStep(value, minValueAtIndex, maxValueAtIndex, ctx.step);
++    nextValues = setValueAtIndex(nextValues, index, value);
++    nextValues[index] = nextValue;
++    return nextValues;
++  };
++}
++function getNextStepValue(index, ctx) {
++  const nextValue = ctx.values[index] + ctx.step;
++  return getValueSetterAtIndex(index, ctx)(nextValue);
++}
++function getPreviousStepValue(index, ctx) {
++  const nextValue = ctx.values[index] - ctx.step;
++  return getValueSetterAtIndex(index, ctx)(nextValue);
++}
++var getClosestValueIndex = (vs, t) => {
++  let i = vs.findIndex((v) => t - v < 0);
++  if (i === 0) return i;
++  if (i === -1) return vs.length - 1;
++  let vLeft = vs[i - 1];
++  let vRight = vs[i];
++  if (abs(vLeft - t) < abs(vRight - t)) return i - 1;
++  return i;
++};
++var getClosestValue = (vs, t) => vs[getClosestValueIndex(vs, t)];
++var getValueRanges = (vs, vmin, vmax, gap) => vs.map((v, i) => ({
++  min: i === 0 ? vmin : vs[i - 1] + gap,
++  max: i === vs.length - 1 ? vmax : vs[i + 1] - gap,
++  value: v
++}));
++var getValueTransformer = (va, vb) => {
++  const [a, b] = va;
++  const [c, d] = vb;
++  return (v) => a === b || c === d ? c : c + (d - c) / (b - a) * (v - a);
++};
++var toFixedNumber = (v, d = 0, b = 10) => {
++  const pow2 = Math.pow(b, d);
++  return round(v * pow2) / pow2;
++};
++var countDecimals = (value) => {
++  if (!Number.isFinite(value)) return 0;
++  let e = 1, p = 0;
++  while (Math.round(value * e) / e !== value) {
++    e *= 10;
++    p += 1;
++  }
++  return p;
++};
++var decimalOp = (a, op, b) => {
++  let result = op === "+" ? a + b : a - b;
++  if (a % 1 !== 0 || b % 1 !== 0) {
++    const multiplier = 10 ** Math.max(countDecimals(a), countDecimals(b));
++    a = Math.round(a * multiplier);
++    b = Math.round(b * multiplier);
++    result = op === "+" ? a + b : a - b;
++    result /= multiplier;
++  }
++  return result;
++};
++var incrementValue = (v, s) => decimalOp(nan(v), "+", s);
++var decrementValue = (v, s) => decimalOp(nan(v), "-", s);
++var toPx = (v) => typeof v === "number" ? `${v}px` : v;
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  clampPercent,
++  clampValue,
++  decrementValue,
++  getClosestValue,
++  getClosestValueIndex,
++  getMaxValueAtIndex,
++  getMinValueAtIndex,
++  getNextStepValue,
++  getPercentValue,
++  getPreviousStepValue,
++  getValuePercent,
++  getValueRanges,
++  getValueSetterAtIndex,
++  getValueTransformer,
++  incrementValue,
++  isNaN,
++  isValueAtMax,
++  isValueAtMin,
++  isValueWithinRange,
++  mod,
++  nan,
++  roundToDpr,
++  roundToStepPrecision,
++  roundValue,
++  setValueAtIndex,
++  snapValueToStep,
++  toFixedNumber,
++  toPx,
++  wrap
++});
+diff --git a/dist/number.mjs b/dist/number.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c635916a372ae6e5999cc6cc577348f6f477e605
+--- /dev/null
++++ b/dist/number.mjs
+@@ -0,0 +1,151 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/number.ts
++var { floor, abs, round, min, max, pow, sign } = Math;
++var isNaN = (v) => Number.isNaN(v);
++var nan = (v) => isNaN(v) ? 0 : v;
++var mod = (v, m) => (v % m + m) % m;
++var wrap = (v, vmax) => (v % vmax + vmax) % vmax;
++var getMinValueAtIndex = (i, v, vmin) => i === 0 ? vmin : v[i - 1];
++var getMaxValueAtIndex = (i, v, vmax) => i === v.length - 1 ? vmax : v[i + 1];
++var isValueAtMax = (v, vmax) => nan(v) >= vmax;
++var isValueAtMin = (v, vmin) => nan(v) <= vmin;
++var isValueWithinRange = (v, vmin, vmax) => {
++  const value = nan(v);
++  const minCheck = vmin == null || value >= vmin;
++  const maxCheck = vmax == null || value <= vmax;
++  return minCheck && maxCheck;
++};
++var roundValue = (v, vmin, step) => round((nan(v) - vmin) / step) * step + vmin;
++var clampValue = (v, vmin, vmax) => min(max(nan(v), vmin), vmax);
++var clampPercent = (v) => clampValue(v, 0, 1);
++var getValuePercent = (v, vmin, vmax) => (nan(v) - vmin) / (vmax - vmin);
++var getPercentValue = (p, vmin, vmax, step) => clampValue(roundValue(p * (vmax - vmin) + vmin, vmin, step), vmin, vmax);
++var roundToStepPrecision = (v, step) => {
++  let rv = v;
++  let ss = step.toString();
++  let pi = ss.indexOf(".");
++  let p = pi >= 0 ? ss.length - pi : 0;
++  if (p > 0) {
++    let pw = pow(10, p);
++    rv = round(rv * pw) / pw;
++  }
++  return rv;
++};
++var roundToDpr = (v, dpr) => typeof dpr === "number" ? floor(v * dpr + 0.5) / dpr : round(v);
++var snapValueToStep = (v, vmin, vmax, step) => {
++  const min2 = vmin != null ? Number(vmin) : 0;
++  const max2 = Number(vmax);
++  const remainder = (v - min2) % step;
++  let snapped = abs(remainder) * 2 >= step ? v + sign(remainder) * (step - abs(remainder)) : v - remainder;
++  snapped = roundToStepPrecision(snapped, step);
++  if (!isNaN(min2) && snapped < min2) {
++    snapped = min2;
++  } else if (!isNaN(max2) && snapped > max2) {
++    const stepsInRange = floor((max2 - min2) / step);
++    const largestValidStep = min2 + stepsInRange * step;
++    snapped = stepsInRange <= 0 || largestValidStep < min2 ? max2 : largestValidStep;
++  }
++  return roundToStepPrecision(snapped, step);
++};
++var setValueAtIndex = (vs, i, v) => {
++  if (vs[i] === v) return vs;
++  return [...vs.slice(0, i), v, ...vs.slice(i + 1)];
++};
++function getValueSetterAtIndex(index, ctx) {
++  const minValueAtIndex = getMinValueAtIndex(index, ctx.values, ctx.min);
++  const maxValueAtIndex = getMaxValueAtIndex(index, ctx.values, ctx.max);
++  let nextValues = ctx.values.slice();
++  return function setValue(value) {
++    let nextValue = snapValueToStep(value, minValueAtIndex, maxValueAtIndex, ctx.step);
++    nextValues = setValueAtIndex(nextValues, index, value);
++    nextValues[index] = nextValue;
++    return nextValues;
++  };
++}
++function getNextStepValue(index, ctx) {
++  const nextValue = ctx.values[index] + ctx.step;
++  return getValueSetterAtIndex(index, ctx)(nextValue);
++}
++function getPreviousStepValue(index, ctx) {
++  const nextValue = ctx.values[index] - ctx.step;
++  return getValueSetterAtIndex(index, ctx)(nextValue);
++}
++var getClosestValueIndex = (vs, t) => {
++  let i = vs.findIndex((v) => t - v < 0);
++  if (i === 0) return i;
++  if (i === -1) return vs.length - 1;
++  let vLeft = vs[i - 1];
++  let vRight = vs[i];
++  if (abs(vLeft - t) < abs(vRight - t)) return i - 1;
++  return i;
++};
++var getClosestValue = (vs, t) => vs[getClosestValueIndex(vs, t)];
++var getValueRanges = (vs, vmin, vmax, gap) => vs.map((v, i) => ({
++  min: i === 0 ? vmin : vs[i - 1] + gap,
++  max: i === vs.length - 1 ? vmax : vs[i + 1] - gap,
++  value: v
++}));
++var getValueTransformer = (va, vb) => {
++  const [a, b] = va;
++  const [c, d] = vb;
++  return (v) => a === b || c === d ? c : c + (d - c) / (b - a) * (v - a);
++};
++var toFixedNumber = (v, d = 0, b = 10) => {
++  const pow2 = Math.pow(b, d);
++  return round(v * pow2) / pow2;
++};
++var countDecimals = (value) => {
++  if (!Number.isFinite(value)) return 0;
++  let e = 1, p = 0;
++  while (Math.round(value * e) / e !== value) {
++    e *= 10;
++    p += 1;
++  }
++  return p;
++};
++var decimalOp = (a, op, b) => {
++  let result = op === "+" ? a + b : a - b;
++  if (a % 1 !== 0 || b % 1 !== 0) {
++    const multiplier = 10 ** Math.max(countDecimals(a), countDecimals(b));
++    a = Math.round(a * multiplier);
++    b = Math.round(b * multiplier);
++    result = op === "+" ? a + b : a - b;
++    result /= multiplier;
++  }
++  return result;
++};
++var incrementValue = (v, s) => decimalOp(nan(v), "+", s);
++var decrementValue = (v, s) => decimalOp(nan(v), "-", s);
++var toPx = (v) => typeof v === "number" ? `${v}px` : v;
++export {
++  clampPercent,
++  clampValue,
++  decrementValue,
++  getClosestValue,
++  getClosestValueIndex,
++  getMaxValueAtIndex,
++  getMinValueAtIndex,
++  getNextStepValue,
++  getPercentValue,
++  getPreviousStepValue,
++  getValuePercent,
++  getValueRanges,
++  getValueSetterAtIndex,
++  getValueTransformer,
++  incrementValue,
++  isNaN,
++  isValueAtMax,
++  isValueAtMin,
++  isValueWithinRange,
++  mod,
++  nan,
++  roundToDpr,
++  roundToStepPrecision,
++  roundValue,
++  setValueAtIndex,
++  snapValueToStep,
++  toFixedNumber,
++  toPx,
++  wrap
++};
+diff --git a/dist/object.d.mts b/dist/object.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ada89d347512c2a60c95eece421e89601272e7c1
+--- /dev/null
++++ b/dist/object.d.mts
+@@ -0,0 +1,9 @@
++declare function compact<T extends Record<string, unknown> | undefined>(obj: T): T;
++declare const json: (v: any) => any;
++declare function pick<T extends Record<string, any>, K extends keyof T>(obj: T, keys: K[]): Pick<T, K>;
++type Dict = Record<string | symbol, any>;
++declare function splitProps<T extends Dict>(props: T, keys: (keyof T)[]): Dict[];
++declare const createSplitProps: <T extends Dict>(keys: (keyof T)[]) => <Props extends T>(props: Props) => [T, Omit<Props, keyof T>];
++declare function omit<T extends Record<string, any>>(obj: T, keys: string[]): Omit<T, string | number>;
++
++export { compact, createSplitProps, json, omit, pick, splitProps };
+diff --git a/dist/object.d.ts b/dist/object.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ada89d347512c2a60c95eece421e89601272e7c1
+--- /dev/null
++++ b/dist/object.d.ts
+@@ -0,0 +1,9 @@
++declare function compact<T extends Record<string, unknown> | undefined>(obj: T): T;
++declare const json: (v: any) => any;
++declare function pick<T extends Record<string, any>, K extends keyof T>(obj: T, keys: K[]): Pick<T, K>;
++type Dict = Record<string | symbol, any>;
++declare function splitProps<T extends Dict>(props: T, keys: (keyof T)[]): Dict[];
++declare const createSplitProps: <T extends Dict>(keys: (keyof T)[]) => <Props extends T>(props: Props) => [T, Omit<Props, keyof T>];
++declare function omit<T extends Record<string, any>>(obj: T, keys: string[]): Omit<T, string | number>;
++
++export { compact, createSplitProps, json, omit, pick, splitProps };
+diff --git a/dist/object.js b/dist/object.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd37631bc399484ca946dde9c1a53eff7bc887f2
+--- /dev/null
++++ b/dist/object.js
+@@ -0,0 +1,85 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/object.ts
++var object_exports = {};
++__export(object_exports, {
++  compact: () => compact,
++  createSplitProps: () => createSplitProps,
++  json: () => json,
++  omit: () => omit,
++  pick: () => pick,
++  splitProps: () => splitProps
++});
++module.exports = __toCommonJS(object_exports);
++var import_guard = require("./guard.js");
++function compact(obj) {
++  if (!(0, import_guard.isPlainObject)(obj) || obj === void 0) return obj;
++  const keys = Reflect.ownKeys(obj).filter((key) => typeof key === "string");
++  const filtered = {};
++  for (const key of keys) {
++    const value = obj[key];
++    if (value !== void 0) {
++      filtered[key] = compact(value);
++    }
++  }
++  return filtered;
++}
++var json = (v) => JSON.parse(JSON.stringify(v));
++function pick(obj, keys) {
++  const filtered = {};
++  for (const key of keys) {
++    const value = obj[key];
++    if (value !== void 0) {
++      filtered[key] = value;
++    }
++  }
++  return filtered;
++}
++function splitProps(props, keys) {
++  const rest = {};
++  const result = {};
++  const keySet = new Set(keys);
++  const ownKeys = Reflect.ownKeys(props);
++  for (const key of ownKeys) {
++    if (keySet.has(key)) {
++      result[key] = props[key];
++    } else {
++      rest[key] = props[key];
++    }
++  }
++  return [result, rest];
++}
++var createSplitProps = (keys) => {
++  return function split(props) {
++    return splitProps(props, keys);
++  };
++};
++function omit(obj, keys) {
++  return createSplitProps(keys)(obj)[1];
++}
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  compact,
++  createSplitProps,
++  json,
++  omit,
++  pick,
++  splitProps
++});
+diff --git a/dist/object.mjs b/dist/object.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..71651b83a8ac92c131bf2396f5fb03a7bad3738b
+--- /dev/null
++++ b/dist/object.mjs
+@@ -0,0 +1,57 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/object.ts
++import { isPlainObject } from "./guard.mjs";
++function compact(obj) {
++  if (!isPlainObject(obj) || obj === void 0) return obj;
++  const keys = Reflect.ownKeys(obj).filter((key) => typeof key === "string");
++  const filtered = {};
++  for (const key of keys) {
++    const value = obj[key];
++    if (value !== void 0) {
++      filtered[key] = compact(value);
++    }
++  }
++  return filtered;
++}
++var json = (v) => JSON.parse(JSON.stringify(v));
++function pick(obj, keys) {
++  const filtered = {};
++  for (const key of keys) {
++    const value = obj[key];
++    if (value !== void 0) {
++      filtered[key] = value;
++    }
++  }
++  return filtered;
++}
++function splitProps(props, keys) {
++  const rest = {};
++  const result = {};
++  const keySet = new Set(keys);
++  const ownKeys = Reflect.ownKeys(props);
++  for (const key of ownKeys) {
++    if (keySet.has(key)) {
++      result[key] = props[key];
++    } else {
++      rest[key] = props[key];
++    }
++  }
++  return [result, rest];
++}
++var createSplitProps = (keys) => {
++  return function split(props) {
++    return splitProps(props, keys);
++  };
++};
++function omit(obj, keys) {
++  return createSplitProps(keys)(obj)[1];
++}
++export {
++  compact,
++  createSplitProps,
++  json,
++  omit,
++  pick,
++  splitProps
++};
+diff --git a/dist/store.d.mts b/dist/store.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3998d6fe7e50a50dbe1c9854adf8923e6c0ad12
+--- /dev/null
++++ b/dist/store.d.mts
+@@ -0,0 +1,12 @@
++type StoreListener = VoidFunction;
++type StoreCompareFn<T> = (a: T, b: T) => boolean;
++declare function createStore<T extends Record<string, any>>(initialState: T, compare?: StoreCompareFn<T>): Store<T>;
++interface Store<T extends Record<string, any>> {
++    subscribe: (listener: StoreListener) => () => void;
++    get: <K extends keyof T>(key: K) => T[K];
++    set: <K extends keyof T>(key: K, value: T[K]) => void;
++    update: (updates: Partial<T>) => void;
++    snapshot: () => T;
++}
++
++export { type Store, type StoreCompareFn, type StoreListener, createStore };
+diff --git a/dist/store.d.ts b/dist/store.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3998d6fe7e50a50dbe1c9854adf8923e6c0ad12
+--- /dev/null
++++ b/dist/store.d.ts
+@@ -0,0 +1,12 @@
++type StoreListener = VoidFunction;
++type StoreCompareFn<T> = (a: T, b: T) => boolean;
++declare function createStore<T extends Record<string, any>>(initialState: T, compare?: StoreCompareFn<T>): Store<T>;
++interface Store<T extends Record<string, any>> {
++    subscribe: (listener: StoreListener) => () => void;
++    get: <K extends keyof T>(key: K) => T[K];
++    set: <K extends keyof T>(key: K, value: T[K]) => void;
++    update: (updates: Partial<T>) => void;
++    snapshot: () => T;
++}
++
++export { type Store, type StoreCompareFn, type StoreListener, createStore };
+diff --git a/dist/store.js b/dist/store.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..43653546ce1aa935127e658a134fe76bea28bb03
+--- /dev/null
++++ b/dist/store.js
+@@ -0,0 +1,70 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/store.ts
++var store_exports = {};
++__export(store_exports, {
++  createStore: () => createStore
++});
++module.exports = __toCommonJS(store_exports);
++function createStore(initialState, compare = Object.is) {
++  let state = { ...initialState };
++  const listeners = /* @__PURE__ */ new Set();
++  const subscribe = (listener) => {
++    listeners.add(listener);
++    return () => listeners.delete(listener);
++  };
++  const publish = () => {
++    listeners.forEach((listener) => listener());
++  };
++  const get = (key) => {
++    return state[key];
++  };
++  const set = (key, value) => {
++    if (!compare(state[key], value)) {
++      state[key] = value;
++      publish();
++    }
++  };
++  const update = (updates) => {
++    let hasChanges = false;
++    for (const key in updates) {
++      const value = updates[key];
++      if (value !== void 0 && !compare(state[key], value)) {
++        state[key] = value;
++        hasChanges = true;
++      }
++    }
++    if (hasChanges) {
++      publish();
++    }
++  };
++  const snapshot = () => ({ ...state });
++  return {
++    subscribe,
++    get,
++    set,
++    update,
++    snapshot
++  };
++}
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  createStore
++});
+diff --git a/dist/store.mjs b/dist/store.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9214e0d196d7acff2fee2d5a079c50335d09f660
+--- /dev/null
++++ b/dist/store.mjs
+@@ -0,0 +1,47 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/store.ts
++function createStore(initialState, compare = Object.is) {
++  let state = { ...initialState };
++  const listeners = /* @__PURE__ */ new Set();
++  const subscribe = (listener) => {
++    listeners.add(listener);
++    return () => listeners.delete(listener);
++  };
++  const publish = () => {
++    listeners.forEach((listener) => listener());
++  };
++  const get = (key) => {
++    return state[key];
++  };
++  const set = (key, value) => {
++    if (!compare(state[key], value)) {
++      state[key] = value;
++      publish();
++    }
++  };
++  const update = (updates) => {
++    let hasChanges = false;
++    for (const key in updates) {
++      const value = updates[key];
++      if (value !== void 0 && !compare(state[key], value)) {
++        state[key] = value;
++        hasChanges = true;
++      }
++    }
++    if (hasChanges) {
++      publish();
++    }
++  };
++  const snapshot = () => ({ ...state });
++  return {
++    subscribe,
++    get,
++    set,
++    update,
++    snapshot
++  };
++}
++export {
++  createStore
++};
+diff --git a/dist/timers.d.mts b/dist/timers.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f557a9b4566f7c942a7715a7b0fb011577802e7b
+--- /dev/null
++++ b/dist/timers.d.mts
+@@ -0,0 +1,26 @@
++interface TimerBaseContext {
++    startMs: number;
++    deltaMs: number;
++}
++interface TimerContext extends TimerBaseContext {
++    now: number;
++}
++type TimerContextFn = (ctx: TimerContext) => boolean | void;
++declare class Timer {
++    #private;
++    private readonly onTick;
++    private frameId;
++    private pausedAtMs;
++    private context;
++    constructor(onTick: TimerContextFn);
++    private cancelFrame;
++    setStartMs: (startMs: number) => void;
++    get elapsedMs(): number;
++    start: () => void;
++    pause: () => void;
++    stop: () => void;
++}
++declare function setRafInterval(fn: (ctx: TimerBaseContext) => void, intervalMs: number): () => void;
++declare function setRafTimeout(fn: () => void, delayMs: number): () => void;
++
++export { Timer, type TimerBaseContext, type TimerContextFn, setRafInterval, setRafTimeout };
+diff --git a/dist/timers.d.ts b/dist/timers.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f557a9b4566f7c942a7715a7b0fb011577802e7b
+--- /dev/null
++++ b/dist/timers.d.ts
+@@ -0,0 +1,26 @@
++interface TimerBaseContext {
++    startMs: number;
++    deltaMs: number;
++}
++interface TimerContext extends TimerBaseContext {
++    now: number;
++}
++type TimerContextFn = (ctx: TimerContext) => boolean | void;
++declare class Timer {
++    #private;
++    private readonly onTick;
++    private frameId;
++    private pausedAtMs;
++    private context;
++    constructor(onTick: TimerContextFn);
++    private cancelFrame;
++    setStartMs: (startMs: number) => void;
++    get elapsedMs(): number;
++    start: () => void;
++    pause: () => void;
++    stop: () => void;
++}
++declare function setRafInterval(fn: (ctx: TimerBaseContext) => void, intervalMs: number): () => void;
++declare function setRafTimeout(fn: () => void, delayMs: number): () => void;
++
++export { Timer, type TimerBaseContext, type TimerContextFn, setRafInterval, setRafTimeout };
+diff --git a/dist/timers.js b/dist/timers.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..8f2029ef1202756c3e662d05b107791f9c46b2c4
+--- /dev/null
++++ b/dist/timers.js
+@@ -0,0 +1,119 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __typeError = (msg) => {
++  throw TypeError(msg);
++};
++var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
++var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
++var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
++var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
++
++// src/timers.ts
++var timers_exports = {};
++__export(timers_exports, {
++  Timer: () => Timer,
++  setRafInterval: () => setRafInterval,
++  setRafTimeout: () => setRafTimeout
++});
++module.exports = __toCommonJS(timers_exports);
++var currentTime = () => performance.now();
++var _tick;
++var Timer = class {
++  constructor(onTick) {
++    this.onTick = onTick;
++    __publicField(this, "frameId", null);
++    __publicField(this, "pausedAtMs", null);
++    __publicField(this, "context");
++    __publicField(this, "cancelFrame", () => {
++      if (this.frameId === null) return;
++      cancelAnimationFrame(this.frameId);
++      this.frameId = null;
++    });
++    __publicField(this, "setStartMs", (startMs) => {
++      this.context.startMs = startMs;
++    });
++    __publicField(this, "start", () => {
++      if (this.frameId !== null) return;
++      const now = currentTime();
++      if (this.pausedAtMs !== null) {
++        this.context.startMs += now - this.pausedAtMs;
++        this.pausedAtMs = null;
++      } else {
++        this.context.startMs = now;
++      }
++      this.frameId = requestAnimationFrame(__privateGet(this, _tick));
++    });
++    __publicField(this, "pause", () => {
++      if (this.frameId === null) return;
++      this.cancelFrame();
++      this.pausedAtMs = currentTime();
++    });
++    __publicField(this, "stop", () => {
++      if (this.frameId === null) return;
++      this.cancelFrame();
++      this.pausedAtMs = null;
++    });
++    __privateAdd(this, _tick, (now) => {
++      this.context.now = now;
++      this.context.deltaMs = now - this.context.startMs;
++      const shouldContinue = this.onTick(this.context);
++      if (shouldContinue === false) {
++        this.stop();
++        return;
++      }
++      this.frameId = requestAnimationFrame(__privateGet(this, _tick));
++    });
++    this.context = { now: 0, startMs: currentTime(), deltaMs: 0 };
++  }
++  get elapsedMs() {
++    if (this.pausedAtMs !== null) {
++      return this.pausedAtMs - this.context.startMs;
++    }
++    return currentTime() - this.context.startMs;
++  }
++};
++_tick = new WeakMap();
++function setRafInterval(fn, intervalMs) {
++  const timer = new Timer(({ now, deltaMs }) => {
++    if (deltaMs >= intervalMs) {
++      const startMs = intervalMs > 0 ? now - deltaMs % intervalMs : now;
++      timer.setStartMs(startMs);
++      fn({ startMs, deltaMs });
++    }
++  });
++  timer.start();
++  return () => timer.stop();
++}
++function setRafTimeout(fn, delayMs) {
++  const timer = new Timer(({ deltaMs }) => {
++    if (deltaMs >= delayMs) {
++      fn();
++      return false;
++    }
++  });
++  timer.start();
++  return () => timer.stop();
++}
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  Timer,
++  setRafInterval,
++  setRafTimeout
++});
+diff --git a/dist/timers.mjs b/dist/timers.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..25cb7da8b1535a3a1ec8321551901ffa535c0f3f
+--- /dev/null
++++ b/dist/timers.mjs
+@@ -0,0 +1,90 @@
++import {
++  __privateAdd,
++  __privateGet,
++  __publicField
++} from "./chunk-MXGZDBDQ.mjs";
++
++// src/timers.ts
++var currentTime = () => performance.now();
++var _tick;
++var Timer = class {
++  constructor(onTick) {
++    this.onTick = onTick;
++    __publicField(this, "frameId", null);
++    __publicField(this, "pausedAtMs", null);
++    __publicField(this, "context");
++    __publicField(this, "cancelFrame", () => {
++      if (this.frameId === null) return;
++      cancelAnimationFrame(this.frameId);
++      this.frameId = null;
++    });
++    __publicField(this, "setStartMs", (startMs) => {
++      this.context.startMs = startMs;
++    });
++    __publicField(this, "start", () => {
++      if (this.frameId !== null) return;
++      const now = currentTime();
++      if (this.pausedAtMs !== null) {
++        this.context.startMs += now - this.pausedAtMs;
++        this.pausedAtMs = null;
++      } else {
++        this.context.startMs = now;
++      }
++      this.frameId = requestAnimationFrame(__privateGet(this, _tick));
++    });
++    __publicField(this, "pause", () => {
++      if (this.frameId === null) return;
++      this.cancelFrame();
++      this.pausedAtMs = currentTime();
++    });
++    __publicField(this, "stop", () => {
++      if (this.frameId === null) return;
++      this.cancelFrame();
++      this.pausedAtMs = null;
++    });
++    __privateAdd(this, _tick, (now) => {
++      this.context.now = now;
++      this.context.deltaMs = now - this.context.startMs;
++      const shouldContinue = this.onTick(this.context);
++      if (shouldContinue === false) {
++        this.stop();
++        return;
++      }
++      this.frameId = requestAnimationFrame(__privateGet(this, _tick));
++    });
++    this.context = { now: 0, startMs: currentTime(), deltaMs: 0 };
++  }
++  get elapsedMs() {
++    if (this.pausedAtMs !== null) {
++      return this.pausedAtMs - this.context.startMs;
++    }
++    return currentTime() - this.context.startMs;
++  }
++};
++_tick = new WeakMap();
++function setRafInterval(fn, intervalMs) {
++  const timer = new Timer(({ now, deltaMs }) => {
++    if (deltaMs >= intervalMs) {
++      const startMs = intervalMs > 0 ? now - deltaMs % intervalMs : now;
++      timer.setStartMs(startMs);
++      fn({ startMs, deltaMs });
++    }
++  });
++  timer.start();
++  return () => timer.stop();
++}
++function setRafTimeout(fn, delayMs) {
++  const timer = new Timer(({ deltaMs }) => {
++    if (deltaMs >= delayMs) {
++      fn();
++      return false;
++    }
++  });
++  timer.start();
++  return () => timer.stop();
++}
++export {
++  Timer,
++  setRafInterval,
++  setRafTimeout
++};
+diff --git a/dist/warning.d.mts b/dist/warning.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..bedcbf0b0b484dac2dad24e08dc96a552e2bbc77
+--- /dev/null
++++ b/dist/warning.d.mts
+@@ -0,0 +1,9 @@
++declare function warn(m: string): void;
++declare function warn(c: boolean, m: string): void;
++declare function invariant(m: string): void;
++declare function invariant(c: boolean, m: string): void;
++declare function ensure<T>(c: T | null | undefined, m: () => string): asserts c is T;
++type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
++declare function ensureProps<T, K extends keyof T>(props: T, keys: K[], scope?: string): asserts props is T & RequiredBy<T, K>;
++
++export { ensure, ensureProps, invariant, warn };
+diff --git a/dist/warning.d.ts b/dist/warning.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..bedcbf0b0b484dac2dad24e08dc96a552e2bbc77
+--- /dev/null
++++ b/dist/warning.d.ts
+@@ -0,0 +1,9 @@
++declare function warn(m: string): void;
++declare function warn(c: boolean, m: string): void;
++declare function invariant(m: string): void;
++declare function invariant(c: boolean, m: string): void;
++declare function ensure<T>(c: T | null | undefined, m: () => string): asserts c is T;
++type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
++declare function ensureProps<T, K extends keyof T>(props: T, keys: K[], scope?: string): asserts props is T & RequiredBy<T, K>;
++
++export { ensure, ensureProps, invariant, warn };
+diff --git a/dist/warning.js b/dist/warning.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ad5aa70ed5c6b63ec8c98c6abe8d70d889dffcbb
+--- /dev/null
++++ b/dist/warning.js
+@@ -0,0 +1,60 @@
++"use strict";
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++
++// src/warning.ts
++var warning_exports = {};
++__export(warning_exports, {
++  ensure: () => ensure,
++  ensureProps: () => ensureProps,
++  invariant: () => invariant,
++  warn: () => warn
++});
++module.exports = __toCommonJS(warning_exports);
++function warn(...a) {
++  const m = a.length === 1 ? a[0] : a[1];
++  const c = a.length === 2 ? a[0] : true;
++  if (c && process.env.NODE_ENV !== "production") {
++    console.warn(m);
++  }
++}
++function invariant(...a) {
++  const m = a.length === 1 ? a[0] : a[1];
++  const c = a.length === 2 ? a[0] : true;
++  if (c && process.env.NODE_ENV !== "production") {
++    throw new Error(m);
++  }
++}
++function ensure(c, m) {
++  if (c == null) throw new Error(m());
++}
++function ensureProps(props, keys, scope) {
++  let missingKeys = [];
++  for (const key of keys) {
++    if (props[key] == null) missingKeys.push(key);
++  }
++  if (missingKeys.length > 0)
++    throw new Error(`[zag-js${scope ? ` > ${scope}` : ""}] missing required props: ${missingKeys.join(", ")}`);
++}
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  ensure,
++  ensureProps,
++  invariant,
++  warn
++});
+diff --git a/dist/warning.mjs b/dist/warning.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..22c2212eab5db48502e9a9689439ff017a2b0907
+--- /dev/null
++++ b/dist/warning.mjs
+@@ -0,0 +1,34 @@
++import "./chunk-MXGZDBDQ.mjs";
++
++// src/warning.ts
++function warn(...a) {
++  const m = a.length === 1 ? a[0] : a[1];
++  const c = a.length === 2 ? a[0] : true;
++  if (c && process.env.NODE_ENV !== "production") {
++    console.warn(m);
++  }
++}
++function invariant(...a) {
++  const m = a.length === 1 ? a[0] : a[1];
++  const c = a.length === 2 ? a[0] : true;
++  if (c && process.env.NODE_ENV !== "production") {
++    throw new Error(m);
++  }
++}
++function ensure(c, m) {
++  if (c == null) throw new Error(m());
++}
++function ensureProps(props, keys, scope) {
++  let missingKeys = [];
++  for (const key of keys) {
++    if (props[key] == null) missingKeys.push(key);
++  }
++  if (missingKeys.length > 0)
++    throw new Error(`[zag-js${scope ? ` > ${scope}` : ""}] missing required props: ${missingKeys.join(", ")}`);
++}
++export {
++  ensure,
++  ensureProps,
++  invariant,
++  warn
++};

@@ -1,0 +1,332 @@
+import type MarkdownIt from "markdown-it";
+import type { SseSlidesData } from "../../lib/runtime-contracts";
+import type { SlidesLayout } from "../../lib/settings";
+import { createSlideImageLoader, normalizeSlideImageUrl } from "./slide-images";
+import {
+  normalizeSlidesPayload,
+  resolveSlidesPayload,
+  slidesPayloadChanged,
+} from "./slides-payload";
+import { createSlidesRenderer } from "./slides-renderer";
+import { formatSlideTimestamp } from "./slides-state";
+import { renderSummaryMarkdownDisplay } from "./summary-renderer";
+import type { PanelPhase, PanelState, UiState } from "./types";
+
+export function createSlidesViewRuntime({
+  renderMarkdownHostEl,
+  renderSlidesHostEl,
+  chatMessagesEl,
+  md,
+  headerSetStatus,
+  headerSetProgressOverride,
+  slidesTextController,
+  panelCacheController,
+  send,
+  refreshSummarizeControl,
+  hideSlideNotice,
+  getState,
+  setSlidesBusyValue,
+  getSlidesBusy,
+  setSlidesContextPending,
+  getSlidesContextPending,
+  setSlidesContextUrl,
+  getSlidesContextUrl,
+  setSlidesSeededSourceId,
+  getSlidesSeededSourceId,
+  setSlidesAppliedRunId,
+  getSlidesAppliedRunId,
+  resolveActiveSlidesRunId,
+  nextSlidesContextRequestId,
+  setSlidesExpanded,
+}: {
+  renderMarkdownHostEl: HTMLElement;
+  renderSlidesHostEl: HTMLElement;
+  chatMessagesEl: HTMLElement;
+  md: MarkdownIt;
+  headerSetStatus: (text: string) => void;
+  headerSetProgressOverride: (busy: boolean) => void;
+  slidesTextController: {
+    hasSummaryTitles: () => boolean;
+    updateSummaryFromMarkdown: (
+      markdown: string,
+      opts?: { preserveIfEmpty?: boolean; source?: "summary" | "slides" },
+    ) => boolean;
+    rebuildDescriptions: () => void;
+    syncTextState: () => void;
+    getDescriptions: () => Map<number, string>;
+    getTitles: () => Map<number, string>;
+    getDescriptionEntries: () => Array<[number, string]>;
+    getTranscriptTimedText: () => string | null;
+  };
+  panelCacheController: { scheduleSync: () => void };
+  send: (
+    message:
+      | { type: "panel:seek"; seconds: number }
+      | { type: "panel:slides-context"; requestId: string; url?: string },
+  ) => Promise<void>;
+  refreshSummarizeControl: () => void;
+  hideSlideNotice: () => void;
+  getState: () => {
+    activeTabUrl: string | null;
+    autoSummarize: boolean;
+    currentSourceTitle: string | null;
+    currentSourceUrl: string | null;
+    inputMode: "page" | "video";
+    panelState: PanelState;
+    slidesEnabled: boolean;
+    slidesLayout: SlidesLayout;
+    slidesExpanded: boolean;
+    mediaAvailable: boolean;
+  };
+  setSlidesBusyValue: (value: boolean) => void;
+  getSlidesBusy: () => boolean;
+  setSlidesContextPending: (value: boolean) => void;
+  getSlidesContextPending: () => boolean;
+  setSlidesContextUrl: (value: string | null) => void;
+  getSlidesContextUrl: () => string | null;
+  setSlidesSeededSourceId: (value: string | null) => void;
+  getSlidesSeededSourceId: () => string | null;
+  setSlidesAppliedRunId: (value: string | null) => void;
+  getSlidesAppliedRunId: () => string | null;
+  resolveActiveSlidesRunId: () => string | null;
+  nextSlidesContextRequestId: () => number;
+  setSlidesExpanded: (value: boolean) => void;
+}) {
+  const slideImageLoader = createSlideImageLoader();
+
+  const seekToSlideTimestamp = (seconds: number | null | undefined) => {
+    if (seconds == null || !Number.isFinite(seconds)) return;
+    void send({ type: "panel:seek", seconds: Math.floor(seconds) });
+  };
+
+  const rebuildSlideDescriptions = () => {
+    slidesTextController.rebuildDescriptions();
+  };
+
+  const queueSlidesRender = () => {
+    slidesRenderer.queueRender();
+  };
+
+  const updateSlidesTextState = () => {
+    slidesTextController.syncTextState();
+    refreshSummarizeControl();
+    queueSlidesRender();
+  };
+
+  const updateSlideThumb = (
+    img: HTMLImageElement,
+    thumb: HTMLElement,
+    imageUrl: string | null | undefined,
+  ) => {
+    if (imageUrl) {
+      thumb.classList.add("isPlaceholder");
+      slideImageLoader.observe(img, imageUrl);
+      return;
+    }
+    thumb.classList.add("isPlaceholder");
+    img.removeAttribute("src");
+    img.dataset.loaded = "false";
+    img.dataset.slideImageUrl = "";
+  };
+
+  const updateSlideMeta = (
+    el: HTMLElement,
+    index: number,
+    timestamp: number | null | undefined,
+    title?: string | null,
+    total?: number | null,
+  ) => {
+    const formatted = formatSlideTimestamp(timestamp);
+    const totalCount = typeof total === "number" && total > 0 ? total : null;
+    const slideLabel = totalCount ? `Slide ${index}/${totalCount}` : `Slide ${index}`;
+    if (title) {
+      el.textContent = formatted ? `${title} · ${formatted}` : title;
+      return;
+    }
+    if (formatted) {
+      el.textContent = `${slideLabel} · ${formatted}`;
+      return;
+    }
+    el.textContent = slideLabel;
+  };
+
+  const slidesRenderer = createSlidesRenderer({
+    hostEl: renderSlidesHostEl,
+    markdownHostEl: renderMarkdownHostEl,
+    getState: () => {
+      const state = getState();
+      return {
+        slidesEnabled: state.slidesEnabled,
+        inputMode: state.inputMode,
+        preferredLayout: state.slidesLayout,
+        slidesExpanded: state.slidesExpanded,
+        slides: state.panelState.slides,
+        descriptions: slidesTextController.getDescriptions(),
+        titles: slidesTextController.getTitles(),
+      };
+    },
+    ensureDescriptions: rebuildSlideDescriptions,
+    onSeek: seekToSlideTimestamp,
+    setExpanded: setSlidesExpanded,
+    updateThumb: updateSlideThumb,
+    updateMeta: updateSlideMeta,
+  });
+
+  const renderInlineSlides = (container: HTMLElement, opts?: { fallback?: boolean }) => {
+    slidesRenderer.renderInline(container, opts);
+  };
+
+  const renderMarkdownDisplay = () => {
+    const state = getState();
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: state.activeTabUrl,
+      autoSummarize: state.autoSummarize,
+      currentSourceTitle: state.currentSourceTitle,
+      currentSourceUrl: state.currentSourceUrl,
+      hasSlides: Boolean(state.panelState.slides?.slides.length),
+      headerSetStatus,
+      hostEl: renderMarkdownHostEl,
+      inputMode: state.inputMode,
+      markdown: state.panelState.summaryMarkdown ?? "",
+      md,
+      phase: state.panelState.phase,
+      renderInlineSlides,
+      slidesEnabled: state.slidesEnabled,
+      slidesLayout: state.slidesLayout,
+      tabTitle: state.panelState.ui?.tab.title ?? null,
+      tabUrl: state.panelState.ui?.tab.url ?? null,
+    });
+  };
+
+  const renderEmptySummaryState = () => {
+    const state = getState();
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: state.activeTabUrl,
+      autoSummarize: state.autoSummarize,
+      currentSourceTitle: state.currentSourceTitle,
+      currentSourceUrl: state.currentSourceUrl,
+      hasSlides: Boolean(state.panelState.slides?.slides.length),
+      headerSetStatus,
+      hostEl: renderMarkdownHostEl,
+      inputMode: state.inputMode,
+      markdown: "",
+      md,
+      phase: state.panelState.phase,
+      renderInlineSlides,
+      slidesEnabled: state.slidesEnabled,
+      slidesLayout: state.slidesLayout,
+      tabTitle: state.panelState.ui?.tab.title ?? null,
+      tabUrl: state.panelState.ui?.tab.url ?? null,
+    });
+  };
+
+  const updateSlideSummaryFromMarkdown = (
+    markdown: string,
+    opts?: { preserveIfEmpty?: boolean; source?: "summary" | "slides" },
+  ) => {
+    const changed = slidesTextController.updateSummaryFromMarkdown(markdown, opts);
+    if (!changed) return;
+    queueSlidesRender();
+  };
+
+  const renderMarkdown = (markdown: string) => {
+    const state = getState();
+    state.panelState.summaryMarkdown = markdown;
+    updateSlideSummaryFromMarkdown(markdown, {
+      preserveIfEmpty: slidesTextController.hasSummaryTitles(),
+      source: "summary",
+    });
+    renderMarkdownDisplay();
+    panelCacheController.scheduleSync();
+  };
+
+  const setSlidesBusy = (next: boolean) => {
+    if (getSlidesBusy() === next) return;
+    setSlidesBusyValue(next);
+    const toggle = document.querySelector<HTMLButtonElement>(".summarizeSlideToggle");
+    if (toggle) {
+      toggle.dataset.busy = next ? "true" : "false";
+    }
+    headerSetProgressOverride(next);
+    refreshSummarizeControl();
+  };
+
+  const requestSlidesContext = async () => {
+    const state = getState();
+    if (!state.panelState.slides || getSlidesContextPending()) return;
+    const sourceUrl = state.panelState.slides.sourceUrl || state.currentSourceUrl || null;
+    if (sourceUrl && getSlidesContextUrl() === sourceUrl) return;
+    setSlidesContextPending(true);
+    const requestId = `slides-${nextSlidesContextRequestId()}`;
+    setSlidesContextUrl(sourceUrl);
+    void send({ type: "panel:slides-context", requestId, url: sourceUrl ?? undefined });
+  };
+
+  const applySlidesPayload = (
+    data: SseSlidesData,
+    setSlidesTranscriptTimedText: (value: string | null) => void,
+  ) => {
+    const state = getState();
+    const safePayload = normalizeSlidesPayload(data);
+    if (!safePayload) return;
+    const isSameSource = Boolean(
+      state.panelState.slides && state.panelState.slides.sourceId === safePayload.sourceId,
+    );
+    const activeSlidesRunId = resolveActiveSlidesRunId();
+    const normalized: SseSlidesData = {
+      ...safePayload,
+      slides: safePayload.slides.map((slide) => ({
+        ...slide,
+        imageUrl: normalizeSlideImageUrl(slide.imageUrl, safePayload.sourceId, slide.index),
+      })),
+    };
+    const shouldReplaceSeeded = getSlidesSeededSourceId() === safePayload.sourceId;
+    const merged = resolveSlidesPayload(state.panelState.slides, normalized, {
+      seededSourceId: getSlidesSeededSourceId(),
+      activeSlidesRunId,
+      appliedSlidesRunId: getSlidesAppliedRunId(),
+    });
+    if (shouldReplaceSeeded) {
+      setSlidesSeededSourceId(null);
+    }
+    if (!slidesPayloadChanged(state.panelState.slides, merged)) {
+      if (activeSlidesRunId) {
+        setSlidesAppliedRunId(activeSlidesRunId);
+      }
+      return;
+    }
+    state.panelState.slides = merged;
+    if (activeSlidesRunId) {
+      setSlidesAppliedRunId(activeSlidesRunId);
+    }
+    if (!isSameSource) {
+      setSlidesContextPending(false);
+      setSlidesContextUrl(null);
+      setSlidesTranscriptTimedText(null);
+      void requestSlidesContext();
+    }
+    updateSlidesTextState();
+    if (state.panelState.summaryMarkdown) {
+      renderInlineSlides(renderMarkdownHostEl, { fallback: true });
+    }
+    hideSlideNotice();
+    renderInlineSlides(chatMessagesEl);
+    queueSlidesRender();
+    panelCacheController.scheduleSync();
+  };
+
+  return {
+    slidesRenderer,
+    renderEmptySummaryState,
+    renderMarkdownDisplay,
+    renderMarkdown,
+    updateSlideSummaryFromMarkdown,
+    setSlidesBusy,
+    applySlidesPayload,
+    requestSlidesContext,
+    queueSlidesRender,
+    renderInlineSlides,
+    rebuildSlideDescriptions,
+    updateSlidesTextState,
+  };
+}
