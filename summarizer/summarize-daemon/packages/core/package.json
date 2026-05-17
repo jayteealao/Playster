@@ -1,0 +1,67 @@
+{
+  "name": "@steipete/summarize-core",
+  "version": "0.15.2",
+  "description": "Summarize core library (content extraction + prompts).",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./content": {
+      "types": "./dist/types/content/index.d.ts",
+      "import": "./dist/esm/content/index.js"
+    },
+    "./content/url": {
+      "types": "./dist/types/content/url.d.ts",
+      "import": "./dist/esm/content/url.js"
+    },
+    "./content/local-file": {
+      "types": "./dist/types/content/local-file.d.ts",
+      "import": "./dist/esm/content/local-file.js"
+    },
+    "./prompts": {
+      "types": "./dist/types/prompts/index.d.ts",
+      "import": "./dist/esm/prompts/index.js"
+    },
+    "./processes": {
+      "types": "./dist/types/processes.d.ts",
+      "import": "./dist/esm/processes.js"
+    },
+    "./language": {
+      "types": "./dist/types/language.d.ts",
+      "import": "./dist/esm/language.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm clean && tsgo -p tsconfig.build.json",
+    "clean": "rimraf dist",
+    "typecheck": "tsgo -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@fal-ai/client": "^1.10.1",
+    "@mozilla/readability": "0.6.0",
+    "cheerio": "^1.2.0",
+    "es-toolkit": "^1.46.1",
+    "jsdom": "29.1.1",
+    "sanitize-html": "^2.17.4"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.12.4",
+    "@types/sanitize-html": "^2.16.1",
+    "rimraf": "^6.1.3",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

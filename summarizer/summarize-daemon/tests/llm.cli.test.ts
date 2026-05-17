@@ -1,0 +1,774 @@
+import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import type { CliProvider } from "../src/config.js";
+import { isCliDisabled, resolveCliBinary, runCliModel } from "../src/llm/cli.js";
+import type { ExecFileFn } from "../src/markitdown.js";
+
+const makeStub = (handler: (args: string[]) => { stdout?: string; stderr?: string }) => {
+  const execFileStub: ExecFileFn = ((_cmd, args, _options, cb) => {
+    const result = handler(args);
+    const stdout = result.stdout ?? "";
+    const stderr = result.stderr ?? "";
+    if (cb) cb(null, stdout, stderr);
+    return {
+      stdin: {
+        write: () => {},
+        end: () => {},
+      },
+    } as unknown as ReturnType<ExecFileFn>;
+  }) as ExecFileFn;
+  return execFileStub;
+};
+
+describe("runCliModel", () => {
+  it("handles Claude JSON output and tool flags", async () => {
+    const seen: string[][] = [];
+    const execFileImpl = makeStub((args) => {
+      seen.push(args);
+      return {
+        stdout: JSON.stringify({
+          result: "ok",
+          total_cost_usd: 0.0125,
+          usage: {
+            input_tokens: 4,
+            cache_creation_input_tokens: 1,
+            cache_read_input_tokens: 2,
+            output_tokens: 3,
+          },
+        }),
+      };
+    });
+    const result = await runCliModel({
+      provider: "claude",
+      prompt: "Test",
+      model: "sonnet",
+      allowTools: true,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("ok");
+    expect(result.costUsd).toBe(0.0125);
+    expect(result.usage).toEqual({
+      promptTokens: 7,
+      completionTokens: 3,
+      totalTokens: 10,
+    });
+    expect(seen[0]?.includes("--tools")).toBe(true);
+    expect(seen[0]?.includes("--dangerously-skip-permissions")).toBe(true);
+  });
+
+  it("handles Gemini JSON output and yolo flag", async () => {
+    const seen: string[][] = [];
+    const execFileImpl = makeStub((args) => {
+      seen.push(args);
+      return {
+        stdout: JSON.stringify({
+          response: "ok",
+          stats: {
+            models: {
+              "gemini-3-flash-preview": {
+                tokens: { prompt: 5, candidates: 7, total: 12 },
+              },
+            },
+          },
+        }),
+      };
+    });
+    const result = await runCliModel({
+      provider: "gemini",
+      prompt: "Test",
+      model: "gemini-3-flash-preview",
+      allowTools: true,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("ok");
+    expect(result.usage).toEqual({
+      promptTokens: 5,
+      completionTokens: 7,
+      totalTokens: 12,
+    });
+    expect(seen[0]?.includes("--yolo")).toBe(true);
+    expect(seen[0]?.includes("--prompt")).toBe(true);
+    expect(seen[0]?.includes("Test")).toBe(true);
+  });
+
+  it("sets GEMINI_CLI_NO_RELAUNCH by default for Gemini", async () => {
+    let seenEnv: Record<string, unknown> | null = null;
+
+    const execFileImpl: ExecFileFn = ((_cmd, _args, options, cb) => {
+      seenEnv = (options as { env?: Record<string, unknown> } | null)?.env ?? null;
+      cb?.(null, JSON.stringify({ response: "ok" }), "");
+      return {
+        stdin: {
+          write: () => {},
+          end: () => {},
+        },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    await runCliModel({
+      provider: "gemini",
+      prompt: "Test",
+      model: "gemini-3-flash-preview",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+
+    expect(seenEnv?.GEMINI_CLI_NO_RELAUNCH).toBe("true");
+  });
+
+  it("adds provider and call-site extra args", async () => {
+    const seen: string[][] = [];
+    const execFileImpl = makeStub((args) => {
+      seen.push(args);
+      return { stdout: JSON.stringify({ result: "ok" }) };
+    });
+    const result = await runCliModel({
+      provider: "claude",
+      prompt: "Test",
+      model: null,
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: { claude: { extraArgs: ["--foo"] } },
+      extraArgs: ["--bar"],
+    });
+    expect(result.text).toBe("ok");
+    expect(seen[0]).toContain("--foo");
+    expect(seen[0]).toContain("--bar");
+  });
+
+  it("adds Agent provider extra args", async () => {
+    const seen: string[][] = [];
+    const execFileImpl = makeStub((args) => {
+      seen.push(args);
+      return { stdout: JSON.stringify({ result: "ok" }) };
+    });
+    const result = await runCliModel({
+      provider: "agent",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: { agent: { extraArgs: ["--header", "x-test: 1"] } },
+    });
+    expect(result.text).toBe("ok");
+    expect(seen[0]).toContain("--header");
+    expect(seen[0]).toContain("x-test: 1");
+  });
+
+  it("uses OpenClaw provider config and parses payload text", async () => {
+    const seen: string[][] = [];
+    const result = await runCliModel({
+      provider: "openclaw",
+      prompt: "Test",
+      model: "main",
+      allowTools: false,
+      timeoutMs: 2500,
+      env: { OPENCLAW_PATH: "/env/openclaw" },
+      execFileImpl: makeStub((args) => {
+        seen.push(args);
+        return {
+          stdout: JSON.stringify({
+            result: {
+              payloads: [{ text: "hello" }, { text: "world" }],
+              meta: {
+                agentMeta: {
+                  usage: { promptTokens: 4, completionTokens: 5, totalTokens: 9 },
+                },
+              },
+            },
+          }),
+        };
+      }),
+      config: { openclaw: { binary: "/custom/openclaw", extraArgs: ["--profile", "dev"] } },
+    });
+    expect(result.text).toBe("hello\n\nworld");
+    expect(result.usage).toEqual({ promptTokens: 4, completionTokens: 5, totalTokens: 9 });
+    expect(seen[0]?.slice(0, 2)).toEqual(["--profile", "dev"]);
+    expect(seen[0]).toContain("--agent");
+    expect(seen[0]).toContain("main");
+    expect(seen[0]).toContain("-m");
+    expect(seen[0]).toContain("Test");
+    expect(seen[0]).toContain("--timeout");
+    expect(seen[0]).toContain("3");
+  });
+
+  it("handles Agent CLI JSON output in ask mode", async () => {
+    const seen: string[][] = [];
+    const execFileImpl = makeStub((args) => {
+      seen.push(args);
+      return { stdout: JSON.stringify({ result: "ok" }) };
+    });
+    const result = await runCliModel({
+      provider: "agent",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("ok");
+    expect(seen[0]).toContain("--print");
+    expect(seen[0]).toContain("--output-format");
+    expect(seen[0]).toContain("json");
+    expect(seen[0]).toContain("--mode");
+    expect(seen[0]).toContain("ask");
+    expect(seen[0]).toContain("--model");
+    expect(seen[0]).toContain("gpt-5.2");
+    expect(seen[0]?.[seen[0].length - 1]).toBe("Test");
+  });
+
+  it("handles OpenCode JSONL output via stdin", async () => {
+    const seen: string[][] = [];
+    let stdinText = "";
+    let seenCwd = "";
+    const execFileImpl: ExecFileFn = ((_cmd, args, options, cb) => {
+      seen.push(args);
+      seenCwd = ((options as { cwd?: string } | undefined)?.cwd ?? "") as string;
+      cb?.(
+        null,
+        [
+          JSON.stringify({ type: "step_start", part: { type: "step-start" } }),
+          JSON.stringify({ type: "text", part: { type: "text", text: "ok from opencode" } }),
+          JSON.stringify({
+            type: "step_finish",
+            part: {
+              type: "step-finish",
+              cost: 0.25,
+              tokens: { input: 7, output: 3, total: 10 },
+            },
+          }),
+        ].join("\n"),
+        "",
+      );
+      return {
+        stdin: {
+          write: (chunk: string | Buffer) => {
+            stdinText += String(chunk);
+          },
+          end: () => {},
+        },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "opencode",
+      prompt: "Test",
+      model: "openai/gpt-5.4",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+
+    expect(result.text).toBe("ok from opencode");
+    expect(result.costUsd).toBe(0.25);
+    expect(result.usage).toEqual({ promptTokens: 7, completionTokens: 3, totalTokens: 10 });
+    expect(seen[0]).toContain("run");
+    expect(seen[0]).toContain("--format");
+    expect(seen[0]).toContain("json");
+    expect(seen[0]).toContain("--model");
+    expect(seen[0]).toContain("openai/gpt-5.4");
+    expect(stdinText).toBe("Test");
+    expect(seenCwd).toContain("summarize-opencode-");
+  });
+
+  it("uses configured OpenCode model when none is passed explicitly", async () => {
+    const seen: string[][] = [];
+    const execFileImpl: ExecFileFn = ((_cmd, args, _options, cb) => {
+      seen.push(args);
+      cb?.(
+        null,
+        JSON.stringify({ type: "text", part: { type: "text", text: "ok from config model" } }),
+        "",
+      );
+      return {
+        stdin: { write: () => {}, end: () => {} },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "opencode",
+      prompt: "Test",
+      model: null,
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: { opencode: { model: "openai/gpt-5.2" } },
+    });
+
+    expect(result.text).toBe("ok from config model");
+    expect(seen[0]).toContain("--model");
+    expect(seen[0]).toContain("openai/gpt-5.2");
+  });
+
+  it("reuses the provided cwd for OpenCode when tools are allowed", async () => {
+    const seen: string[][] = [];
+    let stdinText = "";
+    let seenCwd = "";
+    const execFileImpl: ExecFileFn = ((_cmd, args, options, cb) => {
+      seen.push(args);
+      seenCwd = ((options as { cwd?: string } | undefined)?.cwd ?? "") as string;
+      cb?.(null, JSON.stringify({ type: "text", part: { type: "text", text: "ok" } }), "");
+      return {
+        stdin: {
+          write: (chunk: string | Buffer) => {
+            stdinText += String(chunk);
+          },
+          end: () => {},
+        },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "opencode",
+      prompt: "Test",
+      model: null,
+      allowTools: true,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: { opencode: { extraArgs: ["--config", "fast"] } },
+      cwd: "/tmp/opencode-cwd",
+      extraArgs: ["--approval-mode", "never"],
+    });
+
+    expect(result.text).toBe("ok");
+    expect(seen[0]).toEqual([
+      "run",
+      "--config",
+      "fast",
+      "--approval-mode",
+      "never",
+      "--format",
+      "json",
+    ]);
+    expect(stdinText).toBe("Test");
+    expect(seenCwd).toBe("/tmp/opencode-cwd");
+  });
+  it("accepts common JSON output fields across JSON CLI providers", async () => {
+    const providers: Array<{ provider: CliProvider; model: string }> = [
+      { provider: "claude", model: "sonnet" },
+      { provider: "gemini", model: "gemini-3-flash-preview" },
+      { provider: "agent", model: "gpt-5.2" },
+    ];
+    for (const { provider, model } of providers) {
+      const result = await runCliModel({
+        provider,
+        prompt: "Test",
+        model,
+        allowTools: false,
+        timeoutMs: 1000,
+        env: {},
+        execFileImpl: makeStub(() => ({ stdout: JSON.stringify({ message: "ok" }) })),
+        config: null,
+      });
+      expect(result.text).toBe("ok");
+    }
+  });
+
+  it("extracts result payloads from JSON array output", async () => {
+    const result = await runCliModel({
+      provider: "agent",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl: makeStub(() => ({
+        stdout: JSON.stringify([
+          { type: "status", message: "working" },
+          { type: "result", result: "ok from array" },
+        ]),
+      })),
+      config: null,
+    });
+
+    expect(result.text).toBe("ok from array");
+  });
+
+  it("reads the Codex output file", async () => {
+    const execFileImpl: ExecFileFn = ((_cmd, args, _options, cb) => {
+      const outputIndex = args.indexOf("--output-last-message");
+      const outputPath = outputIndex === -1 ? null : args[outputIndex + 1];
+      if (!outputPath) {
+        cb?.(new Error("missing output path"), "", "");
+        return {
+          stdin: { write: () => {}, end: () => {} },
+        } as unknown as ReturnType<ExecFileFn>;
+      }
+      void fs.writeFile(outputPath, "ok", "utf8").then(
+        () => cb?.(null, "", ""),
+        (error) => cb?.(error as Error, "", ""),
+      );
+      return {
+        stdin: { write: () => {}, end: () => {} },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("ok");
+  });
+
+  it("isolates Codex summary runs from user config and repo rules", async () => {
+    const sourceCodexHome = await fs.mkdtemp(path.join(tmpdir(), "summarize-codex-source-"));
+    await fs.writeFile(path.join(sourceCodexHome, "auth.json"), '{"token":"ok"}', "utf8");
+    await fs.writeFile(path.join(sourceCodexHome, "config.toml"), "model = 'custom'\n", "utf8");
+    await fs.writeFile(path.join(sourceCodexHome, "AGENTS.md"), "private rule\n", "utf8");
+
+    let seenArgs: string[] = [];
+    let seenCwd: string | undefined;
+    let seenCodexHome: string | undefined;
+    const execFileImpl: ExecFileFn = ((_cmd, args, options, cb) => {
+      seenArgs = [...args];
+      seenCwd = typeof options?.cwd === "string" ? options.cwd : undefined;
+      seenCodexHome = options?.env?.CODEX_HOME;
+      if (!seenCodexHome) {
+        cb?.(new Error("missing isolated CODEX_HOME"), "", "");
+        return {
+          stdin: { write: () => {}, end: () => {} },
+        } as unknown as ReturnType<ExecFileFn>;
+      }
+      const outputIndex = args.indexOf("--output-last-message");
+      const outputPath = outputIndex === -1 ? null : args[outputIndex + 1];
+      if (!outputPath) {
+        cb?.(new Error("missing output path"), "", "");
+        return {
+          stdin: { write: () => {}, end: () => {} },
+        } as unknown as ReturnType<ExecFileFn>;
+      }
+      void Promise.all([
+        fs.readFile(path.join(seenCodexHome, "auth.json"), "utf8"),
+        fs
+          .access(path.join(seenCodexHome, "config.toml"))
+          .then(() => {
+            throw new Error("config.toml was copied into isolated CODEX_HOME");
+          })
+          .catch((error: unknown) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+            throw error;
+          }),
+        fs
+          .access(path.join(seenCodexHome, "AGENTS.md"))
+          .then(() => {
+            throw new Error("AGENTS.md was copied into isolated CODEX_HOME");
+          })
+          .catch((error: unknown) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+            throw error;
+          }),
+      ])
+        .then(([auth]) => {
+          expect(auth).toBe('{"token":"ok"}');
+          return fs.writeFile(outputPath, "ok", "utf8");
+        })
+        .then(
+          () => cb?.(null, "", ""),
+          (error) => cb?.(error as Error, "", ""),
+        );
+      return {
+        stdin: { write: () => {}, end: () => {} },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: { CODEX_HOME: sourceCodexHome },
+      execFileImpl,
+      config: null,
+    });
+
+    const execIndex = seenArgs.indexOf("exec");
+    const cdIndex = seenArgs.indexOf("-C");
+    expect(result.text).toBe("ok");
+    expect(execIndex).toBeGreaterThanOrEqual(0);
+    expect(seenArgs.indexOf("--ephemeral")).toBeGreaterThan(execIndex);
+    expect(seenArgs.indexOf("--ignore-user-config")).toBeGreaterThan(execIndex);
+    expect(seenArgs.indexOf("--ignore-rules")).toBeGreaterThan(execIndex);
+    expect(cdIndex).toBeGreaterThan(execIndex);
+    expect(seenArgs[cdIndex + 1]).toContain("summarize-codex-cwd-");
+    expect(seenCwd).toBe(seenArgs[cdIndex + 1]);
+    expect(seenCodexHome).toContain("summarize-codex-home-");
+    expect(seenCodexHome).not.toBe(sourceCodexHome);
+  });
+
+  it("allows Codex isolation to be disabled for compatibility", async () => {
+    let seenArgs: string[] = [];
+    let seenCwd: string | undefined;
+    const execFileImpl = makeStub((args) => {
+      seenArgs = [...args];
+      return { stdout: "ok" };
+    });
+    const wrappedExecFileImpl: ExecFileFn = ((cmd, args, options, cb) => {
+      seenCwd = typeof options?.cwd === "string" ? options.cwd : undefined;
+      return execFileImpl(cmd, args, options, cb);
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl: wrappedExecFileImpl,
+      config: { codex: { isolated: false } },
+    });
+
+    expect(result.text).toBe("ok");
+    expect(seenArgs).not.toContain("--ephemeral");
+    expect(seenArgs).not.toContain("--ignore-user-config");
+    expect(seenArgs).not.toContain("--ignore-rules");
+    expect(seenArgs).not.toContain("-C");
+    expect(seenCwd).toBeUndefined();
+  });
+
+  it("does not isolate Codex tool-enabled runs by default", async () => {
+    let seenArgs: string[] = [];
+    const execFileImpl = makeStub((args) => {
+      seenArgs = [...args];
+      return { stdout: "ok" };
+    });
+
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: true,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+
+    expect(result.text).toBe("ok");
+    expect(seenArgs).not.toContain("--ephemeral");
+    expect(seenArgs).not.toContain("--ignore-user-config");
+    expect(seenArgs).not.toContain("--ignore-rules");
+    expect(seenArgs).not.toContain("-C");
+  });
+
+  it("maps Codex GPT fast alias to GPT-5.5 fast service tier", async () => {
+    let seenArgs: string[] = [];
+    const execFileImpl: ExecFileFn = ((_cmd, args, _options, cb) => {
+      seenArgs = [...args];
+      const outputIndex = args.indexOf("--output-last-message");
+      const outputPath = outputIndex === -1 ? null : args[outputIndex + 1];
+      if (!outputPath) {
+        cb?.(new Error("missing output path"), "", "");
+        return {
+          stdin: { write: () => {}, end: () => {} },
+        } as unknown as ReturnType<ExecFileFn>;
+      }
+      void fs.writeFile(outputPath, "ok", "utf8").then(
+        () => cb?.(null, "", ""),
+        (error) => cb?.(error as Error, "", ""),
+      );
+      return {
+        stdin: { write: () => {}, end: () => {} },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-fast",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+
+    expect(result.text).toBe("ok");
+    expect(seenArgs).toContain("-c");
+    expect(seenArgs).toContain('service_tier="fast"');
+    expect(seenArgs).toContain("-m");
+    expect(seenArgs[seenArgs.indexOf("-m") + 1]).toBe("gpt-5.5");
+  });
+
+  it("returns Codex stdout when present", async () => {
+    const execFileImpl = makeStub(() => ({ stdout: "from stdout" }));
+    const result = await runCliModel({
+      provider: "codex",
+      prompt: "Test",
+      model: "gpt-5.2",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("from stdout");
+  });
+
+  it("parses Codex JSONL usage + cost even when stdout has no assistant text", async () => {
+    const execFileImpl = makeStub(() => ({
+      stdout: [
+        JSON.stringify({
+          usage: { input_tokens: 4, output_tokens: 2, total_tokens: 6 },
+        }),
+        JSON.stringify({
+          response: { usage: { prompt_tokens: 1, completion_tokens: 3, total_tokens: 4 } },
+          cost_usd: 0.5,
+        }),
+        JSON.stringify({
+          metrics: { usage: { inputTokens: 5, outputTokens: 6, totalTokens: 11 } },
+        }),
+      ].join("\n"),
+    }));
+
+    await expect(
+      runCliModel({
+        provider: "codex",
+        prompt: "Test",
+        model: "gpt-5.2",
+        allowTools: false,
+        timeoutMs: 1000,
+        env: {},
+        execFileImpl,
+        config: null,
+      }),
+    ).rejects.toThrow("CLI returned empty output");
+  });
+
+  it("throws when Codex returns no output file and empty stdout", async () => {
+    const execFileImpl = makeStub(() => ({ stdout: "" }));
+    await expect(
+      runCliModel({
+        provider: "codex",
+        prompt: "Test",
+        model: "gpt-5.2",
+        allowTools: false,
+        timeoutMs: 1000,
+        env: {},
+        execFileImpl,
+        config: null,
+      }),
+    ).rejects.toThrow(/empty output/i);
+  });
+
+  it("falls back to plain text output", async () => {
+    const execFileImpl = makeStub(() => ({ stdout: "plain text" }));
+    const result = await runCliModel({
+      provider: "claude",
+      prompt: "Test",
+      model: "sonnet",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe("plain text");
+  });
+
+  it("falls back to plain text when JSON lacks result", async () => {
+    const execFileImpl = makeStub(() => ({ stdout: JSON.stringify({ ok: true }) }));
+    const result = await runCliModel({
+      provider: "claude",
+      prompt: "Test",
+      model: "sonnet",
+      allowTools: false,
+      timeoutMs: 1000,
+      env: {},
+      execFileImpl,
+      config: null,
+    });
+    expect(result.text).toBe('{"ok":true}');
+  });
+
+  it("throws on empty output", async () => {
+    const execFileImpl = makeStub(() => ({ stdout: "   " }));
+    await expect(
+      runCliModel({
+        provider: "gemini",
+        prompt: "Test",
+        model: "gemini-3-flash-preview",
+        allowTools: false,
+        timeoutMs: 1000,
+        env: {},
+        execFileImpl,
+        config: null,
+      }),
+    ).rejects.toThrow(/empty output/);
+  });
+
+  it("surfaces exec errors with stderr", async () => {
+    const execFileImpl: ExecFileFn = ((_cmd, _args, _options, cb) => {
+      cb?.(new Error("boom"), "", "nope");
+      return {
+        stdin: { write: () => {}, end: () => {} },
+      } as unknown as ReturnType<ExecFileFn>;
+    }) as ExecFileFn;
+
+    await expect(
+      runCliModel({
+        provider: "claude",
+        prompt: "Test",
+        model: "sonnet",
+        allowTools: false,
+        timeoutMs: 1000,
+        env: {},
+        execFileImpl,
+        config: null,
+      }),
+    ).rejects.toThrow(/boom: nope/);
+  });
+});
+
+describe("cli helpers", () => {
+  it("resolves disabled providers", () => {
+    expect(isCliDisabled("claude", null)).toBe(false);
+    expect(isCliDisabled("codex", { enabled: ["claude"] })).toBe(true);
+    expect(isCliDisabled("gemini", { enabled: ["gemini"] })).toBe(false);
+  });
+
+  it("resolves binaries", () => {
+    expect(resolveCliBinary("claude", { claude: { binary: "/opt/claude" } }, {})).toBe(
+      "/opt/claude",
+    );
+    expect(resolveCliBinary("codex", null, { SUMMARIZE_CLI_CODEX: "/opt/codex" })).toBe(
+      "/opt/codex",
+    );
+    expect(resolveCliBinary("agent", null, { AGENT_PATH: "/opt/agent" })).toBe("/opt/agent");
+    expect(resolveCliBinary("openclaw", null, { OPENCLAW_PATH: "/opt/openclaw" })).toBe(
+      "/opt/openclaw",
+    );
+    expect(resolveCliBinary("opencode", null, { OPENCODE_PATH: "/opt/opencode" })).toBe(
+      "/opt/opencode",
+    );
+    expect(resolveCliBinary("gemini", null, {})).toBe("gemini");
+  });
+});

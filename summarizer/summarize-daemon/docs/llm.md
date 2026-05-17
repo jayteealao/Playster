@@ -1,0 +1,149 @@
+---
+title: "LLM overview"
+kicker: "models"
+summary: "LLM usage, env vars, flags, and prompt rules."
+read_when:
+  - "When changing model selection or prompt formatting."
+---
+
+# LLM / summarization mode
+
+By default `summarize` will call an LLM using **direct provider API keys**. When CLI tools are
+installed, auto mode can use local CLI models via `cli.enabled` or implicit auto CLI fallback
+(`cli.autoFallback`; see `docs/cli.md`).
+
+## Defaults
+
+- Default model: `auto`
+- Override with `SUMMARIZE_MODEL`, config file (`model`), or `--model`.
+
+## Env
+
+- `.env` (optional): when running the CLI, `summarize` also reads `.env` in the current working directory and merges it into the environment (real env vars win).
+- `~/.summarize/config.json` `env` (optional): fallback env defaults when process env is missing/blank.
+- `XAI_API_KEY` (required for `xai/...` models)
+- `XAI_BASE_URL` (optional; override xAI API endpoint)
+- `OPENAI_API_KEY` (required for `openai/...` models)
+- `OPENAI_BASE_URL` (optional; OpenAI-compatible API endpoint, e.g. OpenRouter)
+- `OPENAI_USE_CHAT_COMPLETIONS` (optional; force OpenAI chat completions)
+- `NVIDIA_API_KEY` (required for `nvidia/...` models; alias: `NGC_API_KEY`)
+- `NVIDIA_BASE_URL` (optional; override NVIDIA OpenAI-compatible API endpoint; default: `https://integrate.api.nvidia.com/v1`)
+- `OPENROUTER_API_KEY` (optional; required for `openrouter/...` models; also used when `OPENAI_BASE_URL` points to OpenRouter)
+- `GITHUB_TOKEN` / `GH_TOKEN` (required for `github-copilot/...` models via GitHub Models)
+- `Z_AI_API_KEY` (required for `zai/...` models; supports `ZAI_API_KEY` alias)
+- `Z_AI_BASE_URL` (optional; override default Z.AI base URL)
+- `GEMINI_API_KEY` (required for `google/...` models; also accepts `GOOGLE_GENERATIVE_AI_API_KEY` / `GOOGLE_API_KEY`)
+- `GOOGLE_BASE_URL` / `GEMINI_BASE_URL` (optional; override Google API endpoint)
+- `ANTHROPIC_API_KEY` (required for `anthropic/...` models)
+- `ANTHROPIC_BASE_URL` (optional; override Anthropic API endpoint)
+- `SUMMARIZE_MODEL` (optional; overrides default model selection)
+- `CLAUDE_PATH` / `CODEX_PATH` / `GEMINI_PATH` / `AGENT_PATH` / `OPENCLAW_PATH` / `OPENCODE_PATH` / `COPILOT_PATH` (optional; override CLI binary paths)
+
+## Flags
+
+- `--model <model>`
+  - Examples:
+    - `cli/codex/gpt-5.2`
+    - `openai/gpt-5.5`
+    - `codex-fast` (explicit Codex CLI GPT Fast preset)
+    - `cli/claude/sonnet`
+    - `cli/gemini/flash`
+    - `cli/agent/auto`
+    - `cli/openclaw/main`
+    - `cli/opencode/openai/gpt-5.4`
+    - `cli/copilot/gpt-5.2`
+    - `openai/gpt-5.4`
+    - `openai/gpt-5.4-mini`
+    - `openai/gpt-5.4-nano`
+    - `google/gemini-3-flash`
+    - `openai/gpt-5-mini`
+    - `openai/gpt-5-nano`
+    - `github-copilot/gpt-5.4`
+    - `nvidia/z-ai/glm5`
+    - `zai/glm-4.7`
+    - `xai/grok-4-fast-non-reasoning`
+    - `google/gemini-2.0-flash`
+    - `anthropic/claude-sonnet-4-5`
+    - `openrouter/meta-llama/llama-3.3-70b-instruct:free` (force OpenRouter)
+- `--cli [provider]`
+  - Examples: `--cli claude`, `--cli Gemini`, `--cli codex`, `--cli agent`, `--cli openclaw`, `--cli opencode`, `--cli copilot` (equivalent to `--model cli/<provider>`); `--cli` alone uses auto selection with CLI enabled.
+- `--model auto`
+  - See `docs/model-auto.md`
+- `--model <preset>`
+  - Uses a built-in or config-defined preset (see `docs/config.md` → “Presets”).
+- `--prompt <text>` / `--prompt-file <path>`
+  - Overrides the built-in summary instructions (prompt becomes the instruction prefix).
+  - Prompts are wrapped in `<instructions>`, `<context>`, `<content>` tags.
+  - When `--length` is numeric, we add `Output is X characters.` When `--language` is explicitly set, we add `Output should be <language>.`
+- `--no-cache`
+  - Bypass summary cache reads and writes only (LLM output). Extract/transcript caches still apply.
+- `--cache-stats`
+  - Print cache stats and exit.
+- `--clear-cache`
+  - Delete the cache database and exit. Must be used alone.
+- `--video-mode auto|transcript|understand`
+  - Only relevant for video inputs / video-only pages.
+- `--length short|medium|long|xl|xxl|<chars>`
+  - This is _soft guidance_ to the model (no hard truncation).
+  - Minimum numeric value: 50 chars.
+  - Built-in default: `xl`.
+  - Config default: `output.length` in `~/.summarize/config.json`.
+  - Output format is Markdown; use short paragraphs and only add bullets when they improve scanability.
+- `--force-summary`
+  - Always run the LLM even when extracted content is shorter than the requested length.
+- `--max-output-tokens <count>`
+  - Hard cap for output tokens (optional).
+  - If omitted, no max token parameter is sent (provider default).
+  - Minimum numeric value: 16.
+  - Recommendation: prefer `--length` unless you need a hard cap (some providers count “reasoning” into the cap).
+- `--thinking none|low|medium|high|xhigh`
+  - Sets OpenAI reasoning effort for `openai/...` GPT-5-family models.
+  - Short aliases: `off`, `min` (low), `mid` / `med`, `x-high`, `extra-high`.
+- `--fast`
+  - Shorthand for `--service-tier fast` on OpenAI models.
+- `--service-tier default|fast|priority|flex`
+  - OpenAI service tier override. `fast` is the summarize-facing alias for OpenAI `priority`; `default` sends no service tier.
+- `--retries <count>`
+  - LLM retry attempts on timeout (default: 1).
+- `--json` (includes prompt + summary in one JSON object)
+
+## Prompt rules
+
+- Video and podcast summaries omit sponsor/ads/promotional segments; do not include them in the summary.
+- Do not mention or acknowledge sponsors/ads, and do not say you skipped or ignored anything.
+- If a standout line is present, include 1-2 short exact excerpts formatted as Markdown italics with single asterisks. Do not use quotation marks of any kind (straight or curly). If a title or excerpt would normally use quotes, remove them and optionally italicize the text instead. Apostrophes in contractions are OK. Never include ad/sponsor/boilerplate excerpts and do not mention them. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code.
+- Final check: remove sponsor/ad references or mentions of skipping/ignoring content. Remove any quotation marks. Ensure standout excerpts are italicized; otherwise omit them.
+- Hard rules: never mention sponsor/ads; never output quotation marks of any kind (straight or curly), even for titles.
+
+## Z.AI
+
+Use `--model zai/<model>` (e.g. `zai/glm-4.7`). Defaults to Z.AI’s base URL and uses chat completions.
+
+## GitHub Copilot / GitHub Models
+
+Use `--model github-copilot/<model>` for explicit GitHub-hosted model calls.
+
+- Examples:
+  - `github-copilot/gpt-5.4`
+  - `github-copilot/gpt-5.4-mini`
+  - `github-copilot/gpt-5.4-nano`
+  - `github-copilot/gpt-5-mini`
+  - `github-copilot/gpt-5-nano`
+  - `github-copilot/anthropic/claude-haiku-4.5`
+- Auth: `GITHUB_TOKEN` or `GH_TOKEN`
+- Transport: GitHub Models chat completions (`https://models.github.ai/inference`)
+- Notes:
+  - bare shorthand like `github-copilot/gpt-5.4` or `github-copilot/claude-opus-4.6` auto-expands to the provider-qualified backend id
+  - document attachments stay unsupported in this mode
+
+## Input limits
+
+- Text prompts are checked against the model’s max input tokens (LiteLLM catalog) using a GPT tokenizer.
+- Text files over 10 MB are rejected before tokenization.
+
+## PDF attachments
+
+- For PDF inputs, `--preprocess auto` will send the PDF directly to Anthropic/OpenAI/Gemini when a fixed model supports documents; otherwise we fall back to markitdown.
+- `--preprocess always` forces markitdown (no direct attachments).
+- When markitdown returns only page headers for an image-only PDF, summarize can retry with OpenAI vision OCR if `OPENAI_API_KEY` is available. The OCR model defaults to `gpt-4o-mini`; set `MARKITDOWN_OCR_MODEL` to override it, or `MARKITDOWN_OCR_DPI` to tune rendered page size. This sends rendered PDF pages to the OpenAI API and may incur per-page vision costs.
+- Streaming is disabled for document attachments.
