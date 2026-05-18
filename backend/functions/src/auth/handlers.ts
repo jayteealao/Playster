@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { getAuthUrl, handleCallback, oauthSecrets } from "./oauth";
 import { storeCookies } from "./innertube";
+import { saveTvOauthCredentials } from "./tv-oauth";
 
 // Ensure Firebase Admin is initialized
 if (!admin.apps.length) {
@@ -69,3 +70,41 @@ export const setCookies = onRequest(async (req, res) => {
     res.status(500).send("Failed to store cookies.");
   }
 });
+
+/**
+ * Accepts a POST with TV-OAuth credentials (output of scripts/setup-tv-oauth.mjs)
+ * and stores them in Firestore for InnerTube-via-TV-OAuth access to Watch Later.
+ */
+export const setTvOauthCredentials = onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).send("Method not allowed. Use POST.");
+    return;
+  }
+
+  const body =
+    typeof req.body === "string" ? safeJsonParse(req.body) : req.body;
+
+  if (!body || typeof body !== "object" || !body.refresh_token) {
+    res.status(400).send(
+      "Missing TV OAuth credentials. POST JSON: " +
+        "{ access_token, refresh_token, scope, token_type, expiry_date }",
+    );
+    return;
+  }
+
+  try {
+    await saveTvOauthCredentials(body);
+    res.status(200).send("TV OAuth credentials stored.");
+  } catch (error) {
+    console.error("setTvOauthCredentials error:", error);
+    res.status(500).send("Failed to store credentials.");
+  }
+});
+
+function safeJsonParse(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}

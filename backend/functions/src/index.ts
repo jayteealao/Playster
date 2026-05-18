@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 import { oauthSecrets } from "./auth/oauth";
 
 // --- Auth functions ---
-export { authRedirect, authCallback, setCookies } from "./auth/handlers";
+export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./auth/handlers";
 
 // --- Sync engine ---
 import {
@@ -59,11 +59,12 @@ export const syncPlaylist = onRequest(
  * Syncs only the Watch Later playlist.
  */
 export const syncWatchLater = onRequest(
-  { memory: "512MiB", timeoutSeconds: 300, secrets: oauthSecrets },
-  async (_req, res) => {
+  { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
+  async (req, res) => {
+    const reset = req.query.reset === "true" || req.query.reset === "1";
     try {
-      logger.info("syncWatchLater: starting");
-      const result = await runSyncWatchLater();
+      logger.info("syncWatchLater: starting", { reset });
+      const result = await runSyncWatchLater({ reset });
       logger.info("syncWatchLater: completed", result);
       res.json(result);
     } catch (error) {

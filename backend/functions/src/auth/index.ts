@@ -6,8 +6,11 @@ export {
   oauthSecrets,
 } from "./oauth";
 
-// InnerTube / cookie auth (Watch Later)
+// InnerTube / cookie auth (legacy — kept for compatibility, no longer used by WL)
 export { storeCookies, getInnertubeClient } from "./innertube";
 
+// InnerTube / TV-OAuth auth (Watch Later)
+export { getInnertubeTvClient, saveTvOauthCredentials } from "./tv-oauth";
+
 // HTTP endpoint handlers
-export { authRedirect, authCallback, setCookies } from "./handlers";
+export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./handlers";

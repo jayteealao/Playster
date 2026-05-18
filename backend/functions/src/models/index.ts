@@ -12,6 +12,15 @@ export interface PlaylistDocument {
   lastSyncedAt: FieldValue | Date;
 }
 
+export interface WatchLaterSyncState {
+  next_continuation_token: string | null;
+  pages_completed: number;
+  last_position: number;
+  total_items: number;
+  complete: boolean;
+  last_run_at: FieldValue | Date;
+}
+
 export interface VideoDocument {
   videoId: string;
   title: string;
