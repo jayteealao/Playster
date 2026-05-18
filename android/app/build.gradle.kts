@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.googleServices)
 }
 
 android {
@@ -131,19 +132,13 @@ dependencies {
     implementation(libs.credentials.play.services.auth)
     implementation(libs.identity)
     implementation(libs.one.tap.sign.`in`)
-//    implementation(libs.appauth)
-    implementation(libs.google.api.client.android) {
-        exclude(group = "org.apache.httpcomponents")
-        exclude(group = "com.google.guava", module = "guava")
 
-    }
-    implementation(libs.google.api.services.youtube) {
-        exclude(group = "org.apache.httpcomponents")
-        exclude(group = "com.google.guava", module = "guava")
-    }
-    implementation(libs.google.api.client.gson)
-    implementation(libs.google.http.client.android)
-//    implementation(libs.bundles.credential)
+    // Firebase (BOM 34+ — KTX rolled into main modules; no `-ktx` suffix needed)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.functions)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     //hilt
     implementation(libs.hilt.android)

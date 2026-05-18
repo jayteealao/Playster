@@ -1,7 +1,8 @@
-import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { oauthSecrets } from "./auth/oauth";
+import { allowlistedCall } from "./auth/verify";
 
 // --- Auth functions ---
 export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./auth/handlers";
@@ -11,71 +12,66 @@ import {
   syncAll,
   syncPlaylistById,
   syncWatchLater as runSyncWatchLater,
+  type WatchLaterSyncResult,
 } from "./youtube";
 
+interface SyncAllResult {
+  regular: { playlistCount: number; videoCount: number };
+  watchLater: WatchLaterSyncResult | { error: string };
+}
+
 /**
- * Syncs all playlists and Watch Later on demand.
+ * Syncs all playlists and Watch Later on demand. Allowlisted operator only.
  */
-export const syncAllPlaylists = onRequest(
+export const syncAllPlaylists = allowlistedCall<Record<string, never>, SyncAllResult>(
   { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
-  async (_req, res) => {
-    try {
-      logger.info("syncAllPlaylists: starting full sync");
-      const result = await syncAll();
-      logger.info("syncAllPlaylists: completed", result);
-      res.json(result);
-    } catch (error) {
-      logger.error("syncAllPlaylists failed", error);
-      res.status(500).json({ error: "Sync failed" });
-    }
+  async () => {
+    logger.info("syncAllPlaylists: starting full sync");
+    const result = await syncAll();
+    logger.info("syncAllPlaylists: completed", result);
+    return result;
   },
 );
 
 /**
- * Syncs a single playlist by ID (passed as ?playlistId=...).
+ * Syncs a single playlist by ID. Allowlisted operator only.
  */
-export const syncPlaylist = onRequest(
+export const syncPlaylist = allowlistedCall<
+  { playlistId: string },
+  { videoCount: number }
+>(
   { memory: "512MiB", timeoutSeconds: 300, secrets: oauthSecrets },
-  async (req, res) => {
-    const playlistId = req.query.playlistId as string | undefined;
+  async (req) => {
+    const { playlistId } = req.data;
     if (!playlistId) {
-      res.status(400).json({ error: "Missing playlistId query parameter" });
-      return;
+      throw new HttpsError("invalid-argument", "Missing playlistId");
     }
-
-    try {
-      logger.info("syncPlaylist: syncing playlist", { playlistId });
-      const result = await syncPlaylistById(playlistId);
-      logger.info("syncPlaylist: completed", result);
-      res.json(result);
-    } catch (error) {
-      logger.error("syncPlaylist failed", { playlistId, error });
-      res.status(500).json({ error: "Sync failed" });
-    }
+    logger.info("syncPlaylist: syncing playlist", { playlistId });
+    const result = await syncPlaylistById(playlistId);
+    logger.info("syncPlaylist: completed", result);
+    return result;
   },
 );
 
 /**
- * Syncs only the Watch Later playlist.
+ * Syncs only the Watch Later playlist. Allowlisted operator only.
  */
-export const syncWatchLater = onRequest(
+export const syncWatchLater = allowlistedCall<
+  { reset?: boolean },
+  WatchLaterSyncResult
+>(
   { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
-  async (req, res) => {
-    const reset = req.query.reset === "true" || req.query.reset === "1";
-    try {
-      logger.info("syncWatchLater: starting", { reset });
-      const result = await runSyncWatchLater({ reset });
-      logger.info("syncWatchLater: completed", result);
-      res.json(result);
-    } catch (error) {
-      logger.error("syncWatchLater failed", error);
-      res.status(500).json({ error: "Sync failed" });
-    }
+  async (req) => {
+    const reset = req.data.reset === true;
+    logger.info("syncWatchLater: starting", { reset });
+    const result = await runSyncWatchLater({ reset });
+    logger.info("syncWatchLater: completed", result);
+    return result;
   },
 );
 
 /**
- * Scheduled sync — runs every 6 hours via Cloud Scheduler.
+ * Scheduled sync — runs every 6 hours via Cloud Scheduler. No auth context.
  */
 export const scheduledSync = onSchedule(
   {

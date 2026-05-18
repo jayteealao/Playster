@@ -4,9 +4,8 @@ appauth = "0.11.1"
 coil-compose = "2.5.0"
 dagger-compiler = "2.48"
 datastore-preferences = "1.0.0"
-google-api-client-android = "2.2.0"
-google-api-services-youtube = "v3-rev20231011-2.0.0"
-google-http-client-android = "1.43.3"
+firebase-bom = "34.0.0"
+google-services = "4.4.2"
 hilt-android-compiler = "2.44"
 hilt-compiler = "2.48"
 kotlin = "1.9.22"
@@ -26,6 +25,7 @@ hilt-androidx = "1.1.0"
 material-icons-extended = "1.6.0"
 navigation-compose = "2.7.6"
 runtime-tracing = "1.0.0-beta01"
+kotlinx-coroutines-play-services = "1.7.3"
 
 [libraries]
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-preferences" }
@@ -56,10 +56,11 @@ androidx-material-icons-extended = { module = "androidx.compose.material:materia
 material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing", version.ref = "runtime-tracing" }
 
-google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "google-api-client-android" }
-google-api-client-gson = { module = "com.google.api-client:google-api-client-gson", version.ref = "google-api-client-android" }
-google-api-services-youtube = { module = "com.google.apis:google-api-services-youtube", version.ref = "google-api-services-youtube" }
-google-http-client-android = { module = "com.google.http-client:google-http-client-android", version.ref = "google-http-client-android" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-functions = { module = "com.google.firebase:firebase-functions" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines-play-services" }
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credential-manager"}
 credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credential-manager"}
 identity = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid"}
@@ -91,4 +92,5 @@ androidApplication = { id = "com.android.application", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref  = "ksp" }
 hilt = {id = "com.google.dagger.hilt.android", version.ref = "hilt"}
+googleServices = { id = "com.google.gms.google-services", version.ref = "google-services" }
 

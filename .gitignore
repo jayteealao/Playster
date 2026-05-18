@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 *.log
 docs/internal/
+android/app/google-services.json
+backend/functions/.tmp/

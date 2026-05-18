@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.screens.playlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,59 +22,55 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.github.jayteealao.playster.data.firestore.PlaylistDoc
 import com.github.jayteealao.playster.ui.theme.Gray50
-import com.google.api.services.youtube.model.Playlist
 
 @Composable
 fun PlayCard(
     modifier: Modifier = Modifier,
-    playlist: Playlist
+    playlist: PlaylistDoc,
+    onClick: () -> Unit = {},
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Gray50),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Thumbnail
             AsyncImage(
-                model = playlist.snippet.thumbnails.medium?.url
-                    ?: playlist.snippet.thumbnails.default?.url,
+                model = playlist.thumbnailUrl.takeIf { it.isNotBlank() },
                 contentDescription = "playlist image",
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Content
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = playlist.snippet.title,
+                    text = playlist.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "${playlist.snippet.channelTitle} · ${playlist.contentDetails.itemCount} videos",
+                    text = "${playlist.channelTitle} · ${playlist.videoCount} videos",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

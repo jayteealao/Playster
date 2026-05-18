@@ -1,0 +1,84 @@
+---
+schema: sdlc/v1
+type: index
+slug: wire-android-backend-summarizer
+title: "Wire Android ↔ Backend ↔ Summarizer (single-tenant, OpenRouter free)"
+status: active
+current-stage: implement
+stage-number: 5
+created-at: "2026-05-17T15:00:08Z"
+updated-at: "2026-05-18T10:50:00Z"
+selected-slice: "auth-and-android-firebase"
+branch-strategy: dedicated
+branch: "feat/wire-android-backend-summarizer"
+base-branch: "main"
+review-scope: slug-wide
+pr-url: ""
+pr-number: 0
+open-questions: []
+tags: [android, firebase, cloud-run, summarizer, openrouter, single-tenant, multi-component]
+stack:
+  detected-at: "2026-05-17T15:00:08Z"
+  platforms: [android, service]
+  languages: [kotlin, typescript]
+  ui: [compose]
+  build: [gradle, tsc, docker]
+  package-managers: [gradle, pnpm]
+  testing: [junit, espresso, vitest, maestro]
+  observability: [lazylogcat]
+  integrations:
+    - hilt
+    - firebase-auth
+    - firestore
+    - firebase-functions-v2
+    - firebase-admin
+    - youtubei.js
+    - youtube-data-api
+    - openrouter-planned
+    - cloud-run-planned
+    - steipete-summarize-subtree
+  available-skills:
+    - {name: Plan, hint: "Software architect agent for designing implementation plans"}
+    - {name: Explore, hint: "Fast read-only search agent for locating code"}
+    - {name: general-purpose, hint: "General-purpose research/multi-step agent"}
+    - {name: "codex:codex-rescue", hint: "Hand a substantial coding task to Codex for second opinion or stuck states"}
+    - {name: code-simplifier, hint: "Refine recent code for clarity/maintainability"}
+  available-clis:
+    - {name: android, hint: "Android SDK / project orchestration CLI"}
+    - {name: gcloud, hint: "Google Cloud CLI — Cloud Run deploy, Secret Manager, IAM"}
+    - {name: firebase, hint: "Firebase CLI — Functions deploy, Firestore rules, emulators"}
+    - {name: lazylogcat, hint: "Non-interactive logcat capture/filter for Android debugging"}
+    - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
+  available-mcp: []
+  user-confirmed: true
+next-command: wf-verify
+next-invocation: "/wf verify wire-android-backend-summarizer auth-and-android-firebase"
+workflow-files:
+  - 00-index.md
+  - 01-intake.md
+  - 02-shape.md
+  - 03-slice.md
+  - 03-slice-auth-and-android-firebase.md
+  - 03-slice-summarizer-container.md
+  - 03-slice-summary-orchestration.md
+  - 03-slice-summary-ui.md
+  - 04-plan.md
+  - 04-plan-auth-and-android-firebase.md
+  - 04-plan-summarizer-container.md
+  - 04-plan-summary-orchestration.md
+  - 04-plan-summary-ui.md
+  - 05-implement.md
+  - 05-implement-auth-and-android-firebase.md
+  - po-answers.md
+progress:
+  intake: complete
+  shape: complete
+  slice: complete
+  plan: complete
+  implement: in-progress
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
+  retro: not-started
+---
