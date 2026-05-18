@@ -79,6 +79,7 @@ curl -N http://localhost:3000/v1/jobs/<job-id>/events \
 - **[Configuration](docs/CONFIGURATION.md)** — Environment variables and defaults
 - **[Security](docs/SECURITY.md)** — SSRF protection, auth, rate limiting, input validation
 - **[SSE Client Example](docs/SSE-CLIENT.md)** — Runnable Node.js script for consuming the event stream
+- **[Deploy harness + Cloud Run runbook](deploy/README.md)** — Unified container, docker-compose harness, deploy procedure
 
 ## License
 

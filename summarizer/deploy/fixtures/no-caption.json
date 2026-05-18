@@ -1,0 +1,10 @@
+{
+  "$comment": "No-caption YouTube fixture for the docker-compose harness. AC-14 (shortDescription fallback) evidence.",
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "title": "Me at the zoo (first YouTube upload, no captions)",
+  "client_job_id": "fixture-no-caption",
+  "expect": {
+    "status": "completed",
+    "content_min_chars": 50
+  }
+}

@@ -7,8 +7,8 @@ status: active
 current-stage: implement
 stage-number: 5
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-18T10:50:00Z"
-selected-slice: "auth-and-android-firebase"
+updated-at: "2026-05-18T17:23:50Z"
+selected-slice: "summarizer-container"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
 base-branch: "main"
@@ -16,6 +16,11 @@ review-scope: slug-wide
 pr-url: ""
 pr-number: 0
 open-questions: []
+runtime-evidence-deferrals:
+  - slice: auth-and-android-firebase
+    reason: "Bootstrap state — operator has not run the two-pass deploy yet (ALLOWED_UID + firestore.rules still carry __BOOTSTRAP_UID__ sentinel; no scheduledSync data in Firestore). AC-3 positive sub-claim (PlaylistScreen renders Firestore data) + AC-4 (pull-to-refresh advances lastSyncedAt) cannot be exercised. AC-3 negative sub-claim (zero youtube.googleapis.com calls) IS verified via APK dex + runtime logcat."
+    deferred-at: "2026-05-18T16:43:28Z"
+    cleared-by: null
 tags: [android, firebase, cloud-run, summarizer, openrouter, single-tenant, multi-component]
 stack:
   detected-at: "2026-05-17T15:00:08Z"
@@ -52,7 +57,7 @@ stack:
   available-mcp: []
   user-confirmed: true
 next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer auth-and-android-firebase"
+next-invocation: "/wf verify wire-android-backend-summarizer summarizer-container"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -69,6 +74,9 @@ workflow-files:
   - 04-plan-summary-ui.md
   - 05-implement.md
   - 05-implement-auth-and-android-firebase.md
+  - 05-implement-summarizer-container.md
+  - 06-verify.md
+  - 06-verify-auth-and-android-firebase.md
   - po-answers.md
 progress:
   intake: complete
@@ -76,7 +84,7 @@ progress:
   slice: complete
   plan: complete
   implement: in-progress
-  verify: not-started
+  verify: in-progress
   review: not-started
   handoff: not-started
   ship: not-started

@@ -1,0 +1,10 @@
+{
+  "$comment": "Captioned YouTube fixture for the docker-compose harness. AC-6 evidence.",
+  "url": "https://www.youtube.com/watch?v=h7zV9Bzklv8",
+  "title": "Google I/O 2024 keynote excerpt (Creative Commons, captioned)",
+  "client_job_id": "fixture-captioned",
+  "expect": {
+    "status": "completed",
+    "content_min_chars": 200
+  }
+}

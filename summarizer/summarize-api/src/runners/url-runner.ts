@@ -4,6 +4,35 @@ import type { Config } from "../config.js";
 import type { Job } from "../db/jobs.js";
 import { updateJobStatus } from "../db/jobs.js";
 import type { EventStore } from "../events/event-store.js";
+import { deliverWebhook } from "../webhooks/deliver.js";
+
+// Keys forwarded from the api `options` object to the daemon body. The
+// daemon accepts a superset (see summarize-daemon's
+// `server-summarize-request.ts`); we only forward the ones the gateway
+// schema exposes. The api `mode` enum (auto|website|youtube|media) is
+// intentionally NOT in this list — it does not map to the daemon's `mode`
+// enum (url|page|auto), and shape decision is to leave the gateway `mode`
+// as a documented no-op.
+const DAEMON_FORWARD_KEYS = [
+  "model",
+  "length",
+  "language",
+  "format",
+  "youtube",
+  "videoMode",
+  "timestamps",
+  "forceSummary",
+  "noCache",
+  "extractOnly",
+  "prompt",
+  "maxCharacters",
+];
+
+// Override exposed for tests. Production code never sets this.
+export const __webhookTestOverrides: {
+  baseDelayMs?: number;
+  fetchImpl?: typeof fetch;
+} = {};
 
 export async function runUrlJob(
   job: Job,
@@ -33,7 +62,7 @@ export async function runUrlJob(
       },
       body: JSON.stringify({
         url: job.source,
-        ...pickDefined(parsedOptions, ["model", "length", "language", "format"]),
+        ...pickDefined(parsedOptions, DAEMON_FORWARD_KEYS),
       }),
       signal: controller.signal,
     });
@@ -153,6 +182,12 @@ export async function runUrlJob(
     updateJobStatus(job.id, "completed", {
       result: { summary: result },
     });
+
+    await maybeDeliverWebhook(job, {
+      client_job_id: job.client_job_id ?? job.id,
+      status: "completed",
+      result: { summary: result },
+    });
   } catch (err: unknown) {
     // Step 7: Error handling
     const message = err instanceof Error ? err.message : String(err);
@@ -164,9 +199,58 @@ export async function runUrlJob(
       data: { message },
       timestamp: new Date().toISOString(),
     });
+
+    await maybeDeliverWebhook(job, {
+      client_job_id: job.client_job_id ?? job.id,
+      status: "failed",
+      error: { message },
+    });
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function maybeDeliverWebhook(job: Job, payload: Record<string, unknown>): Promise<void> {
+  if (!job.webhook_url) return;
+  if (!job.webhook_secret) {
+    // Defensive: the route guards against this, but persisted state could
+    // be missing the secret if an older job row predates the column. Log
+    // and skip — never deliver an unsigned webhook.
+    logWebhookEvent(job.id, "skipped (no secret)", { url: job.webhook_url });
+    return;
+  }
+
+  const result = await deliverWebhook({
+    url: job.webhook_url,
+    secret: job.webhook_secret,
+    payload,
+    baseDelayMs: __webhookTestOverrides.baseDelayMs,
+    fetchImpl: __webhookTestOverrides.fetchImpl,
+  });
+
+  logWebhookEvent(
+    job.id,
+    result.ok ? "delivered" : "failed",
+    {
+      url: job.webhook_url,
+      status: result.status,
+      attempts: result.attempts,
+      error: result.error,
+      // `webhook_secret` is intentionally never logged.
+    },
+  );
+}
+
+function logWebhookEvent(jobId: string, outcome: string, extra: Record<string, unknown>): void {
+  const entry = {
+    level: outcome === "delivered" ? "info" : "warn",
+    component: "webhook",
+    jobId,
+    outcome,
+    ...extra,
+  };
+  const stream = outcome === "delivered" ? process.stdout : process.stderr;
+  stream.write(`${JSON.stringify(entry)}\n`);
 }
 
 function pickDefined(

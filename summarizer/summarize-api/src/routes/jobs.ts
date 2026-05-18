@@ -97,6 +97,12 @@ export async function jobRoutes(
         });
       }
 
+      if (parsed.data.webhook_url && !parsed.data.webhook_secret) {
+        return reply.code(400).send({
+          error: "webhook_secret is required when webhook_url is set",
+        });
+      }
+
       const ssrfResult = await validateUrl(parsed.data.url);
       if (!ssrfResult.safe) {
         return reply
@@ -108,6 +114,9 @@ export async function jobRoutes(
         type: "url",
         source: parsed.data.url,
         options: parsed.data.options,
+        webhookUrl: parsed.data.webhook_url,
+        webhookSecret: parsed.data.webhook_secret,
+        clientJobId: parsed.data.client_job_id,
       });
 
       dispatchJob(job, config, eventStore, db);

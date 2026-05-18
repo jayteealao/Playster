@@ -12,6 +12,9 @@ export interface Job {
   daemon_job_id: string | null;
   client_id: string | null;
   metadata: string | null;
+  webhook_url: string | null;
+  webhook_secret: string | null;
+  client_job_id: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -22,14 +25,17 @@ export function createJob(params: {
   source: string;
   options?: Record<string, unknown>;
   clientId?: string;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  clientJobId?: string;
 }): Job {
   const db = getDb();
   const id = nanoid();
   const now = new Date().toISOString();
 
   const stmt = db.prepare(`
-    INSERT INTO jobs (id, type, source, options, client_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO jobs (id, type, source, options, client_id, webhook_url, webhook_secret, client_job_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -38,6 +44,9 @@ export function createJob(params: {
     params.source,
     params.options ? JSON.stringify(params.options) : null,
     params.clientId ?? null,
+    params.webhookUrl ?? null,
+    params.webhookSecret ?? null,
+    params.clientJobId ?? null,
     now,
     now,
   );
@@ -141,4 +150,9 @@ export function listJobs(filters?: {
     `SELECT * FROM jobs ${where} ORDER BY created_at DESC ${limit}`,
   );
   return stmt.all(...values) as Job[];
+}
+
+export function redactJob(job: Job): Job {
+  if (!job.webhook_secret) return job;
+  return { ...job, webhook_secret: "<redacted>" };
 }
