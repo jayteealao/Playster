@@ -29,6 +29,7 @@ export type UrlFlowIo = {
   stderr: NodeJS.WritableStream;
   execFileImpl: ExecFileFn;
   fetch: typeof fetch;
+  urlFetch?: typeof fetch;
 };
 
 export type UrlFlowFlags = {
@@ -67,6 +68,7 @@ export type UrlFlowFlags = {
   slides: SlideSettings | null;
   slidesDebug: boolean;
   slidesOutput?: boolean;
+  throwOnAssetLikeHtmlError?: boolean;
 };
 
 export type UrlFlowModel = {
