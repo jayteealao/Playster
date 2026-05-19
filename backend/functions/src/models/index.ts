@@ -33,3 +33,34 @@ export interface VideoDocument {
   position: number;
   addedAt: string;
 }
+
+export type SummaryStatus =
+  | "queued"
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed-transient"
+  | "failed-permanent";
+
+export interface SummaryDocument {
+  videoId: string;
+  status: SummaryStatus;
+  model: string;
+  webhookSecret: string;
+  summarizerJobId?: string;
+  content?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  requestedAt: FieldValue | Date;
+  dispatchedAt?: FieldValue | Date;
+  completedAt?: FieldValue | Date;
+}
+
+export interface QuotaDocument {
+  date: string;
+  requestCount: number;
+  dailyLimit: number;
+  perMinuteLimit: number;
+  recentTimestamps: number[];
+  updatedAt: FieldValue | Date;
+}

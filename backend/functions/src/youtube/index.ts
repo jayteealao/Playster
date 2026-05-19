@@ -10,10 +10,13 @@ export { syncWatchLater, type WatchLaterSyncResult } from "./innertube-sync.js";
  * read part of the playlist before rate-limit forces a stop; the cursor is
  * persisted and the next call continues.
  */
-export async function syncAll(): Promise<{
+export interface SyncAllResult {
   regular: { playlistCount: number; videoCount: number };
   watchLater: WatchLaterSyncResult | { error: string };
-}> {
+  videoIds: string[];
+}
+
+export async function syncAll(): Promise<SyncAllResult> {
   const regular = await syncRegularPlaylists();
 
   let watchLater: WatchLaterSyncResult | { error: string };
@@ -25,5 +28,18 @@ export async function syncAll(): Promise<{
     watchLater = { error: message };
   }
 
-  return { regular, watchLater };
+  const wlIds =
+    "videoIds" in watchLater && Array.isArray(watchLater.videoIds) ?
+      watchLater.videoIds :
+      [];
+  const videoIds = [...regular.videoIds, ...wlIds];
+
+  return {
+    regular: {
+      playlistCount: regular.playlistCount,
+      videoCount: regular.videoCount,
+    },
+    watchLater,
+    videoIds,
+  };
 }

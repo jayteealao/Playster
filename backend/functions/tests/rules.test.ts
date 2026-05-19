@@ -90,7 +90,9 @@ describe("firestore.rules — allowlisted reads, no client writes", () => {
   it("denies any read on collections not explicitly allowed", async () => {
     const env = await getTestEnv();
     const db = env.authenticatedContext(ALLOWLISTED_UID).firestore();
-    // summaries/ is not in this slice's rules — slice 3 will add it.
-    await assertFails(getDoc(doc(db, "summaries/seed")));
+    // Sanity: an unmodeled collection still gets the catch-all deny even for
+    // the allowlisted operator. Slice 3 promoted `summaries/` and `quota/`
+    // out of the catch-all; this test uses a path that remains uncovered.
+    await assertFails(getDoc(doc(db, "secrets/seed")));
   });
 });

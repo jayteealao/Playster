@@ -3,6 +3,7 @@ import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { oauthSecrets } from "./auth/oauth";
 import { allowlistedCall } from "./auth/verify";
+import { enqueueAutoSummary } from "./summarizer/autoEnqueue";
 
 // --- Auth functions ---
 export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./auth/handlers";
@@ -12,23 +13,43 @@ import {
   syncAll,
   syncPlaylistById,
   syncWatchLater as runSyncWatchLater,
+  type SyncAllResult,
   type WatchLaterSyncResult,
 } from "./youtube";
 
-interface SyncAllResult {
-  regular: { playlistCount: number; videoCount: number };
-  watchLater: WatchLaterSyncResult | { error: string };
+// --- Summarizer (slice 3) ---
+export { requestVideoSummary } from "./summarizer/dispatch";
+export { summaryWebhook } from "./summarizer/webhook";
+export { summaryDispatcher } from "./summarizer/dispatcher";
+
+async function autoEnqueueSafe(videoIds: string[]): Promise<void> {
+  if (!videoIds.length) return;
+  try {
+    await enqueueAutoSummary(videoIds);
+  } catch (err) {
+    // Never fail the sync because of auto-enqueue.
+    logger.warn("autoEnqueueSafe failed (non-fatal)", {
+      count: videoIds.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
+
+// External-facing return shape for syncAllPlaylists / scheduledSync. The
+// internal SyncAllResult also carries `videoIds`, but the wire response
+// stays compact.
+type SyncAllResponse = Omit<SyncAllResult, "videoIds">;
 
 /**
  * Syncs all playlists and Watch Later on demand. Allowlisted operator only.
  */
-export const syncAllPlaylists = allowlistedCall<Record<string, never>, SyncAllResult>(
+export const syncAllPlaylists = allowlistedCall<Record<string, never>, SyncAllResponse>(
   { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
   async () => {
     logger.info("syncAllPlaylists: starting full sync");
-    const result = await syncAll();
+    const { videoIds, ...result } = await syncAll();
     logger.info("syncAllPlaylists: completed", result);
+    await autoEnqueueSafe(videoIds);
     return result;
   },
 );
@@ -47,8 +68,9 @@ export const syncPlaylist = allowlistedCall<
       throw new HttpsError("invalid-argument", "Missing playlistId");
     }
     logger.info("syncPlaylist: syncing playlist", { playlistId });
-    const result = await syncPlaylistById(playlistId);
+    const { videoIds, ...result } = await syncPlaylistById(playlistId);
     logger.info("syncPlaylist: completed", result);
+    await autoEnqueueSafe(videoIds);
     return result;
   },
 );
@@ -58,14 +80,15 @@ export const syncPlaylist = allowlistedCall<
  */
 export const syncWatchLater = allowlistedCall<
   { reset?: boolean },
-  WatchLaterSyncResult
+  Omit<WatchLaterSyncResult, "videoIds">
 >(
   { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
   async (req) => {
     const reset = req.data.reset === true;
     logger.info("syncWatchLater: starting", { reset });
-    const result = await runSyncWatchLater({ reset });
+    const { videoIds, ...result } = await runSyncWatchLater({ reset });
     logger.info("syncWatchLater: completed", result);
+    await autoEnqueueSafe(videoIds);
     return result;
   },
 );
@@ -83,8 +106,9 @@ export const scheduledSync = onSchedule(
   async (_event) => {
     try {
       logger.info("scheduledSync: starting full sync");
-      const result = await syncAll();
+      const { videoIds, ...result } = await syncAll();
       logger.info("scheduledSync: completed", result);
+      await autoEnqueueSafe(videoIds);
     } catch (error) {
       logger.error("scheduledSync failed", error);
     }

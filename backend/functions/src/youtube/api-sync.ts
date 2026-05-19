@@ -80,6 +80,7 @@ async function commitBatch(
 export async function syncRegularPlaylists(): Promise<{
   playlistCount: number;
   videoCount: number;
+  videoIds: string[];
 }> {
   const { getAuthenticatedClient } = await import("../auth/index.js");
   const auth = await getAuthenticatedClient();
@@ -87,6 +88,7 @@ export async function syncRegularPlaylists(): Promise<{
   const db = admin.firestore();
 
   let totalVideos = 0;
+  const videoIds: string[] = [];
   let batch = db.batch();
   let opCount = 0;
 
@@ -141,6 +143,7 @@ export async function syncRegularPlaylists(): Promise<{
       batch.set(videoRef, videoDoc, { merge: true });
       opCount++;
       totalVideos++;
+      videoIds.push(videoId);
 
       if (opCount >= MAX_BATCH_SIZE) {
         ({ batch, opCount } = await commitBatch(db, batch, opCount));
@@ -153,7 +156,11 @@ export async function syncRegularPlaylists(): Promise<{
     await batch.commit();
   }
 
-  return { playlistCount: playlists.length, videoCount: totalVideos };
+  return {
+    playlistCount: playlists.length,
+    videoCount: totalVideos,
+    videoIds,
+  };
 }
 
 /**
@@ -161,6 +168,7 @@ export async function syncRegularPlaylists(): Promise<{
  */
 export async function syncPlaylistById(playlistId: string): Promise<{
   videoCount: number;
+  videoIds: string[];
 }> {
   const { getAuthenticatedClient } = await import("../auth/index.js");
   const auth = await getAuthenticatedClient();
@@ -203,6 +211,7 @@ export async function syncPlaylistById(playlistId: string): Promise<{
   opCount++;
 
   const videos = await fetchPlaylistVideos(auth, playlistId);
+  const videoIds: string[] = [];
 
   for (const item of videos) {
     const itemSnippet = item.snippet!;
@@ -225,6 +234,7 @@ export async function syncPlaylistById(playlistId: string): Promise<{
     const videoRef = playlistRef.collection("videos").doc(videoId);
     batch.set(videoRef, videoDoc, { merge: true });
     opCount++;
+    videoIds.push(videoId);
 
     if (opCount >= MAX_BATCH_SIZE) {
       await batch.commit();
@@ -237,5 +247,5 @@ export async function syncPlaylistById(playlistId: string): Promise<{
     await batch.commit();
   }
 
-  return { videoCount: videos.length };
+  return { videoCount: videos.length, videoIds };
 }

@@ -141,6 +141,7 @@ export interface WatchLaterSyncResult {
   totalItemsKnown: number;
   complete: boolean;
   rebuilds: number;
+  videoIds: string[];
 }
 
 /**
@@ -163,7 +164,7 @@ async function flushCheckpoint(
   pageNum: number,
   priorTotal: number,
   complete: boolean,
-): Promise<number> {
+): Promise<{ wrote: number; ids: string[] }> {
   const db = admin.firestore();
   const playlistRef = db.collection("playlists").doc(WATCH_LATER_ID);
   const items = [...pending.values()];
@@ -221,7 +222,7 @@ async function flushCheckpoint(
     complete,
   });
 
-  return items.length;
+  return { wrote: items.length, ids: items.map((v) => v.id) };
 }
 
 export async function syncWatchLater(
@@ -249,6 +250,7 @@ export async function syncWatchLater(
   let positionCursor = resuming ? priorState.last_position : 0;
   let priorTotal = resuming ? priorState.total_items : 0;
   let totalNewItemsThisRun = 0;
+  const collectedIds: string[] = [];
 
   if (resuming) {
     console.log(
@@ -359,7 +361,7 @@ export async function syncWatchLater(
     // Periodic checkpoint: flush pending and update cursor so a timeout kill
     // never loses more than CHECKPOINT_EVERY_PAGES pages of work.
     if (pagesThisRun > 0 && pagesThisRun % CHECKPOINT_EVERY_PAGES === 0) {
-      const wrote = await flushCheckpoint(
+      const { wrote, ids } = await flushCheckpoint(
         pending,
         positionCursor,
         nextToken ?? null,
@@ -373,13 +375,14 @@ export async function syncWatchLater(
       positionCursor += wrote;
       priorTotal += wrote;
       totalNewItemsThisRun += wrote;
+      collectedIds.push(...ids);
       pending.clear();
     }
   }
 
   // Final flush.
   const complete = !nextToken;
-  const wrote = await flushCheckpoint(
+  const { wrote, ids } = await flushCheckpoint(
     pending,
     positionCursor,
     nextToken ?? null,
@@ -388,6 +391,7 @@ export async function syncWatchLater(
     complete,
   );
   totalNewItemsThisRun += wrote;
+  collectedIds.push(...ids);
   const totalItemsKnown = (resuming ? priorState.total_items : 0) + totalNewItemsThisRun;
 
   console.log(
@@ -400,5 +404,6 @@ export async function syncWatchLater(
     totalItemsKnown,
     complete,
     rebuilds: clientRebuilds,
+    videoIds: collectedIds,
   };
 }

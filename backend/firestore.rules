@@ -10,6 +10,8 @@ service cloud.firestore {
     match /videos/{document=**}       { allow read: if isAllowlisted(); allow write: if false; }
     match /sync_state/{document=**}   { allow read: if isAllowlisted(); allow write: if false; }
     match /tokens/{document=**}       { allow read: if false;            allow write: if false; }
+    match /summaries/{document=**}    { allow read: if isAllowlisted(); allow write: if false; }
+    match /quota/{document=**}        { allow read: if isAllowlisted(); allow write: if false; }
 
     match /{document=**}              { allow read, write: if false; }
   }

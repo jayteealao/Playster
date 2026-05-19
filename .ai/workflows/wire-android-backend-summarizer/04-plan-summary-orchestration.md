@@ -22,8 +22,9 @@ refs:
     - 04-plan-summarizer-container.md
     - 04-plan-summary-ui.md
   implement: 05-implement-summary-orchestration.md
-next-command: wf-implement
-next-invocation: "/wf implement wire-android-backend-summarizer summary-orchestration"
+implement-status: complete
+next-command: wf-verify
+next-invocation: "/wf verify wire-android-backend-summarizer summary-orchestration"
 ---
 
 # Plan: Summary orchestration (callable + webhook + quota + dispatcher)

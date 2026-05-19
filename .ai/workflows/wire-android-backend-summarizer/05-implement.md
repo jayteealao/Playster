@@ -5,12 +5,12 @@ slug: wire-android-backend-summarizer
 status: in-progress
 stage-number: 5
 created-at: "2026-05-18T10:50:00Z"
-updated-at: "2026-05-18T17:23:50Z"
-slices-implemented: 2
+updated-at: "2026-05-19T21:35:43Z"
+slices-implemented: 3
 slices-total: 4
-metric-total-files-changed: 60
-metric-total-lines-added: 3477
-metric-total-lines-removed: 568
+metric-total-files-changed: 78
+metric-total-lines-added: 4657
+metric-total-lines-removed: 586
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
@@ -23,13 +23,13 @@ slices:
     status: complete
     implement: 05-implement-summarizer-container.md
   - slug: summary-orchestration
-    status: pending
+    status: complete
     implement: 05-implement-summary-orchestration.md
   - slug: summary-ui
     status: pending
     implement: 05-implement-summary-ui.md
 next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer summarizer-container"
+next-invocation: "/wf verify wire-android-backend-summarizer summary-orchestration"
 ---
 
 # Implement Index — wire-android-backend-summarizer
@@ -40,7 +40,7 @@ next-invocation: "/wf verify wire-android-backend-summarizer summarizer-containe
 |-------|-------|--------|
 | `auth-and-android-firebase` | complete | [05-implement-auth-and-android-firebase.md](05-implement-auth-and-android-firebase.md) |
 | `summarizer-container` | complete | [05-implement-summarizer-container.md](05-implement-summarizer-container.md) |
-| `summary-orchestration` | pending | — |
+| `summary-orchestration` | complete | [05-implement-summary-orchestration.md](05-implement-summary-orchestration.md) |
 | `summary-ui` | pending | — |
 
 ## Cross-Slice Integration Notes
@@ -85,9 +85,23 @@ next-invocation: "/wf verify wire-android-backend-summarizer summarizer-containe
 - **schema_migrations runner is in place.** Future db column additions
   add a new named entry to `NAMED_MIGRATIONS`; the runner is idempotent
   by name.
+- **Summary orchestration wired end-to-end.** `requestVideoSummary`
+  callable + `summaryWebhook` HMAC verifier + `summaryDispatcher` cron +
+  `enqueueAutoSummary` hook into every sync entry point. Quota math is
+  transactional (pessimistic-pre-increment). Slice 3's webhook verifier
+  reads `req.rawBody` before any JSON parse — byte-exact contract with
+  slice 2 holds.
+- **Auto-enqueue lives in every sync path.** Sync helpers now return
+  `videoIds: string[]`; `index.ts` strips it from the callable wire
+  response but feeds it to `enqueueAutoSummary` (guarded by
+  `autoEnqueueSafe` so auto-enqueue failure cannot fail a sync).
+- **Slice 4 has its upstream.** `summaries/{videoId}` and
+  `quota/openrouter` are now readable by the allowlisted operator (rule
+  block lands here, before the catch-all). Android repository layer
+  follows the same `callbackFlow + awaitClose` shape slice 1 set up.
 
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf verify wire-android-backend-summarizer summarizer-container` — vitest the new webhook code + run the docker-compose harness against both fixtures. Implementation just landed and is the natural next gate.
-- **Option B:** `/wf implement wire-android-backend-summarizer summary-orchestration` — parallel-track slice 3 in a separate worktree. Slice 3 plan exists; slice 2's webhook contract is now defined so slice 3 can verify against it without waiting.
+- **Option A (default):** `/wf verify wire-android-backend-summarizer summary-orchestration` — boot the Firestore emulator and run `pnpm --filter functions test` against the new six suites. Implementation just landed; verify is the natural next gate.
+- **Option B:** `/wf implement wire-android-backend-summarizer summary-ui` — start slice 4. Slice 3 is now its upstream contract producer; the Android side can observe `summaries/` and `quota/openrouter` via Firestore listeners.
 - **Option G:** `/wf-quick probe wire-android-backend-summarizer` — clear the slice-1 runtime-evidence deferral after the operator runs the bootstrap two-pass deploy.

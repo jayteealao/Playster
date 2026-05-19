@@ -19,6 +19,7 @@ refs:
     - 03-slice-summary-ui.md
   plan: 04-plan-summary-orchestration.md
   implement: 05-implement-summary-orchestration.md
+implement-status: complete
 ---
 
 # Slice: Summary orchestration (callable + webhook + quota + dispatcher)
