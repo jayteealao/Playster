@@ -22,8 +22,8 @@ export { requestVideoSummary } from "./summarizer/dispatch";
 export { summaryWebhook } from "./summarizer/webhook";
 export { summaryDispatcher } from "./summarizer/dispatcher";
 
-async function autoEnqueueSafe(videoIds: string[]): Promise<void> {
-  if (!videoIds.length) return;
+async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
+  if (!videoIds || !videoIds.length) return;
   try {
     await enqueueAutoSummary(videoIds);
   } catch (err) {
