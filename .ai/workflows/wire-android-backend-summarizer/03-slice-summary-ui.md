@@ -3,7 +3,7 @@ schema: sdlc/v1
 type: slice
 slug: wire-android-backend-summarizer
 slice-slug: summary-ui
-status: defined
+status: implemented
 stage-number: 3
 created-at: "2026-05-17T21:45:53Z"
 updated-at: "2026-05-17T21:45:53Z"

@@ -140,6 +140,9 @@ dependencies {
     implementation(libs.firebase.functions)
     implementation(libs.kotlinx.coroutines.play.services)
 
+    // Markdown rendering for summaries (slice 4)
+    implementation(libs.compose.markdown)
+
     //hilt
     implementation(libs.hilt.android)
     implementation(libs.bundles.hilt)

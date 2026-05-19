@@ -7,8 +7,8 @@ status: active
 current-stage: implement
 stage-number: 5
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-19T22:30:08Z"
-selected-slice: "summary-orchestration"
+updated-at: "2026-05-19T22:55:42Z"
+selected-slice: "summary-ui"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
 base-branch: "main"
@@ -56,8 +56,8 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-review
-next-invocation: "/wf review wire-android-backend-summarizer summary-orchestration"
+next-command: wf-verify
+next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -76,6 +76,7 @@ workflow-files:
   - 05-implement-auth-and-android-firebase.md
   - 05-implement-summarizer-container.md
   - 05-implement-summary-orchestration.md
+  - 05-implement-summary-ui.md
   - 06-verify.md
   - 06-verify-auth-and-android-firebase.md
   - 06-verify-summarizer-container.md
@@ -86,7 +87,7 @@ progress:
   shape: complete
   slice: complete
   plan: complete
-  implement: in-progress
+  implement: complete
   verify: in-progress
   review: not-started
   handoff: not-started

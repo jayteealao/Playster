@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,18 +41,24 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
+import com.github.jayteealao.playster.data.firestore.QuotaState
+import com.github.jayteealao.playster.data.firestore.SummaryRepository
+import com.github.jayteealao.playster.data.firestore.SummaryStatus
 import com.github.jayteealao.playster.data.firestore.VideoDoc
+import com.github.jayteealao.playster.screens.common.rememberQuotaState
 import com.github.jayteealao.playster.ui.theme.Gray50
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class VideoListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     firestoreRepository: FirestoreRepository,
+    private val summaryRepository: SummaryRepository,
 ) : ViewModel() {
 
     val playlistId: String = savedStateHandle["playlistId"] ?: ""
@@ -59,19 +70,36 @@ class VideoListViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
+
+    /**
+     * Inspect `summaries/{videoId}` once and resolve whether the navigation
+     * should auto-dispatch a fresh summary request. Doc absent or failed →
+     * autoDispatch=true; queued/pending/running/completed → false (the
+     * SummaryScreen will render the current state from the listener).
+     */
+    fun onSummarizeClick(videoId: String, onNavigate: (String, Boolean) -> Unit) {
+        viewModelScope.launch {
+            val existing = summaryRepository.getOnce(videoId)
+            val autoDispatch = when (existing?.status) {
+                null,
+                SummaryStatus.UNKNOWN,
+                SummaryStatus.FAILED_TRANSIENT,
+                SummaryStatus.FAILED_PERMANENT -> true
+                else -> false
+            }
+            onNavigate(videoId, autoDispatch)
+        }
+    }
 }
 
-/**
- * Slice 1 stub — renders the videos in a playlist as a plain list. Slice 4
- * adds the VideoDetail/Summary navigation; for now tapping a video is a
- * no-op so the navigation graph doesn't change between slices.
- */
 @Composable
 fun VideoListScreen(
     onBack: () -> Unit = {},
+    onOpenVideo: (videoId: String, autoDispatch: Boolean) -> Unit = { _, _ -> },
     viewModel: VideoListViewModel = hiltViewModel(),
 ) {
     val videos by viewModel.videos.collectAsStateWithLifecycle()
+    val quotaState = rememberQuotaState()
 
     Column(
         modifier = Modifier
@@ -112,7 +140,14 @@ fun VideoListScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(items = videos, key = { it.videoId.ifBlank { it.id } }) { video ->
-                    VideoRow(video = video)
+                    VideoRow(
+                        video = video,
+                        quotaState = quotaState,
+                        onOpen = { onOpenVideo(video.videoId, false) },
+                        onSummarize = {
+                            viewModel.onSummarizeClick(video.videoId, onOpenVideo)
+                        },
+                    )
                 }
             }
         }
@@ -120,9 +155,17 @@ fun VideoListScreen(
 }
 
 @Composable
-private fun VideoRow(video: VideoDoc) {
+private fun VideoRow(
+    video: VideoDoc,
+    quotaState: QuotaState,
+    onOpen: () -> Unit,
+    onSummarize: () -> Unit,
+) {
+    val summarizeEnabled = quotaState is QuotaState.Healthy
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpen() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Gray50),
     ) {
@@ -158,6 +201,23 @@ private fun VideoRow(video: VideoDoc) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(
+                onClick = onSummarize,
+                enabled = summarizeEnabled,
+                modifier = Modifier.testTag(
+                    if (summarizeEnabled) "summarize-button-enabled" else "summarize-button-disabled",
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = if (summarizeEnabled) {
+                        "Summarize this video"
+                    } else {
+                        "Daily summary limit reached — try again after midnight UTC."
+                    },
                 )
             }
         }

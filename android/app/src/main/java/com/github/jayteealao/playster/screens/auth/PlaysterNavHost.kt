@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import com.github.jayteealao.playster.screens.LoadingScreen
 import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
 import com.github.jayteealao.playster.screens.playlist.VideoListScreen
+import com.github.jayteealao.playster.screens.videoDetail.VideoDetailScreen
 
 @Composable
 fun PlaysterNavHost(
@@ -44,7 +45,27 @@ fun PlaysterNavHost(
             route = "videos/{playlistId}",
             arguments = listOf(navArgument("playlistId") { type = NavType.StringType }),
         ) {
-            VideoListScreen(onBack = { navHostController.popBackStack() })
+            VideoListScreen(
+                onBack = { navHostController.popBackStack() },
+                onOpenVideo = { videoId, autoDispatch ->
+                    navHostController.navigate(
+                        "videoDetail/$videoId?autoDispatch=$autoDispatch",
+                    )
+                },
+            )
+        }
+
+        composable(
+            route = "videoDetail/{videoId}?autoDispatch={autoDispatch}",
+            arguments = listOf(
+                navArgument("videoId") { type = NavType.StringType },
+                navArgument("autoDispatch") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
+        ) {
+            VideoDetailScreen(onBack = { navHostController.popBackStack() })
         }
 
         composable("loader") {

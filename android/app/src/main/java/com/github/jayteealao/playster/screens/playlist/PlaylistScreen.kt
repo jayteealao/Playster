@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.github.jayteealao.playster.screens.common.QuotaBanner
 import com.github.jayteealao.playster.ui.theme.Cyan500
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -80,8 +79,6 @@ fun PlaylistScreen(
                     )
                 }
             }
-
-            QuotaBanner()
 
             Column(
                 modifier = Modifier

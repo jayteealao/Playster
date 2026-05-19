@@ -2,15 +2,15 @@
 schema: sdlc/v1
 type: implement-index
 slug: wire-android-backend-summarizer
-status: in-progress
+status: complete
 stage-number: 5
 created-at: "2026-05-18T10:50:00Z"
-updated-at: "2026-05-19T21:35:43Z"
-slices-implemented: 3
+updated-at: "2026-05-19T22:55:42Z"
+slices-implemented: 4
 slices-total: 4
-metric-total-files-changed: 78
-metric-total-lines-added: 4657
-metric-total-lines-removed: 586
+metric-total-files-changed: 108
+metric-total-lines-added: 5914
+metric-total-lines-removed: 611
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
@@ -26,10 +26,10 @@ slices:
     status: complete
     implement: 05-implement-summary-orchestration.md
   - slug: summary-ui
-    status: pending
+    status: complete
     implement: 05-implement-summary-ui.md
 next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer summary-orchestration"
+next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
 ---
 
 # Implement Index — wire-android-backend-summarizer
@@ -41,7 +41,7 @@ next-invocation: "/wf verify wire-android-backend-summarizer summary-orchestrati
 | `auth-and-android-firebase` | complete | [05-implement-auth-and-android-firebase.md](05-implement-auth-and-android-firebase.md) |
 | `summarizer-container` | complete | [05-implement-summarizer-container.md](05-implement-summarizer-container.md) |
 | `summary-orchestration` | complete | [05-implement-summary-orchestration.md](05-implement-summary-orchestration.md) |
-| `summary-ui` | pending | — |
+| `summary-ui` | complete | [05-implement-summary-ui.md](05-implement-summary-ui.md) |
 
 ## Cross-Slice Integration Notes
 
@@ -99,9 +99,22 @@ next-invocation: "/wf verify wire-android-backend-summarizer summary-orchestrati
   `quota/openrouter` are now readable by the allowlisted operator (rule
   block lands here, before the catch-all). Android repository layer
   follows the same `callbackFlow + awaitClose` shape slice 1 set up.
+- **Summary UI lands the user-visible head of the pipeline.**
+  VideoDetailScreen + SummaryScreen + app-global QuotaBanner observe
+  `summaries/{videoId}` + `quota/openrouter` via `SummaryRepository` +
+  `QuotaRepository` (extensions of the slice-1 repository module). The
+  Summarize affordance on every video tile reads
+  `rememberQuotaState()` for its enabled/disabled binding so banner
+  and CTAs move together. Markdown rendering via
+  `com.github.jeziellago:compose-markdown:0.7.2` from JitPack (plan
+  GAV `dev.jeziellago:...:0.5.7` did not exist on Maven Central —
+  resolved to the upstream JitPack coordinate).
+- **All 4 slices implemented.** This branch now carries the full
+  Android-↔-Backend-↔-Summarizer wiring; verify pass for slice 4
+  completes the slug.
 
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf verify wire-android-backend-summarizer summary-orchestration` — boot the Firestore emulator and run `pnpm --filter functions test` against the new six suites. Implementation just landed; verify is the natural next gate.
-- **Option B:** `/wf implement wire-android-backend-summarizer summary-ui` — start slice 4. Slice 3 is now its upstream contract producer; the Android side can observe `summaries/` and `quota/openrouter` via Firestore listeners.
+- **Option A (default):** `/wf verify wire-android-backend-summarizer summary-ui` — verify slice 4. Compile + instrumented-test compile are green; live execution needs the Firebase emulator + a connected Android device/emulator.
+- **Option B:** `/wf review wire-android-backend-summarizer summary-ui` — skip verify if the emulator-and-device gate is judged the verify scope's responsibility. Not recommended (AC-5's 500ms assertion is the verify gate).
 - **Option G:** `/wf-quick probe wire-android-backend-summarizer` — clear the slice-1 runtime-evidence deferral after the operator runs the bootstrap two-pass deploy.

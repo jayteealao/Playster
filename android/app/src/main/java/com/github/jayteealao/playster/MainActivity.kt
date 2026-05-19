@@ -3,6 +3,7 @@ package com.github.jayteealao.playster
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.github.jayteealao.playster.screens.auth.PlaysterNavHost
+import com.github.jayteealao.playster.screens.common.QuotaBanner
 import com.github.jayteealao.playster.ui.theme.PlaysterTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -27,9 +29,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-//                    Greeting("Android")
-//                    AuthScreen()
-                    PlaysterNavHost(navHostController)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        QuotaBanner()
+                        PlaysterNavHost(navHostController)
+                    }
                 }
             }
         }
