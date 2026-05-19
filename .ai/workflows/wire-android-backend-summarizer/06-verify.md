@@ -5,15 +5,15 @@ slug: wire-android-backend-summarizer
 status: in-progress
 stage-number: 6
 created-at: "2026-05-18T16:43:28Z"
-updated-at: "2026-05-19T18:05:34Z"
-slices-verified: 2
+updated-at: "2026-05-19T22:30:08Z"
+slices-verified: 3
 slices-total: 4
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
   implement-index: 05-implement.md
 next-command: wf-review
-next-invocation: "/wf review wire-android-backend-summarizer summarizer-container"
+next-invocation: "/wf review wire-android-backend-summarizer summary-orchestration"
 ---
 
 # Verify Index — wire-android-backend-summarizer
@@ -24,7 +24,7 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
 |-------|--------|-------------|-------------|--------|
 | `auth-and-android-firebase` | partial | converged (1 round) | deferred (bootstrap state) | [06-verify-auth-and-android-firebase.md](06-verify-auth-and-android-firebase.md) |
 | `summarizer-container`       | pass    | converged (2 extended fix-round bursts) | required (all 4 user-observable AC evidenced) | [06-verify-summarizer-container.md](06-verify-summarizer-container.md) |
-| `summary-orchestration`      | —       | —                   | —                          | (not yet verified) |
+| `summary-orchestration`      | pass    | converged (1 round) | required (all 5 user-observable AC evidenced) | [06-verify-summary-orchestration.md](06-verify-summary-orchestration.md) |
 | `summary-ui`                 | —       | —                   | —                          | (not yet verified) |
 
 ## Cross-Slice Notes
@@ -82,9 +82,27 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
   shared fixture vector from `summarizer/summarize-api/tests/
   webhook-signer.test.ts`.
 
+## Cross-Slice Notes (slice 3)
+
+- **Slice 3 verified.** Vitest 45/45 against live Firestore emulator
+  on `127.0.0.1:8080` (project `demo-playster`). All 5 user-observable
+  AC (AC-5, AC-7, AC-8, AC-9, AC-11) carry positive interactive
+  evidence; all 5 code-only AC are covered by automated tests.
+- **One verify-owned fix landed (TEST-1).** `autoEnqueueSafe` was
+  hardened to accept `string[] | undefined`. Commit `5009bb3b`. The
+  fix only patches a test-path crash caused by slice-3's new
+  `videoIds` field missing from slice-1's `syncAll()` mock — no
+  production behavior change.
+- **Slice-1's `callable.test.ts` is now green again.** No further
+  shared-file mutations needed in this slice's verify.
+- **Lint warning provenance recorded.** The single `max-len` warning
+  surviving in this verify is at `src/youtube/innertube-sync.ts:398`
+  (slice-1 commit `7dad00cd`), not slice 3.
+
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 converged with `result: pass`; all 4 user-observable AC evidenced. Move into review.
-- **Option B:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 verify already converged; not yet reviewed. Both slices are now verify-complete with one (slice 1) carrying a bootstrap-deploy-pending deferral.
-- **Option (parallel):** `/wf implement wire-android-backend-summarizer summary-orchestration` — slice 3 plan exists; its webhook-verifier contract is anchored by slice 2's hardened verify-time evidence (incl. the SSE `done`/`error` protocol patch). Safe to start in parallel with review.
-- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide probe once the operator runs the bootstrap two-pass deploy. Will clear slice 1's outstanding deferral.
+- **Option A (default):** `/wf review wire-android-backend-summarizer summary-orchestration` — slice 3 converged with `result: pass`; all 5 user-observable AC evidenced. Move into review.
+- **Option B:** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 verify already converged; not yet reviewed.
+- **Option C:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 verify already converged; not yet reviewed. Carries a bootstrap-deploy-pending deferral that shipping will hard-block on.
+- **Option (parallel):** `/wf implement wire-android-backend-summarizer summary-ui` — slice 4 is now anchored by slice 3's contract producer (`summaries/{videoId}` + `quota/openrouter` readable to the allowlisted operator). Safe to start in parallel with review.
+- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide runtime sweep once the operator runs the bootstrap two-pass deploy. Will clear slice 1's outstanding deferral.
