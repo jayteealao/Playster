@@ -146,6 +146,7 @@ export async function runUrlJob(
               });
               break;
             case "complete":
+            case "done":
               eventStore.addEvent(job.id, {
                 type: "done",
                 data: { done: true, result: accumulatedChunks.join("") },
@@ -153,6 +154,16 @@ export async function runUrlJob(
               });
               resolve();
               break;
+            case "error": {
+              const message =
+                typeof eventData === "object" &&
+                eventData !== null &&
+                "message" in eventData
+                  ? String((eventData as { message: unknown }).message)
+                  : String(event.data);
+              reject(new Error(message));
+              break;
+            }
           }
         },
         onError(error) {

@@ -196,6 +196,54 @@ describe("url-runner webhook delivery", () => {
     });
   });
 
+  describe("daemon SSE error event", () => {
+    let ctx: TestContext;
+    let daemon: SummarizeDaemonHandle;
+    let receiver: WebhookReceiver;
+
+    beforeAll(async () => {
+      daemon = await startSummarizeDaemon({
+        daemonError: { message: "Unsupported model provider \"meta-llama\"" },
+      });
+      receiver = await startWebhookReceiver();
+      ctx = await buildApp({ daemonUrl: daemon.url });
+    });
+
+    afterAll(async () => {
+      await ctx.cleanup();
+      await closeServer(daemon.server);
+      await closeServer(receiver.server);
+    });
+
+    it("delivers a failed-status webhook carrying the daemon's error message", async () => {
+      const createRes = await ctx.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        payload: JSON.stringify({
+          url: "https://example.com",
+          webhook_url: receiver.url,
+          webhook_secret: "sixteen-byte-test-secret",
+          client_job_id: "fixture-daemon-error",
+        }),
+      });
+      expect(createRes.statusCode).toBe(201);
+
+      await waitForCapture(receiver, 1, 5000);
+
+      const parsed = JSON.parse(receiver.captures[0].body) as {
+        client_job_id: string;
+        status: string;
+        error?: { message: string };
+        result?: { summary: string };
+      };
+      expect(parsed.client_job_id).toBe("fixture-daemon-error");
+      expect(parsed.status).toBe("failed");
+      expect(parsed.error?.message).toMatch(/Unsupported model provider/);
+      expect(parsed.result).toBeUndefined();
+    });
+  });
+
   describe("no webhook configured", () => {
     let ctx: TestContext;
     let daemon: SummarizeDaemonHandle;

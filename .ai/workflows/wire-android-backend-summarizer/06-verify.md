@@ -5,7 +5,7 @@ slug: wire-android-backend-summarizer
 status: in-progress
 stage-number: 6
 created-at: "2026-05-18T16:43:28Z"
-updated-at: "2026-05-19T13:37:17Z"
+updated-at: "2026-05-19T18:05:34Z"
 slices-verified: 2
 slices-total: 4
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
@@ -23,7 +23,7 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
 | Slice | Result | Convergence | Interactive | Record |
 |-------|--------|-------------|-------------|--------|
 | `auth-and-android-firebase` | partial | converged (1 round) | deferred (bootstrap state) | [06-verify-auth-and-android-firebase.md](06-verify-auth-and-android-firebase.md) |
-| `summarizer-container`       | partial | converged (extended fix loop) | deferred (AC-14 OpenRouter free-tier latency) | [06-verify-summarizer-container.md](06-verify-summarizer-container.md) |
+| `summarizer-container`       | pass    | converged (2 extended fix-round bursts) | required (all 4 user-observable AC evidenced) | [06-verify-summarizer-container.md](06-verify-summarizer-container.md) |
 | `summary-orchestration`      | —       | —                   | —                          | (not yet verified) |
 | `summary-ui`                 | —       | —                   | —                          | (not yet verified) |
 
@@ -54,16 +54,27 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
   Two harness-budget tweaks (`JOB_TIMEOUT_MS=900000`, `waitForWebhook`
   12-min) document realistic upper bounds for OpenRouter free-tier
   latency; they do not change the slice's contract.
-- **Daemon contract independently confirmed (slice 2).** Direct probe
-  of `POST /v1/summarize` against a non-YouTube URL emits the expected
-  `Extracting → Summarizing → meta(model=openrouter/<free>)` SSE
-  sequence. The unmet AC-14 happy-path is OpenRouter free-tier 120B
-  model latency on residential Docker NAT egress, not slice code.
-- **Two runtime-evidence deferrals active.** Slice 1 AC-3 positive +
-  AC-4 (bootstrap two-pass deploy pending). Slice 2 AC-14 (OpenRouter
-  free-model latency). `/wf ship` will hard-block until both clear via
-  `/wf-quick probe` or a re-verify in a capable environment. Tracked
-  under `00-index.md` `runtime-evidence-deferrals`.
+- **Daemon contract independently confirmed AND gateway SSE bug fixed
+  (slice 2).** Initial verdict deferred AC-14 on OpenRouter free-tier
+  latency framing; user pushback drove a deeper investigation that
+  found a real gateway protocol bug. The vendored daemon emits `done`
+  and `error` SSE events (per `summarizer/summarize-daemon/src/shared/
+  sse-events.ts:32-40`) but the gateway only parsed `complete`. The
+  in-tree test mock was emitting `complete` too, which is why CI never
+  caught the drift. Patched in round 2; mock corrected; new test added
+  to cover the `error`-event path; harness re-ran and passed both
+  fixtures in 108 s end-to-end. **AC-14 is no longer deferred.**
+- **One runtime-evidence deferral remains active.** Slice 1 AC-3
+  positive + AC-4 (bootstrap two-pass deploy pending). `/wf ship` will
+  hard-block until cleared via `/wf-quick probe` or by re-verifying in
+  a post-bootstrap environment. Tracked under `00-index.md`
+  `runtime-evidence-deferrals`.
+- **Documentation drift surfaced for review (slice 2 DOC-1).** Shape
+  and slice docs claim a "youtubei-first cascade" daemon. The actual
+  daemon code path is HTML+captionTracks scrape → `yt-dlp` + ASR →
+  Apify (per `summarizer/summarize-daemon/packages/core/src/content/
+  transcript/providers/youtube.ts`). No `youtubei.js` usage. Review
+  should decide whether to retroactively amend the shape doc.
 - **Webhook signing contract is byte-exact and evidenced both ways.**
   Slice 2's signer (vitest fixture vector + mock-backend at-rest verify)
   matches the contract that slice 3's verifier must implement
@@ -73,7 +84,7 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
 
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 converged with `result: partial`. Move into review with the AC-14 deferral acknowledged.
-- **Option B:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — re-pick slice 1 review (slice 1 verify converged earlier; not yet reviewed). Both slices are now verify-complete.
-- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide probe once the operator runs the bootstrap two-pass deploy (clears slice 1 deferral) and once the container is deployed somewhere with faster OpenRouter egress (helps clear slice 2 AC-14).
-- **Option (parallel):** `/wf implement wire-android-backend-summarizer summary-orchestration` — slice 3 plan exists, its webhook-verifier contract is anchored by slice 2's verify-time evidence. Safe to start in parallel with review.
+- **Option A (default):** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 converged with `result: pass`; all 4 user-observable AC evidenced. Move into review.
+- **Option B:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 verify already converged; not yet reviewed. Both slices are now verify-complete with one (slice 1) carrying a bootstrap-deploy-pending deferral.
+- **Option (parallel):** `/wf implement wire-android-backend-summarizer summary-orchestration` — slice 3 plan exists; its webhook-verifier contract is anchored by slice 2's hardened verify-time evidence (incl. the SSE `done`/`error` protocol patch). Safe to start in parallel with review.
+- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide probe once the operator runs the bootstrap two-pass deploy. Will clear slice 1's outstanding deferral.

@@ -35,6 +35,12 @@ export interface SummarizeDaemonOptions {
   summarizeError?: { status: number; body: string };
   /** If set, GET /v1/summarize/:id/events responds with this status/body. */
   eventsError?: { status: number; body: string };
+  /**
+   * If set, the SSE stream emits a terminal `error` event (matching the real
+   * daemon's protocol per src/shared/sse-events.ts) carrying this message
+   * and then closes. Use to exercise the gateway's error-event handling.
+   */
+  daemonError?: { message: string };
 }
 
 export interface SummarizeDaemonHandle {
@@ -88,10 +94,19 @@ export function startSummarizeDaemon(
           Connection: "keep-alive",
         });
         res.write(`event: status\ndata: ${JSON.stringify({ status: "running" })}\n\n`);
+        if (opts.daemonError) {
+          res.write(
+            `event: error\ndata: ${JSON.stringify({ message: opts.daemonError.message })}\n\n`,
+          );
+          res.end();
+          return;
+        }
         for (const chunk of chunks) {
           res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
         }
-        res.write("event: complete\ndata: {}\n\n");
+        // Real daemon emits `done`. Older fixtures (and this mock historically)
+        // used `complete`; the gateway accepts both.
+        res.write("event: done\ndata: {}\n\n");
         res.end();
         return;
       }

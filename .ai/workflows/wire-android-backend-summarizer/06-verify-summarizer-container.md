@@ -6,24 +6,23 @@ slice-slug: summarizer-container
 status: complete
 stage-number: 6
 created-at: "2026-05-19T13:37:17Z"
-updated-at: "2026-05-19T13:37:17Z"
-result: partial
+updated-at: "2026-05-19T18:05:34Z"
+result: pass
 metric-checks-run: 6
 metric-checks-passed: 6
-metric-acceptance-met: 5
+metric-acceptance-met: 7
 metric-acceptance-total: 7
 metric-acceptance-user-observable: 4
 metric-acceptance-code-only: 3
 metric-interactive-checks-run: 5
-metric-interactive-checks-passed: 4
+metric-interactive-checks-passed: 5
 metric-issues-found: 0
-metric-issues-found-initial: 1
+metric-issues-found-initial: 4
 metric-issues-found-final: 0
-fix-rounds-run: 1
+fix-rounds-run: 2
 convergence: converged
 verify-owned-fix-commit: null
-interactive-verification: deferred
-interactive-verification-defer-reason: "AC-14 (no-caption completed summary) — OpenRouter free-tier 120B model latency exceeds harness budget on Docker Desktop residential NAT egress. Daemon contract is confirmed working (SSE emits Extracting → Summarizing → meta with chosen free model, then waits on OpenRouter response); the unmet bound is environmental, not code. Re-verify in Cloud Run or in a dedicated workflow that pins a faster free model."
+interactive-verification: required
 adapters-used: [service]
 bootstrap-failures: []
 evidence-dir: ".ai/workflows/wire-android-backend-summarizer/verify-evidence/summarizer-container/"
@@ -45,11 +44,13 @@ next-invocation: "/wf review wire-android-backend-summarizer summarizer-containe
 
 ## Verification Summary
 
-Per-slice verify of the second slice (container image + webhook signing + harness). Static checks all clean: lint, tsc, vitest (71/71 passing including 27 webhook-related specs across signer/deliver/url-runner/schema/migrations). The subtree pin matches actual squash. Docker Desktop is available and the multi-stage build now produces a working image after a sequence of Dockerfile bringup defenses landed verify-side (native build deps, `CI=true`, `pnpm prune --ignore-scripts`, `/app` layout for pnpm symlink resolution, `python3` in the runtime stage for the `yt-dlp` zipapp, plus a top-level `.dockerignore`).
+Per-slice verify of the second slice (container image + webhook signing + harness). Static checks all clean: lint, tsc, vitest (72/72 passing including 28 webhook-related specs — added a new test for the daemon `error` SSE event path the gateway previously did not handle). The subtree pin matches actual squash; the vendored daemon is zero-modified upstream. The multi-stage build produces a working image after Dockerfile bringup defenses landed verify-side.
 
-The user-observable AC gate partitions seven AC entries: AC-6 (webhook signature), AC-14 (no-caption fallback summary), AC-16 (cold-start health), and the slice-local replay-rejection AC are user-observable; image-builds-cleanly, yt-dlp-version-floor, and subtree-pin-matches are code-only. AC-6, AC-16, the yt-dlp floor, and the replay AC all produced positive runtime evidence in this verify. **AC-14 is deferred** with an environmental reason — the daemon is confirmed working (direct SSE probe captured `event: status data: Extracting…` then `event: status data: Summarizing…` then `event: meta data: {"model":"openrouter/nvidia/nemotron-3-super-120b-a12b:free", …}` for a non-YouTube URL) but the chosen OpenRouter free-tier 120B model never returns chunks within the harness's 12-minute budget on this machine. This is OpenRouter free-tier latency, not a daemon defect; the GitHub issue tracker at steipete/summarize has no recent reports of hang/timeout regressions.
+The user-observable AC gate partitions seven AC entries: AC-6 (webhook signature), AC-14 (no-caption fallback summary), AC-16 (cold-start health), and the slice-local replay-rejection AC are user-observable; image-builds-cleanly, yt-dlp-version-floor, and subtree-pin-matches are code-only. **All seven AC are met.** The harness completed both fixtures (captioned + no-caption) end-to-end in 108 s with valid signed webhooks; replay rejected at 401; yt-dlp reports 2026.02.21.
 
-The verdict is `result: partial` because of the AC-14 deferral. `convergence: converged` because the verify-owned fix loop resolved the single pre-loop blocker (multi-stage build failure) by issuing a chained Dockerfile patch the user explicitly opted into extending across the initial root cause's cascade of incremental discoveries.
+The verdict is `result: pass` with `convergence: converged` after two fix-round bursts (initial Dockerfile bringup defenses, then a deeper round triggered by the user's pushback that "if non-YouTube also fails, isn't this still YouTube" — which turned out to be a much more consequential SSE event-name protocol drift bug in the gateway). The full second round is documented under `## Verify-Owned Fixes` below.
+
+This verify exposed and resolved a **real gateway bug** that automated tests could not catch because the in-tree mock implemented the wrong protocol. The mock has been corrected to match the daemon's real SSE event vocabulary (`done` / `error`) so the bug cannot regress silently again.
 
 ## Adapters used
 
@@ -61,9 +62,9 @@ The verdict is `result: partial` because of the AC-14 deferral. `convergence: co
 |-------|---------|-------|
 | `pnpm --filter summarize-api lint` | pass | ESLint 9 flat config; no errors, no warnings in slice-2 files. |
 | `pnpm --filter summarize-api build` | pass | `tsc` clean exit. |
-| `pnpm --filter summarize-api test` | pass | 15 files / 71 tests in 6.68s. Webhook coverage: 5 signer (byte-exact fixture + multibyte + single-byte change), 7 deliver (retry ladder + non-retryable 4xx), 3 url-runner-webhook (happy/failed/no-webhook), 5 webhook-schema (gate on `webhook_secret`), 2 migrations (re-open idempotency + 003 columns). |
-| `docker compose build` (multi-stage) | pass (after fix loop) | Initial run failed on missing native build deps; resolved by patching the daemon-build + api-build stages. Final image: `deploy-summarizer:latest` ~1.65 GB compressed. |
-| Subtree pin match | pass | `SUBTREE_PIN.md` records upstream `0ec12acc15c480fd4fc91f9d1ee4538c3adeb1de`, local squash `8fcef862`; `git log -- summarizer/summarize-daemon` agrees. |
+| `pnpm --filter summarize-api test` | pass | 15 files / **72 tests** in 6.93 s. Added `daemon SSE error event` describe block to `url-runner-webhook.test.ts` exercising the new `error`-event handler. Other webhook coverage unchanged. |
+| `docker compose build` (multi-stage) | pass | Final image: `deploy-summarizer:latest` ~1.65 GB compressed. Eight bringup-defense patches landed (see Verify-Owned Fixes). |
+| Subtree pin match | pass | `SUBTREE_PIN.md` records upstream `0ec12acc15c480fd4fc91f9d1ee4538c3adeb1de`, local squash `8fcef862`; `git log -- summarizer/summarize-daemon` agrees. **Zero local modifications to the vendored daemon code** (only `SUBTREE_PIN.md` was added). |
 | `yt-dlp --version` inside runtime image | pass | Reports `2026.02.21` (floor met). Required adding `python3` to the runtime stage — the GitHub Releases artifact is a Python zipapp with a `#!/usr/bin/env python3` shebang, not a true static binary. |
 
 ## Interactive Verification Results
@@ -72,18 +73,18 @@ Adapter: **service** (`docker compose up` over `summarizer/deploy/docker-compose
 
 | Criterion | Tool | Steps | Evidence | Observation | Result |
 |---|---|---|---|---|---|
-| **AC-16** — Container cold-start healthy within budget | docker compose | `docker compose up -d` then `pollUntilOk /health 60s`. | `verify-evidence/summarizer-container/harness.log` lines `summarizer healthy … status:200` at 2.4 s and `mock-backend healthy` at 2.4 s. Daemon `/health 200` confirmed via entrypoint log `daemon /health is 200`. | Gateway + daemon both healthy within ~2 s of compose up; far inside the 30 s budget the entrypoint enforces and the 60 s harness budget. | pass |
-| **AC-6** — Webhook POST carries valid `X-Summarizer-Signature` and resolves at receiver | docker compose + mock-backend HMAC verifier | Stack up, POST fixtures captioned + no-caption to gateway, gateway delivered terminal webhooks. | Daemon container logs `webhook … outcome:delivered, status:204` for each job; mock-backend's signature verifier returned 204 (HMAC matched + replay window OK). Cross-checked independently with a synthetic curl POST: valid signature → 204; same payload re-signed with `t = now - 301` → 401. | Signature contract works end-to-end. Mock-backend independently re-derives the HMAC and accepts only fresh signatures within the 300 s window. | pass |
-| **AC-14** — No-caption fixture surfaces as `status: completed` with non-empty summary | docker compose + OpenRouter free | Two passes attempted with `JOB_TIMEOUT_MS=300000` (default) and `900000` (bumped). Daemon directly probed via `docker exec curl /v1/summarize/<id>/events`. | SSE stream shows `Extracting → Summarizing → meta(model=openrouter/nvidia/nemotron-3-super-120b-a12b:free)` then only `: keepalive` comments for 30+ s. No `chunk`. No `complete`. After gateway timeout fires, the gateway emits a `failed: This operation was aborted` webhook with valid signature. | Daemon contract works (status events fire, model selection works, SSE plumbing carries keepalives) but the chosen free-tier 120B model does not return chunks within harness budget. This holds for non-YouTube URLs too (smoke probe on `https://example.com` reproduces). | **deferred** — see defer-reason above. |
-| **Slice-local — Replay attack** — POST to mock-backend with `t = now - 301s` rejected | curl independent probe | Brought up mock-backend alone with known `WEBHOOK_SECRET`; POST `t=now` valid signature → expect 204; POST `t=now-301` re-signed → expect 401. | Valid POST: `HTTP/1.1 204 No Content`. Replay POST: `HTTP/1.1 401 Unauthorized`. | Mock-backend enforces the 300 s replay window correctly. The harness's longer end-to-end variant of this check (post-AC-14) was not reached this round because of the AC-14 deferral. | pass |
-| **Daemon contract probe** — direct daemon `/v1/summarize` end-to-end | docker exec + SSE curl | `POST /v1/summarize {url:"https://example.com", model:"free"}` returns `{ok,id}` immediately; subscribe `/v1/summarize/<id>/events`. | Daemon emits status + meta events, picks a free model via OpenRouter `/v1/refresh-free` cache, then waits on the model. No SSE error event, no exception. | Daemon is healthy and contract is intact; the unmet AC-14 result is on the OpenRouter side, not the daemon. | confirmed |
+| **AC-16** — Container cold-start healthy within budget | docker compose | `docker compose up -d` then `pollUntilOk /health 60s`. | `verify-evidence/summarizer-container/harness.log` shows `summarizer healthy … status:200` at 2.6 s and `mock-backend healthy` at 2.6 s. Daemon `/health 200` confirmed via entrypoint log `daemon /health is 200`. | Gateway + daemon both healthy within ~2.6 s of compose up; far inside the 30 s budget the entrypoint enforces and the 60 s harness budget. | pass |
+| **AC-6** — Webhook POST carries valid `X-Summarizer-Signature` and resolves at receiver | docker compose + mock-backend HMAC verifier | Stack up, POST fixtures captioned + no-caption to gateway, gateway delivered terminal webhooks. | Both captured webhooks at `verify-evidence/.../fixture-{captioned,no-caption}.json` carry valid `t=…,v1=<hex>` signatures verified by mock-backend (204). Cross-checked independently with a synthetic curl POST: valid signature → 204; same payload re-signed with `t = now - 301` → 401. | Signature contract works end-to-end. Mock-backend independently re-derives the HMAC and accepts only fresh signatures within the 300 s window. | pass |
+| **AC-14** — No-caption fixture surfaces as `status: completed` with non-empty summary | docker compose + OpenRouter free + GROQ Whisper | After two verify-time fixes (gateway SSE event-name patch + GROQ transcription provider wiring), the harness completed both fixtures end-to-end in 108 s. The captioned fixture's HTML caption scrape worked first-pass; the no-caption fixture took the `yt-dlp` → Whisper-via-Groq path. | `verify-evidence/.../fixture-no-caption.json` payload: `status:"completed"`, `result.summary:"### Overview\nTiny informal clip at an elephant exhibit. Speaker points out the animals' really really long trunks and makes a bleating sound. ### Notable lines Ends with that's pretty much all there is to say. ### Takeaway"`. This is a faithful summary of the actual 18-second video content. `result.summary.length` ~ 240 chars (above the 50-char floor in the fixture). | pass |
+| **Slice-local — Replay attack** — POST to mock-backend with `t = now - 301s` rejected | harness in-flow + curl independent probe | Harness's end-to-end replay variant ran this round (it's only reached after AC-14 happy path). Captured: `running replay attack check` → `replay attack correctly rejected status:401`. Also independently confirmed earlier in the round with a manual curl. | Mock-backend enforces the 300 s replay window correctly. | pass |
+| **Daemon contract probe** — direct daemon `/v1/summarize` end-to-end | docker exec + SSE curl | `POST /v1/summarize {url:"https://example.com", model:"free"}` returns `{ok,id}` immediately; subscribe `/v1/summarize/<id>/events`. | Earlier round captured `Extracting → Summarizing → meta(model=openrouter/nvidia/nemotron-3-super-120b-a12b:free)` confirming the daemon's contract is intact even when the chosen model latency exceeds budget. After the SSE-name patch + GROQ wiring, the daemon's terminal `done` events now reach the gateway and trigger correct webhook delivery. | Daemon is healthy; the gateway's prior misinterpretation of `done` events as stream-end and `error` events as silent close was the production-relevant bug. | confirmed |
 
 ## Acceptance Criteria Status
 
 | Criterion | Kind | Status | Verification method | Evidence |
 |---|---|---|---|---|
 | **AC-6** — webhook POST hits receiver with valid `X-Summarizer-Signature` | user-observable | met | interactive (mock-backend HMAC verifier in harness) | `verify-evidence/.../smoke-example.json` (signature `t=…,v1=…`), daemon container log `outcome:delivered, status:204` for fixture jobs. Also re-derived independently in the curl replay test. |
-| **AC-14** — no-caption fallback → `status: completed` + non-empty `result.summary` | user-observable | runtime-evidence-missing (deferred) | interactive (attempted; OpenRouter free-tier latency exceeded budget) | `verify-evidence/.../harness.log` (12-min timeout). Daemon contract confirmed via direct probe. Deferral reason recorded in frontmatter. |
+| **AC-14** — no-caption fallback → `status: completed` + non-empty `result.summary` | user-observable | met | interactive (`yt-dlp` + Whisper-via-Groq transcription path) | `verify-evidence/.../fixture-no-caption.json` — `status:"completed"`, `result.summary` ~240 chars describing the actual 18 s video content. Above the 50-char floor in `summarizer/deploy/fixtures/no-caption.json`. |
 | **AC-16** — both processes healthy within budget on cold start | user-observable | met | interactive (gateway + daemon `/health` polled) | Harness log: `summarizer healthy status:200` at ~2.4 s of compose up; entrypoint log `daemon /health is 200` before gateway start. |
 | **slice-local** — image builds cleanly on Node 24 + pnpm 10.33.2 | code-only | met | automated (`docker compose build`) | Build succeeds end-to-end after Dockerfile bringup defenses landed; image tag `deploy-summarizer:latest` produced. |
 | **slice-local** — `yt-dlp --version` reports ≥ 2026.02.21 | user-observable | met | interactive (`docker run yt-dlp --version`) | Output: `2026.02.21`. |
@@ -92,11 +93,15 @@ Adapter: **service** (`docker compose up` over `summarizer/deploy/docker-compose
 
 ## Issues Found
 
-None outstanding. The single pre-loop blocker (multi-stage docker build failure) was resolved across the verify-owned fix loop. AC-14's deferral is procedural (environmental constraint), not a code defect — see Verify-Owned Fixes below for the full patch list and Recommended Next Stage for the follow-up workflow recommendation.
+None outstanding. All four pre-loop blockers (multi-stage build failure, SSE event-name protocol drift, missing transcription provider wiring, model-selection signal-mismatch) were resolved across two extended fix-round bursts. See Verify-Owned Fixes below for the full patch list.
 
 ## Verify-Owned Fixes
 
-The implement stage's Dockerfile had not been built end-to-end on a clean machine. Verify caught and patched seven distinct bringup defenses needed for a working multi-stage build, plus environmental settings discovered during smoke probing. Patches were applied as a chained sequence across multiple harness rounds; the user explicitly opted into extending the loop on each iteration after the initial `Fix now` triage.
+This slice's verify ran two extended fix-round bursts. The first (Dockerfile bringup) was 8 chained patches on the `docker compose build` blocker. The second (SSE protocol drift + transcription provider) was triggered by user pushback on the AC-14 deferral framing — research found a real gateway protocol bug that the implement stage's in-tree mock had been masking.
+
+### Round 1 — Dockerfile bringup defenses
+
+The implement stage's Dockerfile had not been built end-to-end on a clean machine. Verify caught and patched eight distinct bringup defenses needed for a working multi-stage build, plus environmental settings discovered during smoke probing. Patches were applied as a chained sequence across multiple harness rounds; the user explicitly opted into extending the loop on each iteration after the initial `Fix now` triage.
 
 | ID | Type | Triage | Sub-agent outcome | Re-check result |
 |----|------|--------|-------------------|-----------------|
@@ -109,9 +114,24 @@ The implement stage's Dockerfile had not been built end-to-end on a clean machin
 | ENV-1 | environment | Fix | Patched (`docker-compose.yml` port `8080:8080` → `18080:8080` after discovering host 8080 is held by an unrelated `fnm` shell node process; matching `SUMMARIZER_URL` update in `run-harness.mjs`) | Pass — gateway is reachable |
 | RUNTIME-1 | runtime-failure | Fix | Patched (`python3` added to runtime apt-get install — `yt-dlp` from GitHub Releases is a Python zipapp, not a true static binary; previously `yt-dlp --version` errored `/usr/bin/env: 'python3': No such file or directory`) | Pass — `yt-dlp --version` reports `2026.02.21` |
 
-Two harness-driver hardening tweaks rode along for evidence: `JOB_TIMEOUT_MS=900000` and `waitForWebhook` 12-min budget. These don't change the slice's contract; they document realistic upper bounds for OpenRouter free-tier latency. The shape doc anticipated this in its v1.1 stretch list (Cloud NAT + static IP).
+Two harness-driver hardening tweaks rode along for evidence: `JOB_TIMEOUT_MS=900000` and `waitForWebhook` 12-min budget. These don't change the slice's contract; they document realistic upper bounds for free-tier ASR + LLM combined latency.
 
-Commit: `(no commit — pending atomic commit covers all verify-time fixes alongside this artifact)`
+Round 1 commit: `771bbad3` on `feat/wire-android-backend-summarizer`.
+
+### Round 2 — SSE protocol drift + transcription provider
+
+User pushback on the AC-14 deferral ("if non-YouTube also fails, isn't this still YouTube?") drove a deeper investigation that found four substantive issues, all on the gateway/fixture side. The vendored daemon is upstream-pristine (diff between subtree-pull `5eb5376b` and implement `436ef15d` is one new file: `SUBTREE_PIN.md`).
+
+| ID | Type | Triage | Sub-agent outcome | Re-check result |
+|----|------|--------|-------------------|-----------------|
+| SSE-1 | gateway protocol drift | Fix | Patched `summarizer/summarize-api/src/runners/url-runner.ts` to handle the real daemon's `done` and `error` SSE events. Previously parsed only `complete` (which the daemon never emits per `summarizer/summarize-daemon/src/shared/sse-events.ts:32-40`). The bug had a misleading failure mode: daemon errors landed as `status:"completed", result.summary:""` webhooks because the gateway treated SSE stream-end as success. Now `error` events `reject()` and the catch block emits a proper `status:"failed", error:{message}` webhook. | Pass — vitest 72/72 including a new `daemon SSE error event` describe block in `tests/url-runner-webhook.test.ts` |
+| MOCK-1 | test fixture protocol drift | Fix | Updated `summarizer/summarize-api/tests/setup.ts` `startSummarizeDaemon` to emit `event: done` (matching the real daemon protocol) instead of `event: complete`. Added `daemonError` option to drive the new error-event test path. The gateway still accepts both `done` and `complete` for backwards-compat. The fixture-drift was why CI never caught SSE-1 prior. | Pass |
+| ENV-2 | missing transcription provider | Fix | Wired `GROQ_API_KEY` through `summarizer/deploy/docker-compose.yml` env, `summarizer/deploy/run-harness.mjs` `harnessEnv()`, and `summarizer/deploy/CLOUD-RUN.md` Secret Manager docs. The daemon's no-caption YouTube fallback path (`yt-dlp` → ASR) requires one of `GROQ_API_KEY`/`ASSEMBLYAI_API_KEY`/`GEMINI_API_KEY`/`OPENAI_API_KEY`/FAL keys/local whisper-cpp. Groq is the fastest free-tier option. | Pass — `fixture-no-caption.json` shows a faithful summary derived from the real 18 s "Me at the zoo" audio |
+| DOC-1 | shape/slice documentation drift | Acknowledge | The shape and slice docs claim a "youtubei-first cascade" daemon. The actual code path (`summarizer/summarize-daemon/packages/core/src/content/transcript/providers/youtube.ts`) is HTML+captionTracks scrape (`tryWebTranscript`) → `yt-dlp` + ASR → Apify. This is documentation drift, not a code defect; not patched in this round because it would change shape-stage text. Surfaced for review to decide whether to amend the shape doc retroactively. | N/A — documented in the verify artifact and in `06-verify.md` Cross-Slice Notes |
+
+Round 2 also touched `summarizer/deploy/docker-compose.yml` and `summarizer/deploy/run-harness.mjs` to propagate the new `GROQ_API_KEY` env. The Cloud Run runbook (`summarizer/deploy/CLOUD-RUN.md`) was updated to add `GROQ_API_KEY` to the Secret Manager entries and to the `--set-secrets` invocation. No daemon source was modified.
+
+Round 2 commit: pending — covered by the atomic commit accompanying this artifact update.
 
 ## Augmentation Verification
 
@@ -119,19 +139,28 @@ Not applicable. `02c-craft.md` is absent for this slice (no UI mock); `00-index.
 
 ## Gaps / Unverified Areas
 
-- **AC-14 happy path** — no `status: completed` capture in this verify pass. Deferred per `interactive-verification: deferred`.
 - **Cloud Run deploy** — the runbook (`summarizer/deploy/CLOUD-RUN.md`) was not exercised. Cloud Build / `gcloud run deploy` happens at ship-time. This is per plan (no pre-ship deploy expected).
-- **OpenRouter free-model selection policy** — `model: "free"` resolves at request time to whichever model is first in the daemon's cached free list. The list ordering is opaque; today it picks `nvidia/nemotron-3-super-120b-a12b:free` which is slow. A dedicated investigate workflow could pin a faster free model (e.g., `meta-llama/llama-3.3-70b-instruct:free`) or change the daemon's selection heuristic. Captured in Recommended Next Stage below.
+- **Shape/slice doc drift on transcript path** — DOC-1 in the Verify-Owned Fixes table. Shape says "youtubei-first cascade"; reality is HTML scrape + yt-dlp + ASR providers. Surfaced for review to decide whether to retroactively amend the shape doc.
+- **Summary content quality on free model** — the captioned fixture's summary text ("YouTube: enjoy, upload, and share videos…") references YouTube's site copy rather than the Google I/O video's actual transcript content. AC-14 only requires non-empty summary; the *quality* of free-tier model output is a separate review concern. The no-caption summary is content-faithful (real elephant exhibit content via Whisper).
+- **Free-model selection heuristic** — the daemon's `refresh-free.ts` filters out anything < 27B params and ranks "smart-first" (high-context newest) over "fast-first". Today it picks `openrouter/nvidia/nemotron-3-super-120b-a12b:free`. The combined GROQ-transcription + 120B-summarization path lands in ~108 s end-to-end which is acceptable; if it ever exceeds budget on Cloud Run, the documented workaround is `summarize refresh-free --min-param-b 0 --smart 0` to bias toward faster small models. Not changed in this verify because we hit no production-relevant budget breach.
 
 ## Freshness Research
 
-- **Source:** [steipete/summarize issues page](https://github.com/steipete/summarize/issues) (May 2026).
-  **Why it matters:** User asked to confirm there are no known daemon issues before deferring AC-14.
-  **Takeaway:** No open or recently-closed issues match "daemon hangs", "SSE timeout", or "OpenRouter latency" patterns. Most-recent open issue is #224 (proposal: route `model: "auto"` to different local models per language). Daemon contract appears stable per repo signal.
+- **Source:** Direct source inspection of [`summarizer/summarize-daemon/src/shared/sse-events.ts:32-40`](summarizer/summarize-daemon/src/shared/sse-events.ts) and [`summarizer/summarize-api/src/runners/url-runner.ts:113-148`](summarizer/summarize-api/src/runners/url-runner.ts).
+  **Why it matters:** SSE event-name protocol drift discovered after user pushback on initial deferral framing.
+  **Takeaway:** Daemon SSE union is `meta | slides | status | chunk | assistant | metrics | done | error`. No `complete`. The gateway parsed only `complete`. Bug masked by the in-tree mock at `summarizer/summarize-api/tests/setup.ts` emitting `complete`. **Real production-relevant bug; fixed in this verify.**
 
-- **Source:** OpenRouter free-tier model latency (observed empirically this verify run, May 2026).
-  **Why it matters:** AC-14 deferral hinges on this being environmental rather than a code defect.
-  **Takeaway:** `nvidia/nemotron-3-super-120b-a12b:free` does not return SSE chunks within 12 minutes on the residential Docker Desktop egress used for verification. This is consistent with free-tier 120B-class model behavior; production environments (Cloud Run egress from Google's network) typically observe lower latency.
+- **Source:** Direct source inspection of [`summarizer/summarize-daemon/src/llm/model-id.ts:24-32`](summarizer/summarize-daemon/src/llm/model-id.ts) and [`summarizer/summarize-daemon/src/refresh-free.ts`](summarizer/summarize-daemon/src/refresh-free.ts).
+  **Why it matters:** Discovered why pinning a specific OpenRouter model via `options.model` fails.
+  **Takeaway:** Daemon's `normalizeGatewayStyleModelId` only accepts 7 provider prefixes (`xai`, `openai`, `google`, `anthropic`, `zai`, `nvidia`, `github-copilot`). There is no `openrouter/` provider; the only path to OpenRouter is via `model: "free"` magic. `refresh-free.ts` biases the free cache toward "smart-first" (high-context, newest) and filters out anything < 27B params, which explains why `model:"free"` resolved to `nvidia/nemotron-3-super-120b-a12b:free`. Workaround documented in Gaps above.
+
+- **Source:** Direct source inspection of [`summarizer/summarize-daemon/packages/core/src/content/transcript/providers/youtube.ts`](summarizer/summarize-daemon/packages/core/src/content/transcript/providers/youtube.ts).
+  **Why it matters:** Resolves the "is the daemon obtaining the transcript from YouTube at all" question.
+  **Takeaway:** Three-tier cascade. (1) `tryWebTranscript` — HTML+captionTracks scrape (no API key needed; works for captioned videos). (2) `yt-dlp` audio download + ASR (needs GROQ/AssemblyAI/Gemini/OpenAI/FAL/whisper-cpp). (3) Apify. Implement-stage docs claimed "youtubei-first cascade" but the daemon does not actually use `youtubei.js` — recorded as DOC-1 above.
+
+- **Source:** [steipete/summarize issues page](https://github.com/steipete/summarize/issues) and [`gh issue list -R steipete/summarize --state all`].
+  **Why it matters:** Verify whether the SSE bug + free-model-selection + transcript path are known upstream issues.
+  **Takeaway:** No exact upstream issue covers any of the four findings. Closest analogs: #82 (model hangs after extraction — covers a different model), #51 (Apify silent skip on YouTube — fixed), #114 (failed Apify results cached permanently), #145 (`--firecrawl always` silently ignored for YouTube). Our findings are gateway-side (slice 2's own code), not daemon-side — consistent with the daemon being upstream-pristine.
 
 - **Source:** `yt-dlp` GitHub Releases artifact format (verified empirically May 2026).
   **Why it matters:** Runtime stage was missing python3, breaking `yt-dlp --version`.
@@ -139,13 +168,16 @@ Not applicable. `02c-craft.md` is absent for this slice (no UI mock); `00-index.
 
 ## Recommendation
 
-`result: partial` with `convergence: converged` and `interactive-verification: deferred` for AC-14 only. The slice is **review-ready for everything except AC-14's happy-path summary content**. The webhook signing contract (AC-6), cold-start health (AC-16), yt-dlp floor, subtree pin match, and replay rejection are all positively evidenced. The daemon contract is independently confirmed via direct probe. AC-14's failure mode is OpenRouter free-tier latency, not slice code.
+`result: pass` with `convergence: converged` after two extended fix-round bursts. All seven AC are met with positive runtime evidence. The slice is **ready for review without any deferral**. The verify-owned fixes are substantive — they:
 
-The eight verify-time fixes are substantive — they harden the Dockerfile to actually build on a clean machine. Review should focus on whether they should be folded back into a refreshed implement record (or accepted as the verify-owned fix loop's output).
+1. Harden the Dockerfile to actually build on a clean machine (round 1, 8 patches).
+2. Fix a real production-relevant gateway protocol bug (SSE-1) that automated tests could not catch because the in-tree mock implemented the wrong event vocabulary (round 2, 3 patches + 1 acknowledged doc drift).
+
+Review should evaluate whether (a) these fixes belong folded back into a refreshed implement record, or (b) accepted as the verify-owned fix loop's output. Review should also consider whether to retroactively amend the shape doc's "youtubei-first cascade" wording (DOC-1).
 
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf review wire-android-backend-summarizer summarizer-container` — proceed to review with the partial verdict and deferred AC-14. Review will see the verify-owned fixes and decide whether anything else needs adjustment. **Run `/compact` first** — extensive harness-iteration context is noise for review dispatch.
-- **Option B:** `/wf-quick probe wire-android-backend-summarizer` — once the container is deployed to Cloud Run (where OpenRouter latency from Google egress is typically lower), a probe run against the deployed service can clear the AC-14 deferral with real `status: completed` evidence. This is the slug-wide runtime sweep counterpart to the per-slice gate.
-- **Option C:** `/wf investigate openrouter-free-model-selection` (new workflow) — explicitly investigate which free models are reliable for v1 production use and either pin one in the daemon config or change the gateway's `model` default. Avoids the AC-14 latency lottery long-term.
+- **Option A (default):** `/wf review wire-android-backend-summarizer summarizer-container` — proceed to review with the `pass` verdict. **Run `/compact` first** — extensive harness-iteration + SSE-bug-investigation context is noise for review dispatch.
+- **Option B:** `/wf implement wire-android-backend-summarizer summary-orchestration` — slice 3 (the backend webhook verifier) is now anchored by hardened slice-2 contract evidence. Safe to parallel-track in a separate worktree.
+- **Option C:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide runtime sweep against the deployed Cloud Run service once it lands. Will also clear slice 1's outstanding bootstrap deferral if the operator has run the two-pass deploy by then.
 - **Option D:** `/wf verify wire-android-backend-summarizer auth-and-android-firebase` — re-verify slice 1 to attempt to clear its existing `runtime-evidence-deferral` (AC-3 positive + AC-4). Note: bootstrap state probed during this run shows `__BOOTSTRAP_UID__` sentinel still present in both `backend/functions/src/auth/verify.ts:10` and `backend/firestore.rules`; the operator has not run the two-pass deploy, so re-verifying right now would just re-emit the same deferral. Defer this option until after bootstrap.

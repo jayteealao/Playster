@@ -18,7 +18,15 @@ Cloud Run service.
   - `SUMMARIZE_TOKEN` — 32-byte hex; bearer the gateway uses to call the
     daemon inside the container.
   - `OPENROUTER_API_KEY` — operator's OpenRouter key, after the one-time
-    $10 credit purchase.
+    $10 credit purchase. Powers the daemon's `model: "free"` resolution
+    via OpenRouter's free-tier model rotation.
+  - `GROQ_API_KEY` — required for the daemon's no-caption YouTube
+    fallback. The daemon's `tryWebTranscript` (HTML `captionTracks`
+    scrape) handles captioned videos without any ASR; videos without
+    captions fall through to `yt-dlp` + an ASR provider, and Groq is
+    the fastest free-tier ASR (Whisper Large). The daemon also accepts
+    `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, FAL keys,
+    or local whisper-cpp as alternative providers.
 - `docker` and `gcloud` CLIs available locally. `gcloud auth login` and
   `gcloud config set project <PROJECT>` completed.
 
@@ -61,7 +69,8 @@ gcloud run deploy summarizer \
   --set-secrets \
       API_KEYS=SUMMARIZER_API_KEY:latest,\
       SUMMARIZE_TOKEN=SUMMARIZE_TOKEN:latest,\
-      OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest \
+      OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,\
+      GROQ_API_KEY=GROQ_API_KEY:latest \
   --memory 2Gi \
   --cpu 2 \
   --timeout 600 \

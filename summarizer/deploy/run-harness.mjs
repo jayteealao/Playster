@@ -65,6 +65,12 @@ function harnessEnv() {
     API_KEYS: `harness-${randomBytes(8).toString("hex")}`,
     WEBHOOK_SECRET: randomBytes(32).toString("hex"),
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? "",
+    // Transcription provider for the daemon's no-caption YouTube fallback.
+    // The daemon's tryWebTranscript (HTML captionTracks scrape) handles
+    // captioned videos; no-caption videos fall through to yt-dlp + an ASR
+    // provider. Without GROQ_API_KEY (or another supported provider) the
+    // daemon emits an SSE `error` for no-caption URLs.
+    GROQ_API_KEY: process.env.GROQ_API_KEY ?? "",
   };
   return cachedEnv;
 }
