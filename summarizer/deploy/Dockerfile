@@ -16,18 +16,30 @@
 # ---------------------------------------------------------------------------
 FROM node:24-slim AS daemon-build
 
+ENV CI=true
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 WORKDIR /daemon
 COPY summarizer/summarize-daemon/ ./
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-RUN pnpm prune --prod
+RUN pnpm prune --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 2 — api-build
 # ---------------------------------------------------------------------------
 FROM node:24-slim AS api-build
+
+ENV CI=true
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
@@ -41,7 +53,7 @@ RUN pnpm install --frozen-lockfile --filter summarize-api...
 COPY summarizer/summarize-api/ ./summarizer/summarize-api/
 
 RUN pnpm --filter summarize-api build
-RUN pnpm --filter summarize-api prune --prod
+RUN cd summarizer/summarize-api && pnpm prune --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 3 — runtime
@@ -57,6 +69,7 @@ RUN apt-get update \
         ca-certificates \
         tini \
         curl \
+        python3 \
  && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" \
@@ -64,17 +77,17 @@ RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERS
  && chmod a+rx /usr/local/bin/yt-dlp \
  && /usr/local/bin/yt-dlp --version | tee /etc/yt-dlp.version
 
-COPY --from=daemon-build /daemon /opt/daemon
-COPY --from=api-build    /app/summarizer/summarize-api /opt/api
-COPY --from=api-build    /app/node_modules             /opt/node_modules
-COPY summarizer/deploy/entrypoint.js /opt/entrypoint.js
+COPY --from=daemon-build /daemon                                /opt/daemon
+COPY --from=api-build    /app/node_modules                      /app/node_modules
+COPY --from=api-build    /app/summarizer/summarize-api          /app/summarizer/summarize-api
+COPY summarizer/deploy/entrypoint.js                            /opt/entrypoint.js
 
 ENV NODE_ENV=production \
     DAEMON_URL=http://127.0.0.1:8787 \
     PORT=8080 \
     HOST=0.0.0.0 \
-    NODE_PATH=/opt/node_modules \
-    DB_PATH=/opt/api/data/jobs.db
+    NODE_PATH=/app/node_modules \
+    DB_PATH=/app/summarizer/summarize-api/data/jobs.db
 
 EXPOSE 8080
 

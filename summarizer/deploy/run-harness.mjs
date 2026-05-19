@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEPLOY_DIR = resolve(__dirname);
 const ARTIFACT_DIR = join(DEPLOY_DIR, "verify-artifacts");
 const HARNESS_LOG = join(DEPLOY_DIR, "harness.log");
-const SUMMARIZER_URL = "http://127.0.0.1:8080";
+const SUMMARIZER_URL = "http://127.0.0.1:18080";
 const MOCK_BACKEND_URL = "http://127.0.0.1:9000";
 const KEEP = process.argv.includes("--keep");
 
@@ -148,8 +148,8 @@ async function runHarness() {
     }
 
     // Wait for both webhooks to arrive.
-    const capturedHappy = await waitForWebhook(captioned.client_job_id, 5 * 60_000);
-    const capturedFallback = await waitForWebhook(noCaption.client_job_id, 5 * 60_000);
+    const capturedHappy = await waitForWebhook(captioned.client_job_id, 12 * 60_000);
+    const capturedFallback = await waitForWebhook(noCaption.client_job_id, 12 * 60_000);
 
     // AC-6: signature already verified by mock-backend before capture.
     // Re-verify here as belt-and-suspenders.

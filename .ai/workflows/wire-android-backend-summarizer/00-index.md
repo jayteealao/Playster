@@ -7,7 +7,7 @@ status: active
 current-stage: implement
 stage-number: 5
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-18T17:23:50Z"
+updated-at: "2026-05-19T13:37:17Z"
 selected-slice: "summarizer-container"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
@@ -20,6 +20,10 @@ runtime-evidence-deferrals:
   - slice: auth-and-android-firebase
     reason: "Bootstrap state — operator has not run the two-pass deploy yet (ALLOWED_UID + firestore.rules still carry __BOOTSTRAP_UID__ sentinel; no scheduledSync data in Firestore). AC-3 positive sub-claim (PlaylistScreen renders Firestore data) + AC-4 (pull-to-refresh advances lastSyncedAt) cannot be exercised. AC-3 negative sub-claim (zero youtube.googleapis.com calls) IS verified via APK dex + runtime logcat."
     deferred-at: "2026-05-18T16:43:28Z"
+    cleared-by: null
+  - slice: summarizer-container
+    reason: "AC-14 no-caption fallback (status: completed + non-empty summary). OpenRouter free-tier 120B model (currently selected: nvidia/nemotron-3-super-120b-a12b:free) doesn't return SSE chunks within the harness's 12-minute budget on Docker Desktop residential NAT egress. Daemon contract independently confirmed via direct SSE probe (emits Extracting → Summarizing → meta(model=…) → keepalive). AC-6 (webhook signature), AC-16 (cold-start health), yt-dlp version floor, and replay rejection ARE evidenced. Re-verify in Cloud Run egress or in a dedicated workflow that pins a faster free model."
+    deferred-at: "2026-05-19T13:37:17Z"
     cleared-by: null
 tags: [android, firebase, cloud-run, summarizer, openrouter, single-tenant, multi-component]
 stack:
@@ -56,8 +60,8 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer summarizer-container"
+next-command: wf-review
+next-invocation: "/wf review wire-android-backend-summarizer summarizer-container"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -77,6 +81,7 @@ workflow-files:
   - 05-implement-summarizer-container.md
   - 06-verify.md
   - 06-verify-auth-and-android-firebase.md
+  - 06-verify-summarizer-container.md
   - po-answers.md
 progress:
   intake: complete

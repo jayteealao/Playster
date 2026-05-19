@@ -1,0 +1,11 @@
+{
+  "received_at": "2026-05-19T13:32:40.240Z",
+  "signature": "t=1779197560,v1=467ebca16b4592aa89acef52b15bad4109d5c57d3105af9b3efa998c9d4ec62c",
+  "payload": {
+    "client_job_id": "smoke-example",
+    "status": "failed",
+    "error": {
+      "message": "This operation was aborted"
+    }
+  }
+}

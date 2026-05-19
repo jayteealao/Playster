@@ -8,8 +8,9 @@ services:
       - API_KEYS=${API_KEYS}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - PORT=8080
+      - JOB_TIMEOUT_MS=900000
     ports:
-      - "8080:8080"
+      - "18080:8080"
     networks:
       - harness
 

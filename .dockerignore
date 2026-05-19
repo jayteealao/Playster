@@ -1,0 +1,23 @@
+**/node_modules
+**/dist
+**/.git
+**/.gradle
+**/build
+**/.next
+**/.cache
+**/.idea
+**/coverage
+**/.vscode
+**/*.log
+**/*.tmp
+
+# verify/test artifacts
+.ai/workflows/**/verify-evidence/**
+summarizer/deploy/verify-artifacts/**
+summarizer/deploy/harness*.log
+
+# secrets
+.env
+**/.env
+**/.env.local
+**/serviceAccountKey*.json

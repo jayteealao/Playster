@@ -125,7 +125,7 @@ try {
   await refreshFree();
 
   logInfo("starting summarize-api gateway in-process");
-  await import("/opt/api/dist/index.js");
+  await import("/app/summarizer/summarize-api/dist/index.js");
 } catch (err) {
   logError("startup failed", { error: err instanceof Error ? err.message : String(err) });
   daemon.kill("SIGTERM");
