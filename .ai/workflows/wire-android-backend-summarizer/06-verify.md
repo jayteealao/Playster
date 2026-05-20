@@ -5,15 +5,16 @@ slug: wire-android-backend-summarizer
 status: in-progress
 stage-number: 6
 created-at: "2026-05-18T16:43:28Z"
-updated-at: "2026-05-19T22:30:08Z"
-slices-verified: 3
+updated-at: "2026-05-20T15:14:19Z"
+status: complete
+slices-verified: 4
 slices-total: 4
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
   implement-index: 05-implement.md
 next-command: wf-review
-next-invocation: "/wf review wire-android-backend-summarizer summary-orchestration"
+next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
 ---
 
 # Verify Index — wire-android-backend-summarizer
@@ -25,7 +26,7 @@ next-invocation: "/wf review wire-android-backend-summarizer summary-orchestrati
 | `auth-and-android-firebase` | partial | converged (1 round) | deferred (bootstrap state) | [06-verify-auth-and-android-firebase.md](06-verify-auth-and-android-firebase.md) |
 | `summarizer-container`       | pass    | converged (2 extended fix-round bursts) | required (all 4 user-observable AC evidenced) | [06-verify-summarizer-container.md](06-verify-summarizer-container.md) |
 | `summary-orchestration`      | pass    | converged (1 round) | required (all 5 user-observable AC evidenced) | [06-verify-summary-orchestration.md](06-verify-summary-orchestration.md) |
-| `summary-ui`                 | —       | —                   | —                          | (not yet verified) |
+| `summary-ui`                 | partial | converged (1 round) | deferred (bootstrap + emulator wiring) | [06-verify-summary-ui.md](06-verify-summary-ui.md) |
 
 ## Cross-Slice Notes
 
@@ -99,10 +100,41 @@ next-invocation: "/wf review wire-android-backend-summarizer summary-orchestrati
   surviving in this verify is at `src/youtube/innertube-sync.ts:398`
   (slice-1 commit `7dad00cd`), not slice 3.
 
+## Cross-Slice Notes (slice 4)
+
+- **Slice 4 verified.** Live on `Medium_Phone_API_36.0` AVD: 4/0/0
+  Compose UI tests for `SummaryScreenComposeTest` in 10.651s; APK
+  installs + launches in 2054ms with no fatals; AuthScreen renders
+  cleanly; the new app-global QuotaBanner correctly stays
+  zero-height in `Healthy` state so layout is undisturbed.
+- **One verify-owned fix landed (LINT-1).** Removed a stale
+  `net.openid.appauth.RedirectUriReceiverActivity` from
+  `AndroidManifest.xml`. AppAuth was no longer on the classpath; the
+  manifest declaration was a 2024-02 dead reference (predates the
+  workflow). Commit `19df9976`. `:app:lintDebug` now passes.
+- **Two compounding deferrals added.** AC-5 (timing), AC-10 (quota
+  banner live), the cached-summary no-redispatch AC, and the Retry
+  500ms timing transition are all `interactive-verification:
+  deferred` for the same root cause: (a) the app lacks
+  `connectFirestoreEmulator` wiring in `android/app/src/main` (so
+  even a running Firebase emulator can't be targeted by the
+  installed APK), and (b) production `ALLOWED_UID` is still
+  `__BOOTSTRAP_UID__` per slice 1's open deferral. Cleared by
+  `/wf-quick probe` after the operator runs the bootstrap two-pass
+  deploy AND a follow-up adds a debug-only build flavor that calls
+  `connectFirestoreEmulator`.
+- **New caveat surfaced.** App-global QuotaBanner attaches the
+  `QuotaRepository` listener pre-sign-in (because MainActivity
+  composes before AuthScreen completes), so logcat
+  `playster.summary` shows `PERMISSION_DENIED` stream errors during
+  cold launch. No leak (awaitClose fires correctly) — just noise.
+  Worth a follow-up to gate the listener on `FirebaseAuth.getInstance().
+  currentUser != null` or to relocate the subscription post-auth.
+
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf review wire-android-backend-summarizer summary-orchestration` — slice 3 converged with `result: pass`; all 5 user-observable AC evidenced. Move into review.
-- **Option B:** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 verify already converged; not yet reviewed.
-- **Option C:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 verify already converged; not yet reviewed. Carries a bootstrap-deploy-pending deferral that shipping will hard-block on.
-- **Option (parallel):** `/wf implement wire-android-backend-summarizer summary-ui` — slice 4 is now anchored by slice 3's contract producer (`summaries/{videoId}` + `quota/openrouter` readable to the allowlisted operator). Safe to start in parallel with review.
-- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide runtime sweep once the operator runs the bootstrap two-pass deploy. Will clear slice 1's outstanding deferral.
+- **Option A (default):** `/wf review wire-android-backend-summarizer summary-ui` — slice 4 converged with `result: partial`; the slice is ready for code review. Two deferrals carried to handoff (bootstrap-pending + emulator wiring) which ship will hard-block on.
+- **Option B:** `/wf review wire-android-backend-summarizer summary-orchestration` — slice 3 already verified `pass`; review still pending.
+- **Option C:** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 already verified `pass`; review still pending.
+- **Option D:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 already verified `partial`; review still pending.
+- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide runtime sweep once the operator (a) runs the bootstrap two-pass deploy and (b) adds debug-build `connectFirestoreEmulator` wiring. Will clear both slice 1's and slice 4's outstanding deferrals in one pass.

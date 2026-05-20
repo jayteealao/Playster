@@ -4,10 +4,10 @@ type: index
 slug: wire-android-backend-summarizer
 title: "Wire Android ↔ Backend ↔ Summarizer (single-tenant, OpenRouter free)"
 status: active
-current-stage: implement
-stage-number: 5
+current-stage: verify
+stage-number: 6
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-19T22:55:42Z"
+updated-at: "2026-05-20T15:14:19Z"
 selected-slice: "summary-ui"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
@@ -20,6 +20,10 @@ runtime-evidence-deferrals:
   - slice: auth-and-android-firebase
     reason: "Bootstrap state — operator has not run the two-pass deploy yet (ALLOWED_UID + firestore.rules still carry __BOOTSTRAP_UID__ sentinel; no scheduledSync data in Firestore). AC-3 positive sub-claim (PlaylistScreen renders Firestore data) + AC-4 (pull-to-refresh advances lastSyncedAt) cannot be exercised. AC-3 negative sub-claim (zero youtube.googleapis.com calls) IS verified via APK dex + runtime logcat."
     deferred-at: "2026-05-18T16:43:28Z"
+    cleared-by: null
+  - slice: summary-ui
+    reason: "Two compounding blockers prevent end-to-end Maestro runs of AC-5 (in-progress within 500ms), AC-10 (quota banner + disabled CTA), the cached-summary no-redispatch AC, and the Retry 500ms transition timing: (1) the app has no connectFirestoreEmulator/useEmulator wiring in android/app/src/main, so the installed APK targets the production Firebase project; (2) production ALLOWED_UID is still __BOOTSTRAP_UID__ per slice 1's deferral. Live evidence captured for the other AC: 4-state Compose UI tests 4/0/0 on Medium_Phone_API_36.0, APK launch clean (2054ms cold, no fatals), AuthScreen renders, app-global QuotaBanner correctly hides in Healthy state."
+    deferred-at: "2026-05-20T15:14:19Z"
     cleared-by: null
 tags: [android, firebase, cloud-run, summarizer, openrouter, single-tenant, multi-component]
 stack:
@@ -56,8 +60,8 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
+next-command: wf-review
+next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -81,6 +85,7 @@ workflow-files:
   - 06-verify-auth-and-android-firebase.md
   - 06-verify-summarizer-container.md
   - 06-verify-summary-orchestration.md
+  - 06-verify-summary-ui.md
   - po-answers.md
 progress:
   intake: complete
@@ -88,7 +93,7 @@ progress:
   slice: complete
   plan: complete
   implement: complete
-  verify: in-progress
+  verify: complete
   review: not-started
   handoff: not-started
   ship: not-started
