@@ -4,10 +4,10 @@ type: index
 slug: wire-android-backend-summarizer
 title: "Wire Android ↔ Backend ↔ Summarizer (single-tenant, OpenRouter free)"
 status: active
-current-stage: verify
-stage-number: 6
+current-stage: review
+stage-number: 7
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-20T15:14:19Z"
+updated-at: "2026-05-21T11:11:58Z"
 selected-slice: "summary-ui"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
@@ -60,8 +60,8 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-review
-next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
+next-command: wf-handoff
+next-invocation: "/wf handoff wire-android-backend-summarizer"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -86,6 +86,22 @@ workflow-files:
   - 06-verify-summarizer-container.md
   - 06-verify-summary-orchestration.md
   - 06-verify-summary-ui.md
+  - 07-review.md
+  - 07-review-correctness.md
+  - 07-review-security.md
+  - 07-review-code-simplification.md
+  - 07-review-testing.md
+  - 07-review-maintainability.md
+  - 07-review-reliability.md
+  - 07-review-backend-concurrency.md
+  - 07-review-architecture.md
+  - 07-review-performance.md
+  - 07-review-data-integrity.md
+  - 07-review-migrations.md
+  - 07-review-privacy.md
+  - 07-review-api-contracts.md
+  - 07-review-supply-chain.md
+  - 07-review-infra-security.md
   - po-answers.md
 progress:
   intake: complete
@@ -94,7 +110,7 @@ progress:
   plan: complete
   implement: complete
   verify: complete
-  review: not-started
+  review: complete
   handoff: not-started
   ship: not-started
   retro: not-started
