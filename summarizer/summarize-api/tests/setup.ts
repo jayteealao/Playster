@@ -14,6 +14,9 @@ import { authHook } from "../src/middleware/auth.js";
 import { healthRoutes } from "../src/routes/health.js";
 import { jobRoutes } from "../src/routes/jobs.js";
 import { EventStore } from "../src/events/event-store.js";
+import type { UrlRunnerOpts } from "../src/runners/index.js";
+
+export type AppOpts = Partial<Config> & { urlRunnerOpts?: UrlRunnerOpts };
 
 export const TEST_API_KEY = "test-key-12345";
 
@@ -150,7 +153,7 @@ export function startMockDaemon(): Promise<{ url: string; server: Server }> {
  * Build a test Fastify instance with all plugins/routes registered.
  * Uses a unique temp DB per call so tests are isolated.
  */
-export async function buildApp(overrides?: Partial<Config>): Promise<TestContext> {
+export async function buildApp(overrides?: AppOpts): Promise<TestContext> {
   const id = `${Date.now()}-${tmpCounter++}-${randomBytes(4).toString("hex")}`;
   const tmpDir = join(tmpdir(), "summarize-api-test", id);
   mkdirSync(tmpDir, { recursive: true });
@@ -166,19 +169,21 @@ export async function buildApp(overrides?: Partial<Config>): Promise<TestContext
   const db = getDb();
   const eventStore = new EventStore();
 
+  const { urlRunnerOpts, ...configOverrides } = overrides ?? {};
+
   const config: Config = {
     port: 0,
     host: "127.0.0.1",
     apiKeys: [TEST_API_KEY],
-    daemonUrl: overrides?.daemonUrl ?? "http://127.0.0.1:19999",
+    daemonUrl: configOverrides.daemonUrl ?? "http://127.0.0.1:19999",
     summarizeToken: "test-summarize-token",
     maxUploadSize: 10 * 1024 * 1024,
     maxConcurrentJobs: 5,
     jobTimeout: 30_000,
-    rateLimitMax: overrides?.rateLimitMax ?? 100,
-    rateLimitWindow: overrides?.rateLimitWindow ?? "1 minute",
+    rateLimitMax: configOverrides.rateLimitMax ?? 100,
+    rateLimitWindow: configOverrides.rateLimitWindow ?? "1 minute",
     dbPath,
-    ...overrides,
+    ...configOverrides,
   };
 
   const app = Fastify({ logger: false });
@@ -196,7 +201,7 @@ export async function buildApp(overrides?: Partial<Config>): Promise<TestContext
   app.addHook("onRequest", authHook(config));
 
   await app.register(healthRoutes, { config });
-  await app.register(jobRoutes, { config, eventStore, db });
+  await app.register(jobRoutes, { config, eventStore, db, urlRunnerOpts });
 
   await app.ready();
 

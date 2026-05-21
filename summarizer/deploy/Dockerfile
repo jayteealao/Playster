@@ -14,7 +14,8 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — daemon-build
 # ---------------------------------------------------------------------------
-FROM node:24-slim AS daemon-build
+# Updated digest by running: docker manifest inspect node:24-slim
+FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS daemon-build
 
 ENV CI=true
 
@@ -33,7 +34,8 @@ RUN pnpm prune --prod --ignore-scripts
 # ---------------------------------------------------------------------------
 # Stage 2 — api-build
 # ---------------------------------------------------------------------------
-FROM node:24-slim AS api-build
+# Updated digest by running: docker manifest inspect node:24-slim
+FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS api-build
 
 ENV CI=true
 
@@ -58,7 +60,8 @@ RUN cd summarizer/summarize-api && pnpm prune --prod --ignore-scripts
 # ---------------------------------------------------------------------------
 # Stage 3 — runtime
 # ---------------------------------------------------------------------------
-FROM node:24-slim AS runtime
+# Updated digest by running: docker manifest inspect node:24-slim
+FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS runtime
 
 ARG YT_DLP_VERSION=2026.02.21
 
@@ -72,8 +75,12 @@ RUN apt-get update \
         python3 \
  && rm -rf /var/lib/apt/lists/*
 
+# SHA256 verified against https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/SHA2-256SUMS
+# Run `sha256sum -c` to verify; update YT_DLP_SHA256 whenever bumping YT_DLP_VERSION.
+ARG YT_DLP_SHA256=91d023f421dffd6fd354d233edb784a05d5dde2c1c585fcb599d5cc23ecb759e
 RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" \
         -o /usr/local/bin/yt-dlp \
+ && echo "${YT_DLP_SHA256}  /usr/local/bin/yt-dlp" | sha256sum -c - \
  && chmod a+rx /usr/local/bin/yt-dlp \
  && /usr/local/bin/yt-dlp --version | tee /etc/yt-dlp.version
 
@@ -90,6 +97,13 @@ ENV NODE_ENV=production \
     DB_PATH=/app/summarizer/summarize-api/data/jobs.db
 
 EXPOSE 8080
+
+HEALTHCHECK --start-period=45s --interval=30s --timeout=10s --retries=3 \
+  CMD curl -fsS "http://localhost:${PORT:-8080}/health" || exit 1
+
+RUN chown -R node:node /app /opt
+
+USER node
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "/opt/entrypoint.js"]

@@ -70,7 +70,6 @@ describe("dispatchSummary — emulator-backed", () => {
       videoId: VIDEO_ID,
       status: "running",
       model: "free",
-      webhookSecret: "existing",
     });
     const fetchSpy = vi.fn();
     const result = await dispatchSummary(VIDEO_ID, "free", {
@@ -120,5 +119,34 @@ describe("dispatchSummary — emulator-backed", () => {
         fetchImpl: stubbedFetch(200),
       }),
     ).rejects.toMatchObject({ code: "not-found" });
+  });
+
+  // M-09: quota at daily cap → resource-exhausted propagates; no summaries doc
+  // created (or if the idempotency transaction already wrote a pending doc it
+  // remains in the pre-dispatch state, not running).
+  it("quota at daily cap → resource-exhausted + no running summary doc", async () => {
+    const { dispatchSummary } = await import("../src/summarizer/dispatch.js");
+    const today = new Date().toISOString().slice(0, 10);
+    await admin.firestore().doc("quota/openrouter").set({
+      date: today,
+      requestCount: 1000,
+      dailyLimit: 1000,
+      perMinuteLimit: 20,
+      recentTimestamps: [],
+    });
+
+    await expect(
+      dispatchSummary(VIDEO_ID, "free", {
+        fetchImpl: stubbedFetch(200, { id: "job-should-not-reach" }),
+      }),
+    ).rejects.toMatchObject({ code: "resource-exhausted" });
+
+    // The summary doc should not have reached "running" status.
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    if (doc.exists) {
+      // An idempotency doc may have been written as "pending" before the quota
+      // check, but it must not be "running".
+      expect(doc.data()?.status).not.toBe("running");
+    }
   });
 });

@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import * as admin from "firebase-admin";
+import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 
 const ALLOWLISTED_UID = "ALLOWLISTED_UID_FOR_TESTS";
 // Must be set before importing src/ — defineString() resolves at module load.
@@ -93,5 +95,93 @@ describe("syncPlaylist callable — input validation under allowlist", () => {
         auth: { uid: ALLOWLISTED_UID, token: {} },
       } as never),
     ).rejects.toMatchObject({ code: "invalid-argument" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R-10: requestVideoSummary callable — auth gating + quota + happy path
+// ---------------------------------------------------------------------------
+describe("requestVideoSummary callable — auth gating", () => {
+  it("rejects unauthenticated calls with unauthenticated", async () => {
+    const wrapped = functionsTest.wrap(mod.requestVideoSummary);
+    await expect(
+      wrapped({ data: { videoId: "v1" }, auth: undefined } as never),
+    ).rejects.toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("rejects stranger uid with permission-denied", async () => {
+    const wrapped = functionsTest.wrap(mod.requestVideoSummary);
+    await expect(
+      wrapped({ data: { videoId: "v1" }, auth: { uid: "stranger", token: {} } } as never),
+    ).rejects.toMatchObject({ code: "permission-denied" });
+  });
+});
+
+describe("requestVideoSummary callable — quota + dispatch (emulator-backed)", () => {
+  beforeAll(() => {
+    initAdminEmulator();
+    process.env.SUMMARIZER_URL = "http://summarizer.local";
+    process.env.SUMMARIZER_API_KEY = "test-key";
+  });
+
+  beforeEach(async () => {
+    await clearFirestore();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("allowlisted uid + quota at daily cap → resource-exhausted", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await admin.firestore().doc("quota/openrouter").set({
+      date: today,
+      requestCount: 1000,
+      dailyLimit: 1000,
+      perMinuteLimit: 20,
+      recentTimestamps: [],
+    });
+    // Seed a video so the not-found guard passes.
+    await admin
+      .firestore()
+      .doc("playlists/p1/videos/v-quota")
+      .set({ videoId: "v-quota", title: "test" });
+
+    const wrapped = functionsTest.wrap(mod.requestVideoSummary);
+    await expect(
+      wrapped({
+        data: { videoId: "v-quota" },
+        auth: { uid: ALLOWLISTED_UID, token: {} },
+      } as never),
+    ).rejects.toMatchObject({ code: "resource-exhausted" });
+  });
+
+  it("allowlisted uid + happy path → returns pending shape with summaryId set", async () => {
+    // Stub globalThis.fetch so no real HTTP call goes out.
+    const savedFetch = globalThis.fetch;
+    (globalThis as { fetch: typeof fetch }).fetch = (async () =>
+      new Response(JSON.stringify({ id: "job-happy-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })) as unknown as typeof fetch;
+
+    try {
+      await admin
+        .firestore()
+        .doc("playlists/p1/videos/v-happy")
+        .set({ videoId: "v-happy", title: "test" });
+
+      const wrapped = functionsTest.wrap(mod.requestVideoSummary);
+      const result = await wrapped({
+        data: { videoId: "v-happy" },
+        auth: { uid: ALLOWLISTED_UID, token: {} },
+      } as never) as { summaryId: string };
+
+      expect(result).toMatchObject({ summaryId: "v-happy" });
+      const doc = await admin.firestore().doc("summaries/v-happy").get();
+      expect(doc.data()?.summarizerJobId).toBe("job-happy-1");
+    } finally {
+      (globalThis as { fetch: typeof fetch }).fetch = savedFetch;
+    }
   });
 });

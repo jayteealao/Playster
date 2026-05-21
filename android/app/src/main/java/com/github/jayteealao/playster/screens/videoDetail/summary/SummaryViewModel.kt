@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.jayteealao.playster.data.firestore.SummaryDoc
 import com.github.jayteealao.playster.data.firestore.SummaryRepository
-import com.github.jayteealao.playster.data.firestore.SummaryStatus
+import com.github.jayteealao.playster.screens.common.state.SummaryStatus
 import com.github.jayteealao.playster.functions.SummaryFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +14,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -43,6 +44,10 @@ class SummaryViewModel @Inject constructor(
         .observe(videoId)
         .combine(localFailure) { doc, override ->
             override ?: mapDocToState(doc)
+        }
+        .catch { err ->
+            Log.w(TAG, "observe closed with error for $videoId", err)
+            emit(SummaryUiState.FailedTransient("Couldn't load summary. Try again."))
         }
         .stateIn(
             scope = viewModelScope,
@@ -79,19 +84,22 @@ class SummaryViewModel @Inject constructor(
         }
     }
 
-    private fun mapDocToState(doc: SummaryDoc?): SummaryUiState = when (doc?.status) {
-        null, SummaryStatus.UNKNOWN -> SummaryUiState.NoSummary
-        SummaryStatus.QUEUED, SummaryStatus.PENDING, SummaryStatus.RUNNING -> SummaryUiState.InProgress
-        SummaryStatus.COMPLETED -> SummaryUiState.Completed(
-            content = doc.content.orEmpty().ifBlank { "(empty summary)" },
-            model = doc.model ?: "free",
-        )
-        SummaryStatus.FAILED_TRANSIENT -> SummaryUiState.FailedTransient(
-            message = doc.errorMessage ?: "Couldn't summarize. Try again.",
-        )
-        SummaryStatus.FAILED_PERMANENT -> SummaryUiState.FailedPermanent(
-            message = doc.errorMessage ?: "This video can't be summarized.",
-        )
+    private fun mapDocToState(doc: SummaryDoc?): SummaryUiState {
+        val status = doc?.let { SummaryStatus.fromWire(it.statusWire) } ?: SummaryStatus.UNKNOWN
+        return when (status) {
+            SummaryStatus.UNKNOWN -> SummaryUiState.NoSummary
+            SummaryStatus.QUEUED, SummaryStatus.PENDING, SummaryStatus.RUNNING -> SummaryUiState.InProgress
+            SummaryStatus.COMPLETED -> SummaryUiState.Completed(
+                content = doc?.content.orEmpty().ifBlank { "(empty summary)" },
+                model = doc?.model ?: "free",
+            )
+            SummaryStatus.FAILED_TRANSIENT -> SummaryUiState.FailedTransient(
+                message = doc?.errorMessage ?: "Couldn't summarize. Try again.",
+            )
+            SummaryStatus.FAILED_PERMANENT -> SummaryUiState.FailedPermanent(
+                message = doc?.errorMessage ?: "This video can't be summarized.",
+            )
+        }
     }
 
     private fun mapCallableErrorToState(err: Throwable): SummaryUiState {

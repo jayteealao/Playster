@@ -2,14 +2,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import type { SummaryDocument } from "../models/index.js";
+import type { SummaryDocument, WebhookSecretDocument } from "../models/index.js";
+import { WEBHOOK_REPLAY_WINDOW_SECONDS, TERMINAL_STATUSES } from "./constants.js";
 
 interface ParsedSignature {
   t: number;
   v1: string;
 }
 
-const REPLAY_WINDOW_SECONDS = 300;
+const REPLAY_WINDOW_SECONDS = WEBHOOK_REPLAY_WINDOW_SECONDS;
 
 const TERMINAL_PERMANENT_CODES: ReadonlySet<string> = new Set([
   "quota_exhausted",
@@ -129,14 +130,14 @@ export async function processSummaryWebhook(
 
   const db = admin.firestore();
   const summaryRef = db.doc(`summaries/${clientJobId}`);
-  const summarySnap = await summaryRef.get();
-  if (!summarySnap.exists) {
-    logger.warn("summaryWebhook: unknown client_job_id", { clientJobId });
-    return { status: 404, body: "unknown-job" };
-  }
+  const secretRef = db.doc(`webhook_secrets/${clientJobId}`);
 
-  const summary = summarySnap.data() as Partial<SummaryDocument> | undefined;
-  const secret = summary?.webhookSecret ?? "";
+  // Fetch the secret outside the transaction (read-only, stable after dispatch).
+  const secretSnap = await secretRef.get();
+  const secretData = secretSnap.data() as Partial<WebhookSecretDocument> | undefined;
+  const secret = secretData?.secret ?? "";
+
+  // Verify signature before touching Firestore state to avoid unnecessary writes.
   if (!verifySignature(sig.v1, raw, sig.t, secret)) {
     logger.warn("summaryWebhook: signature verification failed", {
       clientJobId,
@@ -152,47 +153,61 @@ export async function processSummaryWebhook(
         typeof parsed.error?.code === "string" ? parsed.error.code : undefined,
       );
 
-  const currentStatus = summary?.status;
-  if (
-    currentStatus === "completed" ||
-    currentStatus === "failed-permanent" ||
-    currentStatus === "failed-transient"
-  ) {
-    if (currentStatus === inboundTerminal) {
-      return { status: 204, body: "" };
+  // Wrap terminal-status guard + status update in a transaction so that two
+  // concurrent identical deliveries cannot both pass the guard and both write.
+  interface TxResult {
+    httpStatus: number;
+    httpBody: string;
+  }
+  const txResult = await db.runTransaction(async (tx): Promise<TxResult> => {
+    const summarySnap = await tx.get(summaryRef);
+    if (!summarySnap.exists) {
+      logger.warn("summaryWebhook: unknown client_job_id", { clientJobId });
+      return { httpStatus: 404, httpBody: "unknown-job" };
     }
-    logger.warn("summaryWebhook: terminal-state mismatch — keeping first", {
+
+    const summary = summarySnap.data() as Partial<SummaryDocument> | undefined;
+    const currentStatus = summary?.status;
+    if (currentStatus && (TERMINAL_STATUSES as ReadonlyArray<string>).includes(currentStatus)) {
+      if (currentStatus === inboundTerminal) {
+        return { httpStatus: 204, httpBody: "" };
+      }
+      logger.warn("summaryWebhook: terminal-state mismatch — keeping first", {
+        clientJobId,
+        currentStatus,
+        inboundTerminal,
+      });
+      return { httpStatus: 200, httpBody: "already-terminal" };
+    }
+
+    const updates: Partial<SummaryDocument> = {
+      status: inboundTerminal,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (inboundTerminal === "completed") {
+      const summaryText =
+        typeof parsed.result?.summary === "string" ? parsed.result.summary : "";
+      updates.content = summaryText;
+    } else {
+      updates.errorCode =
+        typeof parsed.error?.code === "string" ? parsed.error.code : "unknown";
+      updates.errorMessage =
+        typeof parsed.error?.message === "string" ?
+          parsed.error.message :
+          undefined;
+    }
+
+    tx.set(summaryRef, updates, { merge: true });
+    return { httpStatus: 204, httpBody: "" };
+  });
+
+  if (txResult.httpStatus === 204 && txResult.httpBody === "") {
+    logger.info("summaryWebhook: processed", {
       clientJobId,
-      currentStatus,
       inboundTerminal,
     });
-    return { status: 200, body: "already-terminal" };
   }
-
-  const updates: Partial<SummaryDocument> = {
-    status: inboundTerminal,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-  if (inboundTerminal === "completed") {
-    const summaryText =
-      typeof parsed.result?.summary === "string" ? parsed.result.summary : "";
-    updates.content = summaryText;
-  } else {
-    updates.errorCode =
-      typeof parsed.error?.code === "string" ? parsed.error.code : "unknown";
-    updates.errorMessage =
-      typeof parsed.error?.message === "string" ?
-        parsed.error.message :
-        undefined;
-  }
-
-  await summaryRef.set(updates, { merge: true });
-
-  logger.info("summaryWebhook: processed", {
-    clientJobId,
-    inboundTerminal,
-  });
-  return { status: 204, body: "" };
+  return { status: txResult.httpStatus, body: txResult.httpBody };
 }
 
 export const summaryWebhook = onRequest(

@@ -33,19 +33,3 @@ export async function clearFirestore(): Promise<void> {
   }
 }
 
-/**
- * Returns true if the Firestore emulator answers. Used by tests to skip
- * gracefully when the emulator isn't running (e.g. `pnpm test` without
- * `firebase emulators:exec`).
- */
-export async function emulatorReachable(): Promise<boolean> {
-  try {
-    const res = await fetch(
-      `http://${EMULATOR_HOST}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
-      { method: "GET" },
-    );
-    return res.ok || res.status === 404;
-  } catch {
-    return false;
-  }
-}

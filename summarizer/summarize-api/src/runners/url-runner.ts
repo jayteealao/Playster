@@ -28,18 +28,124 @@ const DAEMON_FORWARD_KEYS = [
   "maxCharacters",
 ];
 
-// Override exposed for tests. Production code never sets this.
-export const __webhookTestOverrides: {
-  baseDelayMs?: number;
+export interface UrlRunnerOpts {
+  webhookOverrides?: {
+    baseDelayMs?: number;
+    fetchImpl?: typeof fetch;
+  };
   fetchImpl?: typeof fetch;
-} = {};
+}
+
+// Context threaded through the SSE handler.
+interface SseContext {
+  jobId: string;
+  eventStore: EventStore;
+  accumulatedChunks: string[];
+  resolve: () => void;
+  reject: (err: Error) => void;
+  terminalEventReceived: { value: boolean };
+}
+
+function handleDaemonSseEvent(event: { event?: string; data: string }, ctx: SseContext): void {
+  const now = new Date().toISOString();
+  let eventData: unknown;
+  try {
+    eventData = JSON.parse(event.data);
+  } catch {
+    eventData = event.data;
+  }
+
+  switch (event.event) {
+    case "chunk":
+      ctx.accumulatedChunks.push(
+        typeof eventData === "object" && eventData !== null && "text" in eventData
+          ? (eventData as { text: string }).text
+          : String(event.data),
+      );
+      ctx.eventStore.addEvent(ctx.jobId, {
+        type: "chunk",
+        data: {
+          text:
+            typeof eventData === "object" && eventData !== null && "text" in eventData
+              ? (eventData as { text: string }).text
+              : event.data,
+        },
+        timestamp: now,
+      });
+      break;
+    case "status":
+      ctx.eventStore.addEvent(ctx.jobId, {
+        type: "status",
+        data: eventData,
+        timestamp: now,
+      });
+      break;
+    case "meta":
+      ctx.eventStore.addEvent(ctx.jobId, {
+        type: "meta",
+        data: eventData,
+        timestamp: now,
+      });
+      break;
+    case "metrics":
+      ctx.eventStore.addEvent(ctx.jobId, {
+        type: "metrics",
+        data: eventData,
+        timestamp: now,
+      });
+      break;
+    case "complete":
+    case "done":
+      ctx.eventStore.addEvent(ctx.jobId, {
+        type: "done",
+        data: { done: true, result: ctx.accumulatedChunks.join("") },
+        timestamp: now,
+      });
+      ctx.terminalEventReceived.value = true;
+      ctx.resolve();
+      break;
+    case "error": {
+      const message =
+        typeof eventData === "object" &&
+        eventData !== null &&
+        "message" in eventData
+          ? String((eventData as { message: unknown }).message)
+          : String(event.data);
+      ctx.terminalEventReceived.value = true;
+      ctx.reject(new Error(message));
+      break;
+    }
+  }
+}
+
+async function pumpReader(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (err: unknown) => void,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  function read(): void {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        onDone();
+        return;
+      }
+      onChunk(decoder.decode(value, { stream: true }));
+      read();
+    }, onError);
+  }
+  read();
+}
 
 export async function runUrlJob(
   job: Job,
   config: Config,
   eventStore: EventStore,
   _db: Database.Database,
+  opts?: UrlRunnerOpts,
 ): Promise<void> {
+  const doFetch = opts?.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.jobTimeout);
 
@@ -54,7 +160,7 @@ export async function runUrlJob(
 
     // Step 2: POST to daemon
     const parsedOptions = job.options ? JSON.parse(job.options) : {};
-    const response = await fetch(`${config.daemonUrl}/v1/summarize`, {
+    const response = await doFetch(`${config.daemonUrl}/v1/summarize`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.summarizeToken}`,
@@ -80,7 +186,7 @@ export async function runUrlJob(
     updateJobStatus(job.id, "running", { daemonJobId: daemonId });
 
     // Step 5: Connect to daemon SSE
-    const sseResponse = await fetch(
+    const sseResponse = await doFetch(
       `${config.daemonUrl}/v1/summarize/${daemonId}/events`,
       {
         headers: {
@@ -99,72 +205,19 @@ export async function runUrlJob(
     const accumulatedChunks: string[] = [];
 
     await new Promise<void>((resolve, reject) => {
+      const terminalEventReceived = { value: false };
+      const ctx: SseContext = {
+        jobId: job.id,
+        eventStore,
+        accumulatedChunks,
+        resolve,
+        reject,
+        terminalEventReceived,
+      };
+
       const parser = createParser({
         onEvent(event) {
-          const now = new Date().toISOString();
-          let eventData: unknown;
-          try {
-            eventData = JSON.parse(event.data);
-          } catch {
-            eventData = event.data;
-          }
-
-          switch (event.event) {
-            case "chunk":
-              accumulatedChunks.push(
-                typeof eventData === "object" && eventData !== null && "text" in eventData
-                  ? (eventData as { text: string }).text
-                  : String(event.data),
-              );
-              eventStore.addEvent(job.id, {
-                type: "chunk",
-                data: { text: typeof eventData === "object" && eventData !== null && "text" in eventData
-                  ? (eventData as { text: string }).text
-                  : event.data },
-                timestamp: now,
-              });
-              break;
-            case "status":
-              eventStore.addEvent(job.id, {
-                type: "status",
-                data: eventData,
-                timestamp: now,
-              });
-              break;
-            case "meta":
-              eventStore.addEvent(job.id, {
-                type: "meta",
-                data: eventData,
-                timestamp: now,
-              });
-              break;
-            case "metrics":
-              eventStore.addEvent(job.id, {
-                type: "metrics",
-                data: eventData,
-                timestamp: now,
-              });
-              break;
-            case "complete":
-            case "done":
-              eventStore.addEvent(job.id, {
-                type: "done",
-                data: { done: true, result: accumulatedChunks.join("") },
-                timestamp: now,
-              });
-              resolve();
-              break;
-            case "error": {
-              const message =
-                typeof eventData === "object" &&
-                eventData !== null &&
-                "message" in eventData
-                  ? String((eventData as { message: unknown }).message)
-                  : String(event.data);
-              reject(new Error(message));
-              break;
-            }
-          }
+          handleDaemonSseEvent(event, ctx);
         },
         onError(error) {
           reject(error);
@@ -172,20 +225,22 @@ export async function runUrlJob(
       });
 
       const reader = sseResponse.body!.getReader();
-      const decoder = new TextDecoder();
 
-      function read(): void {
-        reader.read().then(({ done, value }) => {
-          if (done) {
-            parser.reset({ consume: true });
+      pumpReader(
+        reader,
+        (text) => parser.feed(text),
+        () => {
+          // EOF: only resolve if a terminal event was received; otherwise the
+          // stream closed unexpectedly and we must surface that as an error.
+          parser.reset({ consume: true });
+          if (terminalEventReceived.value) {
             resolve();
-            return;
+          } else {
+            reject(new Error("stream closed before terminal event"));
           }
-          parser.feed(decoder.decode(value, { stream: true }));
-          read();
-        }, reject);
-      }
-      read();
+        },
+        reject,
+      );
     });
 
     // Step 6: Complete
@@ -198,7 +253,7 @@ export async function runUrlJob(
       client_job_id: job.client_job_id ?? job.id,
       status: "completed",
       result: { summary: result },
-    });
+    }, opts?.webhookOverrides);
   } catch (err: unknown) {
     // Step 7: Error handling
     const message = err instanceof Error ? err.message : String(err);
@@ -215,13 +270,17 @@ export async function runUrlJob(
       client_job_id: job.client_job_id ?? job.id,
       status: "failed",
       error: { message },
-    });
+    }, opts?.webhookOverrides);
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function maybeDeliverWebhook(job: Job, payload: Record<string, unknown>): Promise<void> {
+async function maybeDeliverWebhook(
+  job: Job,
+  payload: Record<string, unknown>,
+  overrides?: UrlRunnerOpts["webhookOverrides"],
+): Promise<void> {
   if (!job.webhook_url) return;
   if (!job.webhook_secret) {
     // Defensive: the route guards against this, but persisted state could
@@ -235,8 +294,8 @@ async function maybeDeliverWebhook(job: Job, payload: Record<string, unknown>): 
     url: job.webhook_url,
     secret: job.webhook_secret,
     payload,
-    baseDelayMs: __webhookTestOverrides.baseDelayMs,
-    fetchImpl: __webhookTestOverrides.fetchImpl,
+    baseDelayMs: overrides?.baseDelayMs,
+    fetchImpl: overrides?.fetchImpl,
   });
 
   logWebhookEvent(

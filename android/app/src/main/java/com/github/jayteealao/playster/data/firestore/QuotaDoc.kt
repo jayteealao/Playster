@@ -5,6 +5,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 /**
  * Kotlin mirror of `QuotaDocument` in backend/functions/src/models/index.ts.
  * `recentTimestamps` is a sliding 60s window of epoch-ms entries.
+ * UI-state mapping ([QuotaState] / [toQuotaState]) lives in
+ * `screens.common.state` to keep this DTO layer free of display policy.
  */
 data class QuotaDoc(
     val date: String = "",
@@ -13,29 +15,6 @@ data class QuotaDoc(
     val perMinuteLimit: Long = 20L,
     val recentTimestamps: List<Long> = emptyList(),
 )
-
-/**
- * Derived UI state from a [QuotaDoc] (or absence of one). Banner copy and CTA
- * enablement keys off the sealed variants — no rate-of-change logic, the
- * Firestore listener is the debounce.
- */
-sealed interface QuotaState {
-    data object Healthy : QuotaState
-    data object DailyExhausted : QuotaState
-    data object PerMinuteExhausted : QuotaState
-
-    val isDisabled: Boolean
-        get() = this !is Healthy
-}
-
-fun QuotaDoc?.toQuotaState(nowMillis: Long = System.currentTimeMillis()): QuotaState {
-    if (this == null) return QuotaState.Healthy
-    if (requestCount >= dailyLimit) return QuotaState.DailyExhausted
-    val windowStart = nowMillis - 60_000L
-    val active = recentTimestamps.count { it >= windowStart }
-    if (active >= perMinuteLimit) return QuotaState.PerMinuteExhausted
-    return QuotaState.Healthy
-}
 
 fun DocumentSnapshot.toQuotaDoc(): QuotaDoc? {
     if (!exists()) return null

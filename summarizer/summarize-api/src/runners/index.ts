@@ -4,9 +4,11 @@ import type { Config } from "../config.js";
 import type { Job } from "../db/jobs.js";
 import { updateJobStatus } from "../db/jobs.js";
 import type { EventStore } from "../events/event-store.js";
-import { runUrlJob } from "./url-runner.js";
+import { runUrlJob, type UrlRunnerOpts } from "./url-runner.js";
 import { runRssJob } from "./rss-runner.js";
 import { runUploadJob } from "./upload-runner.js";
+
+export type { UrlRunnerOpts };
 
 let limiter: ReturnType<typeof pLimit> | null = null;
 
@@ -22,13 +24,14 @@ export function dispatchJob(
   config: Config,
   eventStore: EventStore,
   db: Database.Database,
+  urlRunnerOpts?: UrlRunnerOpts,
 ): void {
   const limit = getLimiter(config);
 
   limit(async () => {
     switch (job.type) {
       case "url":
-        await runUrlJob(job, config, eventStore, db);
+        await runUrlJob(job, config, eventStore, db, urlRunnerOpts);
         break;
       case "upload":
         await runUploadJob(job, config, eventStore, db);

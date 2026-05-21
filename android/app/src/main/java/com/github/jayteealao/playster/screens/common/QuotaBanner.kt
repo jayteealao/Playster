@@ -14,29 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.github.jayteealao.playster.data.firestore.QuotaDoc
-import com.github.jayteealao.playster.data.firestore.QuotaRepository
-import com.github.jayteealao.playster.data.firestore.QuotaState
-import com.github.jayteealao.playster.data.firestore.toQuotaState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-
-@HiltViewModel
-class QuotaBannerViewModel @Inject constructor(
-    quotaRepository: QuotaRepository,
-) : ViewModel() {
-    val quotaDoc: StateFlow<QuotaDoc?> = quotaRepository.observe().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = null,
-    )
-}
+import com.github.jayteealao.playster.screens.common.state.QuotaState
+import com.github.jayteealao.playster.screens.common.state.toQuotaState
 
 /**
  * Top-of-app banner. Observes `quota/openrouter` via [QuotaBannerViewModel]

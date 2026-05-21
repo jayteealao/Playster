@@ -48,8 +48,17 @@ function parseSignature(header) {
 function verify(rawBody, sig) {
   const canonical = `${sig.t}.${rawBody}`;
   const expectedHex = createHmac("sha256", SECRET).update(canonical, "utf8").digest("hex");
-  if (sig.v1.length !== expectedHex.length) return false;
-  return timingSafeEqual(Buffer.from(sig.v1, "utf8"), Buffer.from(expectedHex, "utf8"));
+  // Decode both as hex so timingSafeEqual compares the raw HMAC bytes (32 bytes
+  // each), not the variable-length hex string representations.  This matches
+  // the pattern used in backend/functions/src/summarizer/webhook.ts.
+  try {
+    const received = Buffer.from(sig.v1, "hex");
+    const expected = Buffer.from(expectedHex, "hex");
+    if (received.length !== expected.length) return false;
+    return timingSafeEqual(received, expected);
+  } catch {
+    return false;
+  }
 }
 
 function safeClientJobId(raw) {

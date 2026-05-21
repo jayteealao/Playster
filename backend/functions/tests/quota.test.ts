@@ -105,4 +105,37 @@ describe("quota module — emulator-backed", () => {
     const data = (await admin.firestore().doc("quota/openrouter").get()).data();
     expect(data?.requestCount).toBe(1000);
   });
+
+  // M-13: N=10 concurrent reserve+release cycles — final counter must be
+  // consistent: never negative, never above N.
+  it("M-13: N=10 concurrent reserve+release cycles keep counter consistent", async () => {
+    const { reserveOpenRouterQuotaSlot, releaseOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
+    const N = 10;
+    const today = new Date().toISOString().slice(0, 10);
+    // Start from zero so the final count is easy to reason about.
+    await admin.firestore().doc("quota/openrouter").set({
+      date: today,
+      requestCount: 0,
+      dailyLimit: N * 2, // generous cap — none should be rejected
+      perMinuteLimit: N * 2,
+      recentTimestamps: [],
+    });
+
+    // Each cycle: reserve then immediately release.
+    await Promise.all(
+      Array.from({ length: N }, async () => {
+        await reserveOpenRouterQuotaSlot();
+        await releaseOpenRouterQuotaSlot();
+      }),
+    );
+
+    const data = (await admin.firestore().doc("quota/openrouter").get()).data();
+    const finalCount = data?.requestCount as number;
+    // After N reserve+release pairs the count should have returned to 0,
+    // but due to best-effort release semantics it may drift slightly.
+    // The hard invariants are: never negative, never above N.
+    expect(finalCount).toBeGreaterThanOrEqual(0);
+    expect(finalCount).toBeLessThanOrEqual(N);
+  });
 });

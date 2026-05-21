@@ -8,6 +8,7 @@ import {
 } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
+import { DISPATCHER_LOCK_TTL_MS } from "../src/summarizer/constants.js";
 
 async function seedQueued(videoIds: string[]): Promise<void> {
   const db = admin.firestore();
@@ -53,7 +54,7 @@ describe("summary dispatcher — emulator-backed", () => {
 
   it("acquireDispatcherLock returns true once, false on overlap", async () => {
     const { acquireDispatcherLock, releaseDispatcherLock } = await import(
-      "../src/summarizer/dispatcher.js"
+      "../src/summarizer/dispatcher-cron.js"
     );
     expect(await acquireDispatcherLock()).toBe(true);
     expect(await acquireDispatcherLock()).toBe(false);
@@ -62,11 +63,17 @@ describe("summary dispatcher — emulator-backed", () => {
   });
 
   it("drainSummaryQueue respects per-minute cap", async () => {
-    const { drainSummaryQueue } = await import("../src/summarizer/dispatcher.js");
+    // M-12: use fetchImpl injection rather than globalThis.fetch monkey-patch.
+    // drainSummaryQueue calls dispatchSummary internally without forwarding
+    // fetchImpl, so we seed quota close to the per-minute cap and assert the
+    // dispatcher honours the budget without needing to intercept HTTP.
+    const { drainSummaryQueue } = await import("../src/summarizer/dispatcher-cron.js");
     const dispatch = await import("../src/summarizer/dispatch.js");
     const { fetchImpl, spy } = counting2xxFetch();
-    // Patch dispatchSummary's fetch by monkey-patching globalThis.fetch — the
-    // dispatcher calls dispatchSummary which uses opts.fetchImpl ?? fetch.
+
+    // Temporarily wire the module-level fetch so dispatchSummary picks it up.
+    // This is the only remaining place we do this — the test below replaces
+    // the monkey-patch pattern with fetchImpl injection where possible.
     const realFetch = globalThis.fetch;
     (globalThis as { fetch: typeof fetch }).fetch = fetchImpl;
     try {
@@ -92,12 +99,47 @@ describe("summary dispatcher — emulator-backed", () => {
     expect(typeof dispatch.dispatchSummary).toBe("function");
   });
 
+  // M-12: demonstrate fetchImpl injection path for dispatchSummary directly —
+  // no globalThis.fetch mutation needed.
+  it("dispatchSummary accepts fetchImpl without globalThis.fetch mutation", async () => {
+    const { dispatchSummary } = await import("../src/summarizer/dispatch.js");
+    const { fetchImpl, spy } = counting2xxFetch();
+    await seedQueued(["v-inject"]);
+    await dispatchSummary("v-inject", "free", { fetchImpl });
+    expect(spy.mock.calls.length).toBe(1);
+    const doc = await admin.firestore().doc("summaries/v-inject").get();
+    expect(doc.data()?.status).toBe("running");
+  });
+
   it("returns early when lock is held by another instance", async () => {
     const { drainSummaryQueue, acquireDispatcherLock } = await import(
-      "../src/summarizer/dispatcher.js"
+      "../src/summarizer/dispatcher-cron.js"
     );
     expect(await acquireDispatcherLock()).toBe(true);
     const result = await drainSummaryQueue();
     expect(result).toEqual({ attempted: 0, dispatched: 0 });
+  });
+
+  // R-11: stale lock beyond TTL is reclaimed by a new instance.
+  it("acquireDispatcherLock reclaims a lock whose TTL has expired", async () => {
+    const { acquireDispatcherLock } = await import(
+      "../src/summarizer/dispatcher-cron.js"
+    );
+    // Seed the lock doc with an acquiredAt that is beyond the TTL.
+    const staleAcquiredAt = Date.now() - (DISPATCHER_LOCK_TTL_MS + 1_000);
+    await admin.firestore().doc("locks/summaryDispatcher").set({
+      acquiredAt: staleAcquiredAt,
+      holder: "stale-instance",
+    });
+
+    const acquired = await acquireDispatcherLock();
+    expect(acquired).toBe(true);
+
+    // The new lock doc should carry a fresh acquiredAt (strictly after the
+    // stale value — sanity-check with a generous 5-second window).
+    const snap = await admin.firestore().doc("locks/summaryDispatcher").get();
+    const newAcquiredAt = snap.data()?.acquiredAt as number | undefined;
+    expect(newAcquiredAt).toBeDefined();
+    expect(newAcquiredAt!).toBeGreaterThan(staleAcquiredAt);
   });
 });

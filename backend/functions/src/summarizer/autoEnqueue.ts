@@ -1,13 +1,14 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import type { SummaryDocument } from "../models/index.js";
+import { DISPATCHER_BATCH_SIZE } from "./constants.js";
 
 export interface AutoEnqueueResult {
   enqueued: number;
   skipped: number;
 }
 
-const CHUNK_SIZE = 200;
+const CHUNK_SIZE = DISPATCHER_BATCH_SIZE;
 
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -20,7 +21,8 @@ function chunk<T>(items: T[], size: number): T[][] {
 /**
  * Auto-summarize policy (PO Round 2): every newly-synced video gets a
  * queued summary doc. Idempotent — re-running over the same videoIds will
- * not create duplicates because `summaries/{videoId}` is keyed by videoId.
+ * not create duplicates because each doc is written with a conditional create
+ * inside a per-doc transaction (ALREADY_EXISTS errors are swallowed).
  *
  * Quota is NOT checked here. The scheduled dispatcher drains the queue
  * within whatever per-minute / per-day budget remains.
@@ -36,29 +38,40 @@ export async function enqueueAutoSummary(
   let skipped = 0;
 
   for (const group of chunk(unique, CHUNK_SIZE)) {
-    const refs = group.map((id) => db.doc(`summaries/${id}`));
-    const snaps = await db.getAll(...refs);
-    const batch = db.batch();
-    let writes = 0;
-    snaps.forEach((snap, i) => {
-      if (snap.exists) {
-        skipped += 1;
-        return;
-      }
-      const doc: SummaryDocument = {
-        videoId: group[i],
-        status: "queued",
-        model: "free",
-        webhookSecret: "",
-        requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      batch.set(refs[i], doc);
-      writes += 1;
-    });
-    if (writes > 0) {
-      await batch.commit();
-      enqueued += writes;
-    }
+    // Use per-doc transactions with conditional create to avoid the
+    // check-then-act race between getAll() + batch.set().
+    await Promise.all(
+      group.map(async (id) => {
+        const ref = db.doc(`summaries/${id}`);
+        const doc: SummaryDocument = {
+          videoId: id,
+          status: "queued",
+          model: "free",
+          requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        try {
+          await db.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (snap.exists) {
+              // Signal skip via a sentinel error caught below.
+              throw Object.assign(new Error("ALREADY_EXISTS"), { _alreadyExists: true });
+            }
+            tx.set(ref, doc);
+          });
+          enqueued += 1;
+        } catch (err: unknown) {
+          if (
+            err instanceof Error &&
+            (err as Error & { _alreadyExists?: boolean })._alreadyExists
+          ) {
+            skipped += 1;
+          } else {
+            // Re-throw genuine Firestore errors.
+            throw err;
+          }
+        }
+      }),
+    );
   }
 
   logger.info("enqueueAutoSummary", {

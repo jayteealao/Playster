@@ -8,8 +8,7 @@ Cloud Run service.
 ## Prerequisites
 
 - GCP project provisioned. Operator has `roles/run.admin`,
-  `roles/artifactregistry.admin`, and `roles/secretmanager.admin` (or
-  `roles/owner`).
+  `roles/artifactregistry.admin`, and `roles/secretmanager.admin`.
 - Artifact Registry Docker repo at
   `<REGION>-docker.pkg.dev/<PROJECT>/playster/`.
 - Secret Manager entries populated:

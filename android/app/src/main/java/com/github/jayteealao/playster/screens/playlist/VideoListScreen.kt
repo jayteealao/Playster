@@ -41,24 +41,20 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
-import com.github.jayteealao.playster.data.firestore.QuotaState
-import com.github.jayteealao.playster.data.firestore.SummaryRepository
-import com.github.jayteealao.playster.data.firestore.SummaryStatus
 import com.github.jayteealao.playster.data.firestore.VideoDoc
 import com.github.jayteealao.playster.screens.common.rememberQuotaState
+import com.github.jayteealao.playster.screens.common.state.QuotaState
 import com.github.jayteealao.playster.ui.theme.Gray50
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 @HiltViewModel
 class VideoListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     firestoreRepository: FirestoreRepository,
-    private val summaryRepository: SummaryRepository,
 ) : ViewModel() {
 
     val playlistId: String = savedStateHandle["playlistId"] ?: ""
@@ -72,23 +68,12 @@ class VideoListViewModel @Inject constructor(
         )
 
     /**
-     * Inspect `summaries/{videoId}` once and resolve whether the navigation
-     * should auto-dispatch a fresh summary request. Doc absent or failed →
-     * autoDispatch=true; queued/pending/running/completed → false (the
-     * SummaryScreen will render the current state from the listener).
+     * Navigate directly to the SummaryScreen with autoDispatch=true.
+     * SummaryViewModel.init performs the same cold-start check on entry, so
+     * duplicating it here was redundant and added a full round-trip delay.
      */
     fun onSummarizeClick(videoId: String, onNavigate: (String, Boolean) -> Unit) {
-        viewModelScope.launch {
-            val existing = summaryRepository.getOnce(videoId)
-            val autoDispatch = when (existing?.status) {
-                null,
-                SummaryStatus.UNKNOWN,
-                SummaryStatus.FAILED_TRANSIENT,
-                SummaryStatus.FAILED_PERMANENT -> true
-                else -> false
-            }
-            onNavigate(videoId, autoDispatch)
-        }
+        onNavigate(videoId, true)
     }
 }
 

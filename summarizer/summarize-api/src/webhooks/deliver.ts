@@ -58,7 +58,9 @@ export async function deliverWebhook(opts: DeliverWebhookOptions): Promise<Webho
       lastError = err instanceof Error ? err.message : String(err);
     }
     if (i < attempts - 1) {
-      await sleep(baseDelayMs * 3 ** i);
+      const baseMs = baseDelayMs * 3 ** i;
+      const jitterMs = baseMs * (0.75 + Math.random() * 0.5);
+      await sleep(jitterMs);
     }
   }
   return {

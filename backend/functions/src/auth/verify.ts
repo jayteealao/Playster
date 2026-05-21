@@ -8,6 +8,21 @@ import {
 } from "firebase-functions/v2/https";
 
 /**
+ * Single-tenant enforcement — there are TWO places that gate access by uid.
+ * Both must be updated together for any multi-tenant migration:
+ *
+ *   1. THIS FILE — `ALLOWED_UID` param drives `requireAllowlistedUid` for
+ *      all `onCall` functions.
+ *   2. `backend/firestore.rules` — the `isAllowlisted()` function bakes the
+ *      same uid into Firestore security rules for direct client reads.
+ *
+ * A multi-tenant migration would need to: change `ALLOWED_UID` (string) →
+ * `ALLOWED_UIDS` (array), update `requireAllowlistedUid`, and switch rules
+ * to check a custom claim set by the Admin SDK instead of a hardcoded uid.
+ * See `docs/operations/bootstrap-allowlisted-uid.md` for the bootstrap procedure.
+ */
+
+/**
  * Single-tenant allowlist: the operator's Firebase Auth uid. Set via env file
  * (e.g. `.env.playster-406121`) or `firebase functions:secrets:set` workflow.
  * Defaults to the sentinel `__BOOTSTRAP_UID__` so first-deploy denies every

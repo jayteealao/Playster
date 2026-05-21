@@ -8,9 +8,12 @@ export const urlJobSchema = z.object({
       format: z.enum(["markdown", "md", "text"]).optional(),
       length: z.enum(["short", "medium", "long", "xl", "xxl"]).optional(),
       language: z.string().optional(),
-      // NOTE: `mode` is informational only. It is NOT forwarded to the daemon —
-      // the daemon's own `mode` enum (url|page|auto) does not map to ours
-      // (auto|website|youtube|media). Cleanup is deferred (see shape doc).
+      /**
+       * Accepted for backward compatibility; ignored by the daemon.
+       * The daemon always operates in url-runner mode for v1; this field
+       * does NOT map to the daemon's internal `mode` enum (url|page|auto)
+       * and is never forwarded. Removal is deferred per PO decision.
+       */
       mode: z.enum(["auto", "website", "youtube", "media"]).optional(),
       prompt: z.string().optional(),
     })

@@ -33,6 +33,9 @@ fun SummaryScreen(
     )
 }
 
+private fun stateTag(state: SummaryUiState): String =
+    "SummaryScreen-${state::class.simpleName}"
+
 @Composable
 fun SummaryScreenContent(
     state: SummaryUiState,
@@ -40,70 +43,66 @@ fun SummaryScreenContent(
     onSummarize: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when (state) {
-        is SummaryUiState.InProgress -> Column(
-            modifier = modifier
-                .fillMaxSize()
-                .testTag("summary-in-progress"),
-        ) {
-            InProgressIndicator(label = "Generating summary…")
-        }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag(stateTag(state)),
+    ) {
+        when (state) {
+            is SummaryUiState.InProgress -> {
+                InProgressIndicator(label = "Generating summary…")
+            }
 
-        is SummaryUiState.Completed -> Column(
-            modifier = modifier
-                .fillMaxSize()
-                .testTag("summary-completed")
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        ) {
-            MarkdownText(
-                markdown = state.content,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "Model: ${state.model}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
+            is SummaryUiState.Completed -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                ) {
+                    MarkdownText(
+                        markdown = state.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Model: ${state.model}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+            }
 
-        is SummaryUiState.FailedTransient -> Column(
-            modifier = modifier
-                .fillMaxSize()
-                .testTag("summary-failed-transient"),
-        ) {
-            ErrorPanel(message = state.message, onRetry = onRetry)
-        }
+            is SummaryUiState.FailedTransient -> {
+                ErrorPanel(message = state.message, onRetry = onRetry)
+            }
 
-        is SummaryUiState.FailedPermanent -> Column(
-            modifier = modifier
-                .fillMaxSize()
-                .testTag("summary-failed-permanent"),
-        ) {
-            ErrorPanel(message = state.message, onRetry = null)
-        }
+            is SummaryUiState.FailedPermanent -> {
+                ErrorPanel(message = state.message, onRetry = null)
+            }
 
-        is SummaryUiState.NoSummary -> Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(32.dp)
-                .testTag("summary-no-summary"),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "No summary yet for this video.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(
-                onClick = onSummarize,
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .testTag("summary-summarize-button"),
-            ) {
-                Text(text = "Summarize this video")
+            is SummaryUiState.NoSummary -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "No summary yet for this video.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = onSummarize,
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .testTag("summary-summarize-button"),
+                    ) {
+                        Text(text = "Summarize this video")
+                    }
+                }
             }
         }
     }

@@ -1,18 +1,37 @@
 rules_version = '2';
 
+// IMPORTANT: "__BOOTSTRAP_UID__" is a deploy-time placeholder.
+// It must be replaced with the real operator UID before deploying.
+// A predeploy guard (backend/scripts/check-allowlist-uid.sh) enforces this
+// and will cause `firebase deploy` to fail if the sentinel is still present.
+//
+// Single-tenant enforcement — there are TWO places that gate access by uid.
+// Both must be updated together for any multi-tenant migration:
+//
+//   1. THIS FILE — isAllowlisted() bakes the uid into Firestore security rules
+//      for direct client reads (Android SDK).
+//   2. backend/functions/src/auth/verify.ts — ALLOWED_UID param drives
+//      requireAllowlistedUid() for all onCall functions.
+//
+// A multi-tenant migration would need to: switch this file to check a custom
+// claim (set via Admin SDK) rather than a hardcoded uid literal, AND update
+// verify.ts to check uid membership in an ALLOWED_UIDS array/set.
+
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAllowlisted() {
       return request.auth != null && request.auth.uid == "__BOOTSTRAP_UID__";
     }
 
-    match /playlists/{document=**}    { allow read: if isAllowlisted(); allow write: if false; }
-    match /videos/{document=**}       { allow read: if isAllowlisted(); allow write: if false; }
-    match /sync_state/{document=**}   { allow read: if isAllowlisted(); allow write: if false; }
-    match /tokens/{document=**}       { allow read: if false;            allow write: if false; }
-    match /summaries/{document=**}    { allow read: if isAllowlisted(); allow write: if false; }
-    match /quota/{document=**}        { allow read: if isAllowlisted(); allow write: if false; }
+    match /playlists/{document=**}                     { allow read: if isAllowlisted(); allow write: if false; }
+    match /playlists/{playlistId}/videos/{videoId}     { allow read: if isAllowlisted(); allow write: if false; }
+    match /videos/{document=**}                        { allow read: if isAllowlisted(); allow write: if false; }
+    match /sync_state/{document=**}                    { allow read: if isAllowlisted(); allow write: if false; }
+    match /tokens/{document=**}                        { allow read: if false;            allow write: if false; }
+    match /summaries/{document=**}                     { allow read: if isAllowlisted(); allow write: if false; }
+    match /quota/{document=**}                         { allow read: if isAllowlisted(); allow write: if false; }
+    match /webhook_secrets/{document=**}               { allow read: if false;            allow write: if false; }
 
-    match /{document=**}              { allow read, write: if false; }
+    match /{document=**}                               { allow read, write: if false; }
   }
 }

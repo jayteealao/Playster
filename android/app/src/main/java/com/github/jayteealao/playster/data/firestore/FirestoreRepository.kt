@@ -2,7 +2,8 @@ package com.github.jayteealao.playster.data.firestore
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -14,6 +15,28 @@ private const val TAG = "FirestoreRepository"
 private const val SUMMARY_TAG = "playster.summary"
 
 /**
+ * Shared helper: attaches a snapshot listener to a [Query], maps each
+ * [QuerySnapshot] via [map], and propagates listener errors by closing the
+ * flow with the exception (so downstream collectors see a terminal error
+ * rather than freezing).
+ */
+private inline fun <T> Query.asCollectionFlow(
+    tag: String,
+    logLabel: String,
+    crossinline map: (QuerySnapshot) -> List<T>,
+): Flow<List<T>> = callbackFlow {
+    val listener = addSnapshotListener { snapshot, error ->
+        if (error != null) {
+            Log.w(tag, "$logLabel listen error", error)
+            close(error)
+            return@addSnapshotListener
+        }
+        trySend(snapshot?.let(map) ?: emptyList())
+    }
+    awaitClose { listener.remove() }
+}
+
+/**
  * Thin wrapper around top-level Firestore collections used by the operator UI.
  * Every public flow is backed by `addSnapshotListener` and tears the listener
  * down on `awaitClose` so cancelled subscriptions don't leak.
@@ -22,48 +45,32 @@ private const val SUMMARY_TAG = "playster.summary"
 class FirestoreRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) {
-    fun playlistsFlow(): Flow<List<PlaylistDoc>> = callbackFlow {
-        val listener: ListenerRegistration = firestore.collection("playlists")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.w(TAG, "playlistsFlow listen error", error)
-                    return@addSnapshotListener
-                }
-                val items = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(PlaylistDoc::class.java)
-                } ?: emptyList()
-                trySend(items)
-            }
-        awaitClose { listener.remove() }
-    }
+    fun playlistsFlow(): Flow<List<PlaylistDoc>> =
+        firestore.collection("playlists").asCollectionFlow(
+            tag = TAG,
+            logLabel = "playlistsFlow",
+        ) { snap -> snap.documents.mapNotNull { it.toObject(PlaylistDoc::class.java) } }
 
-    fun videosFlow(playlistId: String): Flow<List<VideoDoc>> = callbackFlow {
-        val listener: ListenerRegistration = firestore.collection("videos")
-            .whereEqualTo("playlistId", playlistId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.w(TAG, "videosFlow listen error for $playlistId", error)
-                    return@addSnapshotListener
-                }
-                val items = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(VideoDoc::class.java)
-                } ?: emptyList()
-                trySend(items)
-            }
-        awaitClose { listener.remove() }
-    }
+    fun videosFlow(playlistId: String): Flow<List<VideoDoc>> =
+        firestore.collection("playlists")
+            .document(playlistId)
+            .collection("videos")
+            .asCollectionFlow(
+                tag = TAG,
+                logLabel = "videosFlow[$playlistId]",
+            ) { snap -> snap.documents.mapNotNull { it.toObject(VideoDoc::class.java) } }
 
     fun videoFlow(videoId: String): Flow<VideoDoc?> = callbackFlow {
-        val listener: ListenerRegistration = firestore.collectionGroup("videos")
+        val listener = firestore.collectionGroup("videos")
             .whereEqualTo("videoId", videoId)
             .limit(1)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.w(TAG, "videoFlow listen error for $videoId", error)
+                    close(error)
                     return@addSnapshotListener
                 }
-                val first = snapshot?.documents?.firstOrNull()
-                trySend(first?.toObject(VideoDoc::class.java))
+                trySend(snapshot?.documents?.firstOrNull()?.toObject(VideoDoc::class.java))
             }
         awaitClose { listener.remove() }
     }
@@ -72,7 +79,8 @@ class FirestoreRepository @Inject constructor(
 /**
  * Firestore listener over `summaries/{videoId}`. Emits null when the doc
  * doesn't exist (initial NoSummary state), the mapped DTO otherwise. Used by
- * the SummaryViewModel.
+ * the SummaryViewModel. Listener errors close the flow with the exception so
+ * the ViewModel can surface a terminal error rather than freezing in-progress.
  */
 @Singleton
 class SummaryRepository @Inject constructor(
@@ -80,11 +88,12 @@ class SummaryRepository @Inject constructor(
 ) {
     fun observe(videoId: String): Flow<SummaryDoc?> = callbackFlow {
         Log.d(SUMMARY_TAG, "listen{videoId=$videoId,attach=true}")
-        val listener: ListenerRegistration = firestore.collection("summaries")
+        val listener = firestore.collection("summaries")
             .document(videoId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.w(SUMMARY_TAG, "summary listen error for $videoId", error)
+                    close(error)
                     return@addSnapshotListener
                 }
                 trySend(snapshot?.toSummaryDoc())
@@ -104,7 +113,8 @@ class SummaryRepository @Inject constructor(
 /**
  * Firestore listener over `quota/openrouter`. Emits the parsed [QuotaDoc] or
  * null when no doc exists. The derived [QuotaState] is computed at the
- * Composable layer to avoid stale "now" values.
+ * Composable layer to avoid stale "now" values. Listener errors close the
+ * flow so upstream collectors receive a terminal error.
  */
 @Singleton
 class QuotaRepository @Inject constructor(
@@ -112,11 +122,12 @@ class QuotaRepository @Inject constructor(
 ) {
     fun observe(): Flow<QuotaDoc?> = callbackFlow {
         Log.d(SUMMARY_TAG, "quotaListen{attach=true}")
-        val listener: ListenerRegistration = firestore.collection("quota")
+        val listener = firestore.collection("quota")
             .document("openrouter")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.w(SUMMARY_TAG, "quota listen error", error)
+                    close(error)
                     return@addSnapshotListener
                 }
                 trySend(snapshot?.toQuotaDoc())

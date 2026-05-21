@@ -2,11 +2,16 @@ import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type { QuotaDocument } from "../models/index.js";
+import {
+  OPENROUTER_DAILY_LIMIT,
+  OPENROUTER_PER_MINUTE_LIMIT,
+  OPENROUTER_WINDOW_MS,
+} from "./constants.js";
 
 const QUOTA_DOC_PATH = "quota/openrouter";
-const DEFAULT_DAILY_LIMIT = 1000;
-const DEFAULT_PER_MINUTE_LIMIT = 20;
-const WINDOW_MS = 60_000;
+const DEFAULT_DAILY_LIMIT = OPENROUTER_DAILY_LIMIT;
+const DEFAULT_PER_MINUTE_LIMIT = OPENROUTER_PER_MINUTE_LIMIT;
+const WINDOW_MS = OPENROUTER_WINDOW_MS;
 
 export function todayUTC(now: number = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
@@ -37,7 +42,11 @@ function readQuota(
   const requestCount = rolledOver ? 0 : data?.requestCount ?? 0;
   const recentTimestamps = rolledOver ?
     [] :
-    trimWindow(data?.recentTimestamps ?? [], now);
+    // Defensive cap: guard against runaway array growth if perMinuteLimit is
+    // ever mis-configured to a very large value.
+    trimWindow(data?.recentTimestamps ?? [], now).slice(
+      -Math.max(OPENROUTER_PER_MINUTE_LIMIT, 100),
+    );
   return {
     date: today,
     requestCount,

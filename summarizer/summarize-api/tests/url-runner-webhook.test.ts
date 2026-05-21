@@ -92,10 +92,11 @@ describe("url-runner webhook delivery", () => {
     beforeAll(async () => {
       daemon = await startSummarizeDaemon({ chunks: ["Hello ", "world"] });
       receiver = await startWebhookReceiver();
-      ctx = await buildApp({ daemonUrl: daemon.url });
       // Compress retry delays so retry tests don't block 5s+30s.
-      const runnerMod = await import("../src/runners/url-runner.js");
-      runnerMod.__webhookTestOverrides.baseDelayMs = 10;
+      ctx = await buildApp({
+        daemonUrl: daemon.url,
+        urlRunnerOpts: { webhookOverrides: { baseDelayMs: 10 } },
+      });
     });
 
     afterAll(async () => {

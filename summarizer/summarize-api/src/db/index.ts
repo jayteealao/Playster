@@ -28,9 +28,31 @@ export function getDb(): Database.Database {
   const isApplied = db.prepare("SELECT 1 FROM schema_migrations WHERE name = ?");
   const markApplied = db.prepare("INSERT INTO schema_migrations(name) VALUES(?)");
 
+  // Bootstrap: if the `jobs` table already exists but schema_migrations has no
+  // rows (i.e. this is a pre-migration database), mark 001 and 002 as applied
+  // so the runner skips them and only considers 003+ as candidates.
+  const jobsExists = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='jobs'")
+    .get();
+  if (jobsExists && !isApplied.get("001_create_jobs")) {
+    markApplied.run("001_create_jobs");
+    markApplied.run("002_create_indexes");
+  }
+
   for (const migration of NAMED_MIGRATIONS) {
     if (isApplied.get(migration.name)) continue;
-    db.exec(migration.sql);
+    if (migration.statements && migration.statements.length > 0) {
+      // Wrap multi-statement migrations in a synchronous transaction so a
+      // crash between statements cannot leave the schema partially applied.
+      // On restart the whole migration re-runs (all statements or none).
+      db.transaction(() => {
+        for (const stmt of migration.statements!) {
+          db!.exec(stmt);
+        }
+      })();
+    } else if (migration.sql) {
+      db.exec(migration.sql);
+    }
     markApplied.run(migration.name);
   }
 

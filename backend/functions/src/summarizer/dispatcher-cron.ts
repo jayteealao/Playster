@@ -6,9 +6,10 @@ import type { SummaryDocument } from "../models/index.js";
 import { dispatchSummary } from "./dispatch.js";
 import { getQuotaBudget } from "./quota.js";
 import { summarizerSecrets } from "./secrets.js";
+import { DISPATCHER_LOCK_TTL_MS } from "./constants.js";
 
 const LOCK_DOC_PATH = "locks/summaryDispatcher";
-const LOCK_TTL_MS = 240_000;
+const LOCK_TTL_MS = DISPATCHER_LOCK_TTL_MS;
 
 export async function acquireDispatcherLock(): Promise<boolean> {
   const db = admin.firestore();
@@ -67,25 +68,31 @@ export async function drainSummaryQueue(): Promise<{
       .limit(remaining)
       .get();
 
-    for (const doc of queued.docs) {
-      attempted += 1;
-      const data = doc.data() as Partial<SummaryDocument> | undefined;
-      const videoId = data?.videoId ?? doc.id;
-      const model = data?.model ?? "free";
-      try {
-        await dispatchSummary(videoId, model);
+    attempted = queued.docs.length;
+    const results = await Promise.allSettled(
+      queued.docs.map((doc) => {
+        const data = doc.data() as Partial<SummaryDocument> | undefined;
+        const videoId = data?.videoId ?? doc.id;
+        const model = data?.model ?? "free";
+        return dispatchSummary(videoId, model);
+      }),
+    );
+    for (let i = 0; i < results.length; i += 1) {
+      const result = results[i];
+      if (result.status === "fulfilled") {
         dispatched += 1;
-      } catch (err) {
+      } else {
+        const err = result.reason;
+        const data = queued.docs[i].data() as Partial<SummaryDocument> | undefined;
+        const videoId = data?.videoId ?? queued.docs[i].id;
         if (err instanceof HttpsError && err.code === "resource-exhausted") {
-          logger.info("summaryDispatcher: budget exhausted mid-drain", {
+          logger.info("summaryDispatcher: budget exhausted for item", { videoId });
+        } else {
+          logger.warn("summaryDispatcher: dispatch error", {
             videoId,
+            error: err instanceof Error ? err.message : String(err),
           });
-          break;
         }
-        logger.warn("summaryDispatcher: dispatch error", {
-          videoId,
-          error: err instanceof Error ? err.message : String(err),
-        });
       }
     }
   } finally {

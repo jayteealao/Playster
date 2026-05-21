@@ -17,8 +17,11 @@ async function seedRunningSummary(secret = SECRET): Promise<void> {
     videoId: VIDEO_ID,
     status: "running",
     model: "free",
-    webhookSecret: secret,
     requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
+    secret,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
 
@@ -146,7 +149,10 @@ describe("processSummaryWebhook — emulator-backed", () => {
       videoId: VIDEO_ID,
       status: "completed",
       content: "first",
-      webhookSecret: SECRET,
+    });
+    await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
+      secret: SECRET,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const payload = {
       client_job_id: VIDEO_ID,
@@ -170,5 +176,37 @@ describe("processSummaryWebhook — emulator-backed", () => {
       rawBody: Buffer.from("{}", "utf8"),
     });
     expect(result.status).toBe(400);
+  });
+
+  // M-11: terminal-state mismatch — doc is "completed", webhook delivers
+  // "failure". Must return 200 (idempotent short-circuit) and leave the
+  // existing "completed" doc untouched.
+  it("M-11: completed doc + failure webhook → 200 short-circuit, doc unchanged", async () => {
+    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "completed",
+      content: "original-content",
+    });
+    await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
+      secret: SECRET,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "failed",
+      error: { code: "openrouter_timeout", message: "late failure" },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+
+    expect(result.status).toBe(200);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("completed");
+    expect(doc.data()?.content).toBe("original-content");
   });
 });

@@ -45,8 +45,12 @@ export type SummaryStatus =
 export interface SummaryDocument {
   videoId: string;
   status: SummaryStatus;
-  model: string;
-  webhookSecret: string;
+  /** The model used for summarization. Optional so that legacy queued docs
+   *  written before this field was introduced are still tolerated on read.
+   *  Matches Kotlin `SummaryDoc.model: String?`. */
+  model?: string;
+  /** @deprecated webhookSecret has moved to webhook_secrets/{videoId}. No longer written here. */
+  webhookSecret?: string;
   summarizerJobId?: string;
   content?: string;
   errorCode?: string;
@@ -54,6 +58,16 @@ export interface SummaryDocument {
   requestedAt: FieldValue | Date;
   dispatchedAt?: FieldValue | Date;
   completedAt?: FieldValue | Date;
+}
+
+/**
+ * Server-only document stored at `webhook_secrets/{videoId}`.
+ * Never readable by the Android client (denied in firestore.rules).
+ * Admin SDK bypasses rules and can access it freely.
+ */
+export interface WebhookSecretDocument {
+  secret: string;
+  createdAt: FieldValue | Date;
 }
 
 export interface QuotaDocument {

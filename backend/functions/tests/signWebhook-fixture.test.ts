@@ -3,10 +3,9 @@ import { createHmac } from "node:crypto";
 import { signWebhook } from "./helpers/signWebhook";
 
 /**
- * Byte-equivalence fixture. If the summarize-api signer ever drifts (key order,
- * whitespace, encoding), this fixture catches it before the wire contract
- * breaks in production. Mirror this fixture against
- * `summarizer/summarize-api/tests/webhook-signer.test.ts`.
+ * Sanity-check for the signWebhook test helper.  The helper now delegates to
+ * the canonical signer in summarize-api, so there is a single implementation.
+ * These assertions confirm the adapter still produces the correct wire format.
  */
 describe("signWebhook helper", () => {
   it("matches a known vector byte-for-byte", () => {

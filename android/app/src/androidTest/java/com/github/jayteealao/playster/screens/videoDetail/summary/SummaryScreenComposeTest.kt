@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 
@@ -74,5 +75,22 @@ class SummaryScreenComposeTest {
         composeTestRule
             .onAllNodesWithTag("summary-retry-button")
             .assertCountEquals(0)
+    }
+
+    // M-10: cold-start NoSummary state — Summarize CTA is visible and its
+    // click invokes the onSummarize callback.
+    @Test
+    fun noSummary_rendersSummarizeCta_andClickInvokesCallback() {
+        var callbackInvoked = false
+        composeTestRule.setContent {
+            SummaryScreenContent(
+                state = SummaryUiState.NoSummary,
+                onRetry = {},
+                onSummarize = { callbackInvoked = true },
+            )
+        }
+        composeTestRule.onNodeWithTag("summary-summarize-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("summary-summarize-button").performClick()
+        assert(callbackInvoked) { "onSummarize callback was not invoked after clicking the button" }
     }
 }

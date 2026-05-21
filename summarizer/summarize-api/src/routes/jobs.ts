@@ -7,8 +7,8 @@ import type Database from "better-sqlite3";
 import { nanoid } from "nanoid";
 import type { Config } from "../config.js";
 import type { EventStore, JobEvent } from "../events/event-store.js";
-import { createJob, getJob } from "../db/jobs.js";
-import { dispatchJob } from "../runners/index.js";
+import { createJob, getJob, redactJob } from "../db/jobs.js";
+import { dispatchJob, type UrlRunnerOpts } from "../runners/index.js";
 import { validateUrl } from "../security/ssrf.js";
 import { urlJobSchema, rssJobSchema } from "../schemas.js";
 
@@ -16,9 +16,14 @@ const UPLOAD_DIR = "./data/uploads";
 
 export async function jobRoutes(
   app: FastifyInstance,
-  opts: { config: Config; eventStore: EventStore; db: Database.Database },
+  opts: {
+    config: Config;
+    eventStore: EventStore;
+    db: Database.Database;
+    urlRunnerOpts?: UrlRunnerOpts;
+  },
 ) {
-  const { config, eventStore, db } = opts;
+  const { config, eventStore, db, urlRunnerOpts } = opts;
 
   // POST /v1/jobs — create a new job
   app.post("/v1/jobs", async (request, reply) => {
@@ -76,7 +81,7 @@ export async function jobRoutes(
         options: uploadOptions,
       });
 
-      dispatchJob(job, config, eventStore, db);
+      dispatchJob(job, config, eventStore, db, urlRunnerOpts);
 
       return reply.code(201).send({ ok: true, id: job.id });
     }
@@ -110,6 +115,15 @@ export async function jobRoutes(
           .send({ error: ssrfResult.error ?? "URL blocked by SSRF policy" });
       }
 
+      if (parsed.data.webhook_url) {
+        const webhookSsrfResult = await validateUrl(parsed.data.webhook_url);
+        if (!webhookSsrfResult.safe) {
+          return reply
+            .code(403)
+            .send({ error: webhookSsrfResult.error ?? "webhook_url blocked by SSRF policy" });
+        }
+      }
+
       const job = createJob({
         type: "url",
         source: parsed.data.url,
@@ -119,7 +133,7 @@ export async function jobRoutes(
         clientJobId: parsed.data.client_job_id,
       });
 
-      dispatchJob(job, config, eventStore, db);
+      dispatchJob(job, config, eventStore, db, urlRunnerOpts);
 
       return reply.code(201).send({ ok: true, id: job.id });
     }
@@ -159,7 +173,7 @@ export async function jobRoutes(
     if (!job) {
       return reply.code(404).send({ error: "Job not found" });
     }
-    return job;
+    return redactJob(job);
   });
 
   // GET /v1/jobs/:id/events — SSE stream

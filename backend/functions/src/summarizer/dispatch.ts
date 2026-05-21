@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { allowlistedCall } from "../auth/verify.js";
-import type { SummaryDocument } from "../models/index.js";
+import type { SummaryDocument, WebhookSecretDocument } from "../models/index.js";
 import {
   reserveOpenRouterQuotaSlot,
   releaseOpenRouterQuotaSlot,
@@ -13,14 +13,12 @@ import {
   SUMMARIZER_API_KEY,
   summarizerSecrets,
 } from "./secrets.js";
+import { TERMINAL_STATUSES } from "./constants.js";
 
 const FUNCTION_REGION = process.env.FUNCTION_REGION ?? "us-central1";
-const TERMINAL_STATUSES: ReadonlyArray<SummaryDocument["status"]> = [
-  "completed",
-  "failed-transient",
-  "failed-permanent",
-];
-const IN_FLIGHT_STATUSES: ReadonlyArray<SummaryDocument["status"]> = [
+// Completed summaries are intentionally non-redispatchable; this set is wider
+// than the strictly in-flight set (queued/pending/running).
+const NON_REDISPATCHABLE_STATUSES: ReadonlyArray<SummaryDocument["status"]> = [
   "queued",
   "pending",
   "running",
@@ -38,10 +36,12 @@ interface RequestVideoSummaryOutput {
 
 interface DispatchSummaryOptions {
   fetchImpl?: typeof fetch;
+  /** Override the AbortController timeout in ms. Defaults to 15 000. */
+  dispatchTimeoutMs?: number;
 }
 
 function webhookUrl(): string {
-  const region = process.env.FUNCTION_REGION ?? FUNCTION_REGION;
+  const region = FUNCTION_REGION;
   const project =
     process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "demo-playster";
   return `https://${region}-${project}.cloudfunctions.net/summaryWebhook`;
@@ -70,7 +70,7 @@ async function videoExists(videoId: string): Promise<boolean> {
  */
 export async function dispatchSummary(
   videoId: string,
-  model: string,
+  _model: string,
   opts: DispatchSummaryOptions = {},
 ): Promise<RequestVideoSummaryOutput> {
   if (!videoId || typeof videoId !== "string") {
@@ -82,49 +82,75 @@ export async function dispatchSummary(
 
   const db = admin.firestore();
   const summaryRef = db.doc(`summaries/${videoId}`);
+  const secretRef = db.doc(`webhook_secrets/${videoId}`);
 
-  // Idempotency: if a non-failed doc already exists, return without
-  // re-dispatching. Failed docs fall through to a fresh attempt.
-  const existing = await summaryRef.get();
-  if (existing.exists) {
-    const data = existing.data() as Partial<SummaryDocument> | undefined;
-    if (data?.status && IN_FLIGHT_STATUSES.includes(data.status)) {
-      return { summaryId: videoId };
-    }
-  }
-
-  // Pre-flight quota reservation. Throws HttpsError("resource-exhausted")
-  // on cap breach; we let that bubble up to the callable.
-  await reserveOpenRouterQuotaSlot();
+  // Always dispatch with model="free" — the app decides everything; client
+  // model field is ignored.
+  const dispatchModel = "free";
 
   const webhookSecret = randomBytes(32).toString("hex");
 
-  // Reserve doc: transactional read-then-set keeps auto-enqueue,
-  // dispatcher, and the manual callable collision-safe.
+  // Idempotency check + doc reservation in a single transaction.
+  // tx.get(summaryRef) is the contention point: two concurrent dispatches
+  // will conflict here, so only one proceeds. Quota is reserved after the
+  // transaction commits to avoid double-incrementing on Firestore retries
+  // (quota.runTransaction is itself a separate Firestore transaction and
+  // cannot be safely nested inside this one).
+  let shouldSkipDispatch = false;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(summaryRef);
+    if (snap.exists) {
+      const data = snap.data() as Partial<SummaryDocument> | undefined;
+      if (data?.status && NON_REDISPATCHABLE_STATUSES.includes(data.status)) {
+        shouldSkipDispatch = true;
+        return;
+      }
+    }
+
     const prior = snap.exists ?
       (snap.data() as Partial<SummaryDocument> | undefined) :
       undefined;
     const next: SummaryDocument = {
       videoId,
       status: "pending",
-      model,
-      webhookSecret,
+      model: dispatchModel,
       requestedAt:
         prior?.requestedAt ?? admin.firestore.FieldValue.serverTimestamp(),
     };
+    // Reserve doc: transactional read-then-set keeps auto-enqueue,
+    // dispatcher, and the manual callable collision-safe.
+    // The webhook secret is stored in the server-only `webhook_secrets/`
+    // collection (denied to Android client in firestore.rules).
     tx.set(summaryRef, next);
+    const secretDoc: WebhookSecretDocument = {
+      secret: webhookSecret,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    tx.set(secretRef, secretDoc);
   });
+
+  if (shouldSkipDispatch) {
+    return { summaryId: videoId };
+  }
+
+  // Pre-flight quota reservation. Throws HttpsError("resource-exhausted")
+  // on cap breach; we let that bubble up to the callable.
+  // This runs after the idempotency transaction commits so it is only called
+  // once per genuine new dispatch.
+  await reserveOpenRouterQuotaSlot();
 
   const doFetch = opts.fetchImpl ?? fetch;
   const body = {
     url: `https://www.youtube.com/watch?v=${videoId}`,
-    options: { model, format: "markdown" as const },
+    options: { model: dispatchModel, format: "markdown" as const },
     webhook_url: webhookUrl(),
     webhook_secret: webhookSecret,
     client_job_id: videoId,
   };
+
+  const dispatchTimeoutMs = opts.dispatchTimeoutMs ?? 15_000;
+  const ctrl = new AbortController();
+  const abortTimer = setTimeout(() => ctrl.abort(), dispatchTimeoutMs);
 
   let response: Response;
   try {
@@ -135,14 +161,21 @@ export async function dispatchSummary(
         "X-API-Key": SUMMARIZER_API_KEY.value(),
       },
       body: JSON.stringify(body),
+      signal: ctrl.signal,
     });
   } catch (err) {
+    clearTimeout(abortTimer);
     const message = err instanceof Error ? err.message : String(err);
-    logger.warn("summarizer dispatch network error", { videoId, message });
+    const isAbort = err instanceof Error && err.name === "AbortError";
+    logger.warn("summarizer dispatch network error", {
+      videoId,
+      message,
+      aborted: isAbort,
+    });
     await summaryRef.set(
       {
         status: "failed-transient",
-        errorCode: "dispatch_network",
+        errorCode: isAbort ? "dispatch_timeout" : "dispatch_network",
         errorMessage: message,
       },
       { merge: true },
@@ -150,6 +183,7 @@ export async function dispatchSummary(
     await releaseOpenRouterQuotaSlot();
     return { summaryId: videoId };
   }
+  clearTimeout(abortTimer);
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => "");
@@ -212,10 +246,10 @@ export const requestVideoSummary = allowlistedCall<
     if (!videoId) {
       throw new HttpsError("invalid-argument", "videoId is required.");
     }
-    const model = req.data?.model ?? "free";
-    logger.info("requestVideoSummary", { videoId, model });
-    return dispatchSummary(videoId, model);
+    // model is always "free"; client-supplied model field is intentionally ignored.
+    logger.info("requestVideoSummary", { videoId });
+    return dispatchSummary(videoId, "free");
   },
 );
 
-export const __dispatchInternals = { videoExists, TERMINAL_STATUSES };
+export const __dispatchInternals = { videoExists, TERMINAL_STATUSES, NON_REDISPATCHABLE_STATUSES };
