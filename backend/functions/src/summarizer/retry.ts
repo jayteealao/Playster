@@ -101,6 +101,29 @@ export async function retryFailedTransient(): Promise<{
         const videoId = data?.videoId ?? failed.docs[i].id;
         if (err instanceof HttpsError && err.code === "resource-exhausted") {
           quotaExhausted = true;
+          // dispatchSummary's idempotency tx flips the doc to "pending"
+          // before the quota reserve throws. "pending" is in
+          // NON_REDISPATCHABLE_STATUSES, so without this rollback the doc
+          // is stranded — the next retry-cron firing's query selector
+          // (status == "failed-transient") would skip it. Restore it so
+          // the next run picks it up.
+          try {
+            await failed.docs[i].ref.set(
+              {
+                status: "failed-transient",
+                errorCode: "retry_quota_exhausted",
+              },
+              { merge: true },
+            );
+          } catch (rollbackErr) {
+            logger.warn("summaryRetryCron: rollback to failed-transient failed", {
+              videoId,
+              error:
+                rollbackErr instanceof Error ?
+                  rollbackErr.message :
+                  String(rollbackErr),
+            });
+          }
           logger.info("summaryRetryCron: budget exhausted for item", {
             videoId,
           });
