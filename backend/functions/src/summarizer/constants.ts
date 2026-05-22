@@ -5,6 +5,9 @@
  * The Android mirror is at:
  *   android/app/src/main/java/com/github/jayteealao/playster/screens/common/state/QuotaPolicy.kt
  * Keep both files in sync when any value changes.
+ *
+ * Sweeper/retry constants (STUCK_TIMEOUT_MS, SWEEPER_LOCK_DOC_PATH,
+ * RETRY_LOCK_DOC_PATH) are server-only — Android does not consume them.
  */
 
 /** Maximum summary requests per calendar day (UTC). */
@@ -24,6 +27,16 @@ export const DISPATCHER_LOCK_TTL_MS = 240_000;
 
 /** Maximum number of queued summaries processed per dispatcher invocation. */
 export const DISPATCHER_BATCH_SIZE = 200;
+
+/** Maximum age of a status="running" summary doc before the sweeper flips it
+ *  to failed-transient. One hour in milliseconds. */
+export const STUCK_TIMEOUT_MS = 60 * 60 * 1000;
+
+/** Firestore doc path for the sweeper cron's distributed lock. */
+export const SWEEPER_LOCK_DOC_PATH = "locks/summarySweeper";
+
+/** Firestore doc path for the retry cron's distributed lock. */
+export const RETRY_LOCK_DOC_PATH = "locks/summaryRetry";
 
 /**
  * Terminal summary statuses — docs in these states have reached a final
