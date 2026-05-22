@@ -29,8 +29,11 @@ refs:
 implement-status: complete
 implement-commit-sha: "3c9a464a"
 implement-branch: "feat/failure-recovery-cron"
-next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer failure-recovery-cron"
+verify-status: complete
+verify-result: pass
+verify-convergence: not-needed
+next-command: wf-review
+next-invocation: "/wf review wire-android-backend-summarizer failure-recovery-cron"
 ---
 
 # Plan: failure-recovery-cron (summarySweeper + summaryRetryCron)

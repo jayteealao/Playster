@@ -7,7 +7,7 @@ status: active
 current-stage: review
 stage-number: 7
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-22T21:24:23Z"
+updated-at: "2026-05-22T21:50:00Z"
 selected-slice: "failure-recovery-cron"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
@@ -60,8 +60,8 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer failure-recovery-cron"
+next-command: wf-review
+next-invocation: "/wf review wire-android-backend-summarizer failure-recovery-cron"
 parallel-branches:
   - slice: failure-recovery-cron
     branch: "feat/failure-recovery-cron"
@@ -97,6 +97,7 @@ workflow-files:
   - 06-verify-summarizer-container.md
   - 06-verify-summary-orchestration.md
   - 06-verify-summary-ui.md
+  - 06-verify-failure-recovery-cron.md
   - 07-review.md
   - 07-review-correctness.md
   - 07-review-security.md
@@ -133,7 +134,7 @@ extension-round-1:
   slice: complete
   plan: complete
   implement: complete
-  verify: not-started
+  verify: complete
   review: not-started
   handoff: not-started
   ship: not-started

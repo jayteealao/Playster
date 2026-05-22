@@ -22,6 +22,9 @@ refs:
 implement-status: complete
 implement-commit-sha: "3c9a464a"
 implement-branch: "feat/failure-recovery-cron"
+verify-status: complete
+verify-result: pass
+verify-convergence: not-needed
 ---
 
 # Slice: failure-recovery-cron

@@ -5,16 +5,17 @@ slug: wire-android-backend-summarizer
 status: in-progress
 stage-number: 6
 created-at: "2026-05-18T16:43:28Z"
-updated-at: "2026-05-20T15:14:19Z"
+updated-at: "2026-05-22T21:50:00Z"
 status: complete
-slices-verified: 4
-slices-total: 4
+slices-verified: 5
+slices-total: 5
+extension-rounds: 1
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
   implement-index: 05-implement.md
 next-command: wf-review
-next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
+next-invocation: "/wf review wire-android-backend-summarizer failure-recovery-cron"
 ---
 
 # Verify Index — wire-android-backend-summarizer
@@ -27,6 +28,7 @@ next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
 | `summarizer-container`       | pass    | converged (2 extended fix-round bursts) | required (all 4 user-observable AC evidenced) | [06-verify-summarizer-container.md](06-verify-summarizer-container.md) |
 | `summary-orchestration`      | pass    | converged (1 round) | required (all 5 user-observable AC evidenced) | [06-verify-summary-orchestration.md](06-verify-summary-orchestration.md) |
 | `summary-ui`                 | partial | converged (1 round) | deferred (bootstrap + emulator wiring) | [06-verify-summary-ui.md](06-verify-summary-ui.md) |
+| `failure-recovery-cron` (extension round 1, parallel branch) | pass    | not-needed (zero issues) | not-applicable (server-side only) | [06-verify-failure-recovery-cron.md](06-verify-failure-recovery-cron.md) |
 
 ## Cross-Slice Notes
 
@@ -131,10 +133,41 @@ next-invocation: "/wf review wire-android-backend-summarizer summary-ui"
   Worth a follow-up to gate the listener on `FirebaseAuth.getInstance().
   currentUser != null` or to relocate the subscription post-auth.
 
+## Cross-Slice Notes (slice 5 — extension round 1)
+
+- **Slice 5 verified on parallel branch `feat/failure-recovery-cron`.**
+  Vitest 13/13 against live Firestore emulator on `127.0.0.1:8080`. All
+  five AC (AC-12, AC-13, AC-14, AC-15, AC-16) partition as code-only;
+  none names a UI surface or user action. No fix loop needed —
+  initial issue count was zero.
+- **No interactive verification ran.** Crons fire under the Cloud
+  Scheduler service account inside Firebase Functions v2; the slice
+  doc explicitly excludes Android surface coverage, so adapter
+  selection dropped `android` from the otherwise-matched set. Service
+  adapter was not driven separately because the cron-trigger surface
+  is not HTTP; emulator-backed direct-call tests are the standard
+  pattern this slice followed (consistent with `tests/dispatcher.test.ts`).
+- **6 parent-branch test failures persist** in the full backend
+  suite (`callable.test.ts` x2, `dispatcher.test.ts` M-12 inject,
+  `rules.test.ts`, `rules-summaries.test.ts`, `webhook.test.ts` AC-8
+  401-vs-404). `git diff feat/wire-android-backend-summarizer..HEAD`
+  on those files is empty — failures are inherited, not introduced.
+  Recorded in the per-slice verify under §Gaps for traceability; no
+  slice-local fix required. These should be triaged either on the
+  parent branch's re-verify, by `/wf review`'s slug-wide sweep, or
+  after merging `feat/failure-recovery-cron` back to a re-verified
+  `main`.
+- **Cross-slice find from implement record carries forward.** The
+  same `pending`-stranding race the retry-cron rollback fixes also
+  exists in `dispatcher-cron.ts`'s per-minute-cap path. Not patched
+  in this slice (kept blast radius narrow); lives as a known
+  follow-up.
+
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf review wire-android-backend-summarizer summary-ui` — slice 4 converged with `result: partial`; the slice is ready for code review. Two deferrals carried to handoff (bootstrap-pending + emulator wiring) which ship will hard-block on.
-- **Option B:** `/wf review wire-android-backend-summarizer summary-orchestration` — slice 3 already verified `pass`; review still pending.
-- **Option C:** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 already verified `pass`; review still pending.
-- **Option D:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 already verified `partial`; review still pending.
+- **Option A (default):** `/wf review wire-android-backend-summarizer failure-recovery-cron` — extension-round 1 slice converged with `result: pass`; ready for code review on the parallel branch. Compact recommended since verify produced log-heavy test output. Review proceeds independently of the v1.0 review chain still open on slices 1-4.
+- **Option B:** `/wf review wire-android-backend-summarizer summary-ui` — slice 4 already verified `partial`; v1.0 review still pending. Two deferrals carry to handoff (bootstrap-pending + emulator wiring) which ship will hard-block on.
+- **Option C:** `/wf review wire-android-backend-summarizer summary-orchestration` — slice 3 already verified `pass`; review still pending.
+- **Option D:** `/wf review wire-android-backend-summarizer summarizer-container` — slice 2 already verified `pass`; review still pending.
+- **Option E:** `/wf review wire-android-backend-summarizer auth-and-android-firebase` — slice 1 already verified `partial`; review still pending.
 - **Option G:** `/wf-quick probe wire-android-backend-summarizer` — slug-wide runtime sweep once the operator (a) runs the bootstrap two-pass deploy and (b) adds debug-build `connectFirestoreEmulator` wiring. Will clear both slice 1's and slice 4's outstanding deferrals in one pass.
