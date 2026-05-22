@@ -5,8 +5,8 @@ slug: wire-android-backend-summarizer
 status: complete
 stage-number: 3
 created-at: "2026-05-17T21:45:53Z"
-updated-at: "2026-05-17T21:45:53Z"
-total-slices: 4
+updated-at: "2026-05-21T16:31:22Z"
+total-slices: 5
 best-first-slice: auth-and-android-firebase
 tags: [android, firebase, cloud-run, summarizer, openrouter, single-tenant, multi-component]
 slices:
@@ -26,6 +26,12 @@ slices:
     status: defined
     complexity: m
     depends-on: [summary-orchestration]
+  - slug: failure-recovery-cron
+    status: defined
+    complexity: s
+    depends-on: [summary-orchestration]
+    source: from-review
+    extension-round: 1
 refs:
   index: 00-index.md
   shape: 02-shape.md
@@ -107,3 +113,17 @@ If any of these change between now and slice 2/3 implementation, plan stage for 
 - **Option A (default):** `/wf plan wire-android-backend-summarizer auth-and-android-firebase` — Recommended. Start with the highest-visibility slice that establishes the auth contract every later slice depends on.
 - **Option B:** `/wf plan wire-android-backend-summarizer all` — Plan all four slices upfront. Reasonable since slices 1 and 2 are independent and could be developed in parallel; slices 3 and 4 each have one dependency. Trades some upfront planning effort for a clearer end-to-end picture before any implementation lands.
 - **Option C:** `/wf shape wire-android-backend-summarizer` — Revisit shape. Not recommended. The shape spec is detailed; slicing did not reveal contradictions or gaps that require returning to shape. (One minor reconciliation — "thinnest" vs "atomic flip" — was resolvable here without re-shaping.)
+
+## Extension Round 1 — 2026-05-21
+Source: from-review (07-review.md, finding R-12 sourced from 07-review-testing.md TST-3)
+
+### New Slices Added
+| Slice | Goal | Complexity | Depends On |
+|-------|------|------------|------------|
+| `failure-recovery-cron` | Hourly `summarySweeper` (stuck running → failed-transient) + daily `summaryRetryCron` (re-dispatch failed-transient within quota); covers AC-12 + AC-13. | S | `summary-orchestration` |
+
+### Motivation
+
+The slug-wide review at stage 7 surfaced AC-12 (`summarySweeper`) and AC-13 (`summaryRetryCron`) as missing-capability findings — present in `02-shape.md` but explicitly deferred by the original slice strategy (see *Deferred / Optional Slices* → `v1.1-failure-recovery-cron` above). The shape doc's *Failure & recovery* section requires that hung Cloud Run instances and transient OpenRouter failures auto-recover without manual operator intervention. Until this slice ships, stuck `running` docs persist indefinitely and `failed-transient` docs require a manual Retry tap from the Android UI.
+
+The slice is bundled (sweeper + retry together) because they operate on the same Firestore documents, share the existing `quota/openrouter` transaction, and the sweeper's output is the retry's input. PO confirmed at extension time that this slice should be planned immediately on a parallel branch — it does NOT gate v1.0 handoff/ship of the four original slices.

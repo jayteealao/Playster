@@ -157,3 +157,39 @@ Cumulative log of PO answers across stages. Append-only.
 - The legacy `summarizer/deploy/daemon/Dockerfile` includes a `sed` patch flipping `127.0.0.1 → 0.0.0.0` in the compiled daemon constants. That patch is *wrong* for our single-container architecture (daemon should stay loopback-bound) — deleted in slice 2.
 - pnpm version mismatch between summarize-api (10.25.0) and summarize-daemon (10.33.2). Slice 2 unifies on 10.33.2 across both build stages; api `pnpm-lock.yaml` regenerated.
 - Codebase has no existing sealed UI-state classes, no markdown rendering, no Maestro directory, no Hilt provider modules, no instrumented tests. Slice 4 establishes several "firsts" in tandem with slice 1.
+
+---
+
+## Stage 7-extend — wf-extend round 1 (2026-05-21T16:31:22Z)
+
+Source: `07-review.md` deferred candidate R-12.
+
+- **Slice grouping:** One slice bundling sweeper + retry (matches the deferred-slices entry already in `03-slice.md`; sweeper output feeds the retry's input, so coupling is tight).
+- **Slug:** `failure-recovery-cron` (chosen over `v1.1-failure-recovery-cron` and `summary-cron-recovery`).
+- **Add-ons:** None. M-31 (daemon env-var token), FCM notifications, and slides extraction all stay deferred.
+- **Ordering:** Plan immediately on a parallel branch — do NOT block v1.0 handoff on this work.
+
+---
+
+## Stage 4-extend — wf-plan failure-recovery-cron (2026-05-22T21:01:56Z)
+
+Discovery Round 1 (4 questions, AskUserQuestion). All four recommended defaults accepted:
+
+- **Sweeper write mode:** Per-doc transaction, status-gated. For each stuck doc, `db.runTransaction` reads the doc, re-checks `status === "running"`, and only then writes `failed-transient`. Trivially satisfies AC-14 (second pass writes zero docs because status is no longer `"running"`). Avoids races with the webhook landing `completed` mid-sweep.
+- **Retry path:** Call `dispatchSummary(videoId, "free")` directly. Reuse the existing helper — its idempotency tx sees `status=="failed-transient"` (not in `NON_REDISPATCHABLE_STATUSES`) and overwrites to `pending`, issues a fresh `webhook_secrets/{videoId}`, reserves quota, POSTs. Single code path; quota + webhook_secret already encapsulated. (Alternative "flip to queued + let dispatcher drain" rejected: lags re-dispatch by up to 5 min and splits the state machine across two files.)
+- **Retry lock TTL:** Share `DISPATCHER_LOCK_TTL_MS` (240s). Mirror the dispatcher pattern exactly. Daily run, so stuck lock auto-clears well before the next 04:00 firing. Pattern parity simplifies test reuse (the dispatcher's stale-lock test pattern copies verbatim).
+- **Sweep first-deploy storm:** Accept it — slice-doc default. The flip is transactional Firestore-only with no outbound calls; the retry cron drains the resulting failed-transient docs at quota cadence over subsequent days. Cheap and self-converging.
+
+Discovery Round 2 (4 questions, AskUserQuestion). All four recommended defaults accepted:
+
+- **Retry batch cap:** `DISPATCHER_BATCH_SIZE` (200). 200 × ~500ms ≈ 100s wall-time; well under 240s lock TTL and 540s function timeout. Reuses the existing constant for symmetry with the dispatcher.
+- **Retry fan-out shape:** `Promise.allSettled` full fan-out. Mirrors `drainSummaryQueue` exactly. Per-minute cap (20) is enforced transactionally inside `reserveOpenRouterQuotaSlot`, so excess concurrent calls naturally short-circuit on `resource-exhausted`. Pattern parity with dispatcher = easier review + reuse of test helpers.
+- **Stuck-doc threshold location:** Export `STUCK_TIMEOUT_MS = 60 * 60 * 1000` from `backend/functions/src/summarizer/constants.ts`. Sits alongside `DISPATCHER_LOCK_TTL_MS` and `DISPATCHER_BATCH_SIZE`; matches the "server-owned constants" convention already documented in that file's header.
+- **Daily cron retry policy:** `retryConfig: { retryCount: 3, minBackoffDuration: "60s" }`. Three retry attempts with exponential backoff. A transient infra blip (Firestore RPC, brief Cloud Run cold-start failure) won't strand the day's failed-transient docs for 24h. The cron is idempotent (lock + per-doc `dispatchSummary` idempotency), so retries are safe.
+
+### Defaults locked without a PO question
+
+- **Hourly sweeper retry policy:** `retryConfig: { retryCount: 1, minBackoffDuration: "60s" }` for symmetry with the daily cron's design intent. Next firing is only an hour away, so retry is less load-bearing; one attempt suffices. Cron is idempotent so retry is safe.
+- **Cloud Scheduler `timeZone: "UTC"`** explicit on both crons. Cloud Scheduler defaults to `America/Los_Angeles` — leaving it unset would shift the daily 04:00 firing by 7h plus DST drift. Surfaced by freshness research §1.
+- **No `maxInstances` / `concurrency` knobs.** Distributed lock at `locks/summarySweeper` and `locks/summaryRetry` is the canonical anti-overlap mechanism, consistent with the existing `dispatcher-cron.ts`. Freshness research §5 confirms `maxInstances: 1` alone wouldn't prevent overlap anyway.
+- **No `secrets: summarizerSecrets` on `summarySweeper`.** Sweeper makes zero outbound HTTP calls; secrets attachment is unnecessary. Retry inherits secrets via `dispatchSummary`'s function-level secrets binding.

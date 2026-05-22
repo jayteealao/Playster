@@ -5,15 +5,17 @@ slug: wire-android-backend-summarizer
 status: complete
 stage-number: 4
 created-at: "2026-05-18T07:49:39Z"
-updated-at: "2026-05-18T07:49:39Z"
+updated-at: "2026-05-22T21:01:56Z"
 planning-mode: all
-slices-planned: 4
-slices-total: 4
+slices-planned: 5
+slices-total: 5
 implementation-order:
   - auth-and-android-firebase
   - summarizer-container
   - summary-orchestration
   - summary-ui
+  - failure-recovery-cron
+extension-rounds: 1
 conflicts-found: 2
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
@@ -69,6 +71,17 @@ All four slices are planned. Discovery phase is closed; per-slice plans are exec
 - **Maps to ACs:** AC-5 (visible-side 500ms timing), AC-10 (banner + disabled CTA). Slice-local: 4 states render distinctly (Compose UI tests, no Paparazzi), Retry transitions within 500ms, listener doesn't leak, cached-summary navigation skips redispatch.
 - **Key risk:** Phase E depends on slice 1's `PlaylistScreen.kt` rewrite landing. Escalate if not.
 - **Surprises during research:** Codebase has no existing sealed UI-state classes, no markdown rendering, no Maestro directory, no Hilt provider modules, no instrumented tests — slice 4 establishes several "firsts" in conjunction with slice 1. Compose BOM `2024.01.00` + navigation-compose `2.7.6` compatible with `compose-markdown 0.5.7` without bumps. Firestore listener for `SummaryViewModel` needs a `localFailure: StateFlow<SummaryUiState?>` override pattern for the case where the callable fails *before* a doc gets reserved (listener won't emit because no doc exists).
+
+### `failure-recovery-cron` ([plan](04-plan-failure-recovery-cron.md)) — Extension Round 1 (from-review)
+
+- **Complexity / deps:** S / depends on `summary-orchestration` only (server-side; no Android surface). **Parallel branch** — does NOT gate v1.0 handoff/ship.
+- **Source:** `07-review.md` finding R-12 (sourced from `07-review-testing.md` TST-3); shape doc's *Failure & recovery* rules 14–16. Re-introduces the deferred slices listed under `## Deferred / Optional Slices` in `03-slice.md` as `v1.1-failure-recovery-cron`.
+- **Files to touch:** 6 (4 new src/test, 2 modified). Step count: 22 across 5 phases.
+- **Strategy:** Two `onSchedule` functions in `backend/functions/src/summarizer/`. `summarySweeper` (hourly) flips `status: "running"` docs older than 1h to `failed-transient` via per-doc status-gated transactions; pure Firestore, no outbound HTTP. `summaryRetryCron` (daily, 04:00 UTC, explicit `timeZone: "UTC"`) queries `failed-transient` docs and calls existing `dispatchSummary(videoId, "free")` via `Promise.allSettled` — full reuse of the dispatcher's quota + webhook-secret-rotation path. Distributed locks at `locks/summarySweeper` and `locks/summaryRetry` mirror `dispatcher-cron.ts` (240s TTL = `DISPATCHER_LOCK_TTL_MS`). Retry uses `retryConfig: { retryCount: 3, minBackoffDuration: "60s" }`; sweeper uses `{ retryCount: 1 }`. Per-invocation cap = `DISPATCHER_BATCH_SIZE` on retry; sweeper is uncapped (bounded by 540s function timeout).
+- **Phases:** A (constants + sweeper module) → B (sweeper tests) → C (retry module) → D (retry tests) → E (wire exports).
+- **Maps to ACs:** AC-12 (carried from shape), AC-13 (carried from shape). Slice-local extensions: AC-14 (sweeper idempotency / zero-write second pass), AC-15 (retry quota awareness mid-batch), AC-16 (lock TTL reclaim for both crons).
+- **Key risk:** Parallel branch base must be the post-review HEAD of `feat/wire-android-backend-summarizer` (post-`f94a7691`) to inherit the `webhook_secrets/{videoId}` migration — not `main` until v1.0 ships. Mitigation documented in the per-slice plan.
+- **Surprises during research:** Cloud Scheduler `timeZone` defaults to `America/Los_Angeles`, not UTC — daily cron would drift by 7h + DST without explicit `timeZone: "UTC"`. Default `retryCount=0` means a thrown invocation skips to the next 24h firing. `maxInstances: 1` alone does NOT prevent overlap (needs `concurrency: 1` too) — the distributed lock remains the canonical mechanism. `dispatchSummary`'s `NON_REDISPATCHABLE_STATUSES` set deliberately excludes `failed-transient`, so retry can call it directly without any branching logic.
 
 ## Cross-Cutting Concerns
 
@@ -135,6 +148,10 @@ Operator-side MVP prerequisite. Without it, free-tier quota is the much-tighter 
 4. **`summary-ui` last.** Hard-blocked on slice 3 (callable + Firestore docs) and slice 1 (Firebase BOM, PlaylistScreen rewrite, Maestro fixture-auth). Visible head of the v1 demo flow.
 
 Slices 1 + 2 can ship as separate PRs to the integration branch; slice 3's PR rebases on both; slice 4's PR rebases on slice 3. Alternatively (and recommended for a single-operator workflow), commit them in series on `feat/wire-android-backend-summarizer` and open a single PR at handoff stage — matches the workflow's `branch-strategy: dedicated`, `review-scope: slug-wide` settings.
+
+### Extension slice — parallel track
+
+5. **`failure-recovery-cron` (Extension Round 1).** Server-side only; depends solely on `summary-orchestration` and the post-review `webhook_secrets/{videoId}` migration. Implements on its own parallel branch off `feat/wire-android-backend-summarizer` HEAD (or off `main` after v1.0 ships). Does NOT gate v1.0 handoff/ship; a separate PR cuts after v1.0 merges. Implementation can start immediately once the parent branch is review-clean.
 
 ## Conflicts Found
 

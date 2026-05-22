@@ -5,12 +5,13 @@ slug: wire-android-backend-summarizer
 status: complete
 stage-number: 5
 created-at: "2026-05-18T10:50:00Z"
-updated-at: "2026-05-19T22:55:42Z"
-slices-implemented: 4
-slices-total: 4
-metric-total-files-changed: 108
-metric-total-lines-added: 5914
+updated-at: "2026-05-22T21:24:23Z"
+slices-implemented: 5
+slices-total: 5
+metric-total-files-changed: 114
+metric-total-lines-added: 6612
 metric-total-lines-removed: 611
+extension-rounds: 1
 tags: [android, firebase, cloud-run, summarizer, openrouter, multi-component]
 refs:
   index: 00-index.md
@@ -28,8 +29,14 @@ slices:
   - slug: summary-ui
     status: complete
     implement: 05-implement-summary-ui.md
+  - slug: failure-recovery-cron
+    status: complete
+    implement: 05-implement-failure-recovery-cron.md
+    branch: feat/failure-recovery-cron
+    source: from-review
+    extension-round: 1
 next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
+next-invocation: "/wf verify wire-android-backend-summarizer failure-recovery-cron"
 ---
 
 # Implement Index — wire-android-backend-summarizer
@@ -42,6 +49,7 @@ next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
 | `summarizer-container` | complete | [05-implement-summarizer-container.md](05-implement-summarizer-container.md) |
 | `summary-orchestration` | complete | [05-implement-summary-orchestration.md](05-implement-summary-orchestration.md) |
 | `summary-ui` | complete | [05-implement-summary-ui.md](05-implement-summary-ui.md) |
+| `failure-recovery-cron` (extension round 1, parallel branch) | complete | [05-implement-failure-recovery-cron.md](05-implement-failure-recovery-cron.md) |
 
 ## Cross-Slice Integration Notes
 
@@ -112,9 +120,20 @@ next-invocation: "/wf verify wire-android-backend-summarizer summary-ui"
 - **All 4 slices implemented.** This branch now carries the full
   Android-↔-Backend-↔-Summarizer wiring; verify pass for slice 4
   completes the slug.
+- **Extension round 1: `failure-recovery-cron` landed on a parallel
+  branch.** `feat/failure-recovery-cron` forked from the post-review
+  HEAD of `feat/wire-android-backend-summarizer` and adds the hourly
+  `summarySweeper` + daily `summaryRetryCron` covering AC-12 / AC-13 /
+  AC-14 / AC-15 / AC-16 from the shape doc. The parallel branch does
+  NOT gate v1.0 handoff/ship of the original four slices — it rebases
+  to `main` after v1.0 merges. Surfaced one cross-slice find: the
+  same `pending`-stranding race the retry rollback fixes also affects
+  `dispatcher-cron.ts`'s per-minute-cap path (flagged for follow-up,
+  not patched in this slice).
 
 ## Recommended Next Stage
 
-- **Option A (default):** `/wf verify wire-android-backend-summarizer summary-ui` — verify slice 4. Compile + instrumented-test compile are green; live execution needs the Firebase emulator + a connected Android device/emulator.
-- **Option B:** `/wf review wire-android-backend-summarizer summary-ui` — skip verify if the emulator-and-device gate is judged the verify scope's responsibility. Not recommended (AC-5's 500ms assertion is the verify gate).
-- **Option G:** `/wf-quick probe wire-android-backend-summarizer` — clear the slice-1 runtime-evidence deferral after the operator runs the bootstrap two-pass deploy.
+- **Option A (default):** `/wf verify wire-android-backend-summarizer failure-recovery-cron` — verify the parallel-branch extension slice. All thirteen new tests green; remaining work is AC-coverage confirmation + triage of pre-existing test failures on the parent branch.
+- **Option B:** `/wf verify wire-android-backend-summarizer summary-ui` — return to verifying slice 4 on the v1.0 branch. Compile + instrumented-test compile are green; live execution needs the Firebase emulator + a connected Android device/emulator.
+- **Option C:** `/wf review wire-android-backend-summarizer summary-ui` — skip verify if the emulator-and-device gate is judged the verify scope's responsibility. Not recommended (AC-5's 500ms assertion is the verify gate).
+- **Option D:** `/wf-quick probe wire-android-backend-summarizer` — clear the slice-1 runtime-evidence deferral after the operator runs the bootstrap two-pass deploy.

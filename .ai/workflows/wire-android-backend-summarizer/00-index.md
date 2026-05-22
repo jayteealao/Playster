@@ -7,8 +7,8 @@ status: active
 current-stage: review
 stage-number: 7
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-21T11:11:58Z"
-selected-slice: "summary-ui"
+updated-at: "2026-05-22T21:24:23Z"
+selected-slice: "failure-recovery-cron"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
 base-branch: "main"
@@ -60,8 +60,16 @@ stack:
     - {name: maestro, hint: "Mobile end-to-end UI test runner — eligible for Android acceptance flows"}
   available-mcp: []
   user-confirmed: true
-next-command: wf-handoff
-next-invocation: "/wf handoff wire-android-backend-summarizer"
+next-command: wf-verify
+next-invocation: "/wf verify wire-android-backend-summarizer failure-recovery-cron"
+parallel-branches:
+  - slice: failure-recovery-cron
+    branch: "feat/failure-recovery-cron"
+    base: "feat/wire-android-backend-summarizer"
+    implement-commit-sha: "3c9a464a"
+    rebase-target-on-v1-ship: "main"
+    extension-round: 1
+    source: from-review
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -71,16 +79,19 @@ workflow-files:
   - 03-slice-summarizer-container.md
   - 03-slice-summary-orchestration.md
   - 03-slice-summary-ui.md
+  - 03-slice-failure-recovery-cron.md
   - 04-plan.md
   - 04-plan-auth-and-android-firebase.md
   - 04-plan-summarizer-container.md
   - 04-plan-summary-orchestration.md
   - 04-plan-summary-ui.md
+  - 04-plan-failure-recovery-cron.md
   - 05-implement.md
   - 05-implement-auth-and-android-firebase.md
   - 05-implement-summarizer-container.md
   - 05-implement-summary-orchestration.md
   - 05-implement-summary-ui.md
+  - 05-implement-failure-recovery-cron.md
   - 06-verify.md
   - 06-verify-auth-and-android-firebase.md
   - 06-verify-summarizer-container.md
@@ -114,4 +125,16 @@ progress:
   handoff: not-started
   ship: not-started
   retro: not-started
+extension-round-1:
+  slice: failure-recovery-cron
+  branch: "feat/failure-recovery-cron"
+  intake: n/a
+  shape: complete
+  slice: complete
+  plan: complete
+  implement: complete
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
 ---
