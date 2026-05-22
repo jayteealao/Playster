@@ -21,6 +21,8 @@ import {
 export { requestVideoSummary } from "./summarizer/dispatch";
 export { summaryWebhook } from "./summarizer/webhook";
 export { summaryDispatcher } from "./summarizer/dispatcher-cron";
+export { summarySweeper } from "./summarizer/sweeper";
+export { summaryRetryCron } from "./summarizer/retry";
 
 async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   if (!videoIds || !videoIds.length) return;
