@@ -30,8 +30,12 @@ evidence-dir: ".ai/workflows/wire-android-backend-summarizer/verify-evidence/fai
 stack-source: confirmed
 extension-round: 1
 source: from-review
-branch: "feat/failure-recovery-cron"
-base-branch: "feat/wire-android-backend-summarizer"
+branch: "feat/wire-android-backend-summarizer"
+base-branch: "main"
+original-branch: "feat/failure-recovery-cron"
+original-base-branch: "feat/wire-android-backend-summarizer"
+merged-at: "2026-05-23T00:00:00Z"
+merge-strategy: fast-forward
 tags: [backend, firebase, cron, reliability, summarizer]
 refs:
   index: 00-index.md

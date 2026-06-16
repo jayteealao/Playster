@@ -7,7 +7,7 @@ status: active
 current-stage: review
 stage-number: 7
 created-at: "2026-05-17T15:00:08Z"
-updated-at: "2026-05-22T21:50:00Z"
+updated-at: "2026-05-23T00:00:00Z"
 selected-slice: "failure-recovery-cron"
 branch-strategy: dedicated
 branch: "feat/wire-android-backend-summarizer"
@@ -62,14 +62,18 @@ stack:
   user-confirmed: true
 next-command: wf-review
 next-invocation: "/wf review wire-android-backend-summarizer failure-recovery-cron"
-parallel-branches:
+merged-parallel-branches:
   - slice: failure-recovery-cron
     branch: "feat/failure-recovery-cron"
     base: "feat/wire-android-backend-summarizer"
     implement-commit-sha: "3c9a464a"
-    rebase-target-on-v1-ship: "main"
+    verify-commit-sha: "9f943a5c"
     extension-round: 1
     source: from-review
+    merged-at: "2026-05-23T00:00:00Z"
+    merge-strategy: fast-forward
+    merged-into: "feat/wire-android-backend-summarizer"
+    branch-deleted: true
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -127,8 +131,10 @@ progress:
   ship: not-started
   retro: not-started
 extension-round-1:
-  slice: failure-recovery-cron
-  branch: "feat/failure-recovery-cron"
+  slice-slug: failure-recovery-cron
+  branch: "feat/wire-android-backend-summarizer"
+  original-branch: "feat/failure-recovery-cron"
+  merged-at: "2026-05-23T00:00:00Z"
   intake: n/a
   shape: complete
   slice: complete

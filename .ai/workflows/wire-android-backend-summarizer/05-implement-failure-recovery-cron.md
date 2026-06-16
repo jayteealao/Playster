@@ -13,8 +13,13 @@ metric-lines-removed: 0
 metric-deviations-from-plan: 2
 metric-review-fixes-applied: 0
 commit-sha: "3c9a464a"
-branch: "feat/failure-recovery-cron"
-base-branch: "feat/wire-android-backend-summarizer"
+branch: "feat/wire-android-backend-summarizer"
+base-branch: "main"
+original-branch: "feat/failure-recovery-cron"
+original-base-branch: "feat/wire-android-backend-summarizer"
+merged-at: "2026-05-23T00:00:00Z"
+merge-strategy: fast-forward
+fragment: none
 extension-round: 1
 source: from-review
 tags: [backend, firebase, cron, reliability, summarizer, openrouter]

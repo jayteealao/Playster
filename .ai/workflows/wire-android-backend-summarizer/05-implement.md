@@ -32,11 +32,13 @@ slices:
   - slug: failure-recovery-cron
     status: complete
     implement: 05-implement-failure-recovery-cron.md
-    branch: feat/failure-recovery-cron
+    branch: feat/wire-android-backend-summarizer
+    original-branch: feat/failure-recovery-cron
+    merged-at: "2026-05-23T00:00:00Z"
     source: from-review
     extension-round: 1
-next-command: wf-verify
-next-invocation: "/wf verify wire-android-backend-summarizer failure-recovery-cron"
+next-command: wf-review
+next-invocation: "/wf review wire-android-backend-summarizer failure-recovery-cron"
 ---
 
 # Implement Index — wire-android-backend-summarizer

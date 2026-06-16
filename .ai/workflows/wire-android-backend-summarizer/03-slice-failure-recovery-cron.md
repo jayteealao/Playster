@@ -21,7 +21,9 @@ refs:
   implement: 05-implement-failure-recovery-cron.md
 implement-status: complete
 implement-commit-sha: "3c9a464a"
-implement-branch: "feat/failure-recovery-cron"
+implement-branch: "feat/wire-android-backend-summarizer"
+original-implement-branch: "feat/failure-recovery-cron"
+merged-at: "2026-05-23T00:00:00Z"
 verify-status: complete
 verify-result: pass
 verify-convergence: not-needed
