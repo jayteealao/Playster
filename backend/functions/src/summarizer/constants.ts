@@ -43,9 +43,11 @@ export const RETRY_LOCK_DOC_PATH = "locks/summaryRetry";
  * outcome and will not transition further without an explicit retry action.
  * Used as the idempotency guard in the webhook and as the sweeper filter.
  *
- * Note: this set is NARROWER than NON_REDISPATCHABLE_STATUSES in dispatch.ts,
- * which also includes in-flight states (queued/pending/running/completed) to
- * prevent duplicate dispatches. Keep both; they serve different purposes.
+ * Note: this set differs from NON_REDISPATCHABLE_STATUSES in dispatch.ts,
+ * which guards the in-flight states (pending/running) plus completed to
+ * prevent duplicate dispatches. `queued` is intentionally NOT in that guard
+ * set, so the dispatcher cron can claim queued docs (its claim-transaction
+ * flips queued → pending atomically). Keep both; they serve different purposes.
  */
 export const TERMINAL_STATUSES = [
   "completed",

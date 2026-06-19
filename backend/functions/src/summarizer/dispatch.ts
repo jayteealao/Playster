@@ -16,10 +16,13 @@ import {
 import { TERMINAL_STATUSES } from "./constants.js";
 
 const FUNCTION_REGION = process.env.FUNCTION_REGION ?? "us-central1";
-// Completed summaries are intentionally non-redispatchable; this set is wider
-// than the strictly in-flight set (queued/pending/running).
+// Statuses that must NOT be re-dispatched. `queued` is deliberately EXCLUDED:
+// the dispatcher cron hands queued docs to dispatchSummary expecting them to
+// go out, and the claim-transaction below atomically flips `queued → pending`,
+// so a concurrent cron+manual race still dispatches exactly once (the loser
+// reads `pending` and skips). `pending`/`running` guard an in-flight dispatch;
+// `completed` is terminal.
 const NON_REDISPATCHABLE_STATUSES: ReadonlyArray<SummaryDocument["status"]> = [
-  "queued",
   "pending",
   "running",
   "completed",

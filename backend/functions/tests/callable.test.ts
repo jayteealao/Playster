@@ -44,7 +44,15 @@ let functionsTest: ReturnType<typeof functionsTestFactory>;
 let mod: typeof import("../src/index.js");
 
 beforeAll(async () => {
-  functionsTest = functionsTestFactory();
+  // F3: pin the functions-test admin app to the project id the harness clears
+  // (`demo-playster`) and point it at the emulator BEFORE importing the
+  // functions module. Without this, the wrapped callable writes
+  // `quota/openrouter` under a different project id, and clearFirestore()
+  // (which DELETEs only the demo-playster project) leaves the cap-test's
+  // seeded `requestCount: 1000` to leak into the happy-path test.
+  process.env.FIRESTORE_EMULATOR_HOST ??= "127.0.0.1:8080";
+  process.env.GCLOUD_PROJECT = "demo-playster";
+  functionsTest = functionsTestFactory({ projectId: "demo-playster" });
   mod = await import("../src/index.js");
 });
 

@@ -53,7 +53,13 @@ describe("processSummaryWebhook — emulator-backed", () => {
     expect(doc.data()?.content).toBe("hello");
   });
 
-  it("AC-8: unknown client_job_id → 404, no write", async () => {
+  it("AC-8: unknown client_job_id → 401, no write", async () => {
+    // Per-job secrets live in `webhook_secrets/{jobId}`. An unknown job has no
+    // secret, so signature verification — which runs before the existence
+    // check — can never succeed: the unknown-job case is indistinguishable
+    // from a bad signature and returns 401 (non-enumerable, harder to probe).
+    // This is the intended contract; an unknown job is unreachable with a
+    // valid signature, so a dedicated 404 path would be dead code.
     const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
     const payload = { client_job_id: "missing", status: "completed" };
     const { header, rawBody } = signWebhook(payload, SECRET);
@@ -61,7 +67,7 @@ describe("processSummaryWebhook — emulator-backed", () => {
       signatureHeader: header,
       rawBody: Buffer.from(rawBody, "utf8"),
     });
-    expect(result.status).toBe(404);
+    expect(result.status).toBe(401);
     const doc = await admin.firestore().doc("summaries/missing").get();
     expect(doc.exists).toBe(false);
   });

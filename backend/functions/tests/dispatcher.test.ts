@@ -90,7 +90,13 @@ describe("summary dispatcher — emulator-backed", () => {
       });
       await seedQueued(["v1", "v2", "v3", "v4", "v5"]);
       const result = await drainSummaryQueue();
+      // Lower bound guards against a regression where queued docs are treated
+      // as non-redispatchable and the dispatcher silently no-ops (dispatched=0
+      // would otherwise pass the <= 2 cap vacuously). With 2 of 20 per-minute
+      // slots remaining, at least one — and at most two — queued docs go out.
+      expect(result.dispatched).toBeGreaterThanOrEqual(1);
       expect(result.dispatched).toBeLessThanOrEqual(2);
+      expect(spy.mock.calls.length).toBeGreaterThanOrEqual(1);
       expect(spy.mock.calls.length).toBeLessThanOrEqual(2);
     } finally {
       (globalThis as { fetch: typeof fetch }).fetch = realFetch;
