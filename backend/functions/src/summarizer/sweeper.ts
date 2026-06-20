@@ -4,40 +4,65 @@ import * as logger from "firebase-functions/logger";
 import type { SummaryDocument } from "../models/index.js";
 import {
   DISPATCHER_LOCK_TTL_MS,
+  PENDING_STUCK_TIMEOUT_MS,
   STUCK_TIMEOUT_MS,
   SWEEPER_LOCK_DOC_PATH,
 } from "./constants.js";
-
-const LOCK_DOC_PATH = SWEEPER_LOCK_DOC_PATH;
-const LOCK_TTL_MS = DISPATCHER_LOCK_TTL_MS;
+import { acquireCronLock, releaseCronLock } from "./lock.js";
 
 export async function acquireSweeperLock(): Promise<boolean> {
-  const db = admin.firestore();
-  const ref = db.doc(LOCK_DOC_PATH);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const now = Date.now();
-    if (snap.exists) {
-      const data = snap.data() as { acquiredAt?: number } | undefined;
-      const acquiredAt = data?.acquiredAt ?? 0;
-      if (now - acquiredAt < LOCK_TTL_MS) {
-        return false;
-      }
-    }
-    tx.set(ref, { acquiredAt: now, ttlMs: LOCK_TTL_MS });
-    return true;
-  });
+  return acquireCronLock(SWEEPER_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS);
 }
 
 export async function releaseSweeperLock(): Promise<void> {
-  const db = admin.firestore();
-  try {
-    await db.doc(LOCK_DOC_PATH).set({ acquiredAt: 0 }, { merge: true });
-  } catch (err) {
-    logger.warn("releaseSweeperLock failed (best-effort)", {
-      error: err instanceof Error ? err.message : String(err),
-    });
+  return releaseCronLock(SWEEPER_LOCK_DOC_PATH, "releaseSweeperLock");
+}
+
+/**
+ * Run a single parallel pass: for each doc in `docs`, run a transaction that
+ * re-reads the doc and only writes `fields` (merged) when `expectedStatus`
+ * still matches. Returns the number of docs actually flipped.
+ *
+ * Uses Promise.allSettled so every doc is attempted regardless of individual
+ * failures (mirrors the dispatcher and retry cron pattern — F-07).
+ */
+async function sweepPass(
+  db: admin.firestore.Firestore,
+  docs: admin.firestore.QueryDocumentSnapshot[],
+  expectedStatus: string,
+  fields: Record<string, unknown>,
+  logLabel: string,
+): Promise<number> {
+  // Each element resolves to true if the doc was flipped, false if no-op, or
+  // rejects on transaction error.
+  const results = await Promise.allSettled(
+    docs.map(async (doc): Promise<boolean> => {
+      let didFlip = false;
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(doc.ref);
+        if (!snap.exists) return;
+        const data = snap.data() as Partial<SummaryDocument> | undefined;
+        if (data?.status !== expectedStatus) return;
+        tx.set(doc.ref, fields, { merge: true });
+        didFlip = true;
+      });
+      return didFlip;
+    }),
+  );
+
+  let flipped = 0;
+  for (let i = 0; i < results.length; i += 1) {
+    const r = results[i];
+    if (r.status === "fulfilled") {
+      if (r.value) flipped += 1;
+    } else {
+      logger.warn(`summarySweeper: per-doc tx error (${logLabel})`, {
+        videoId: docs[i].id,
+        error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+      });
+    }
   }
+  return flipped;
 }
 
 /**
@@ -46,7 +71,13 @@ export async function releaseSweeperLock(): Promise<void> {
  * before writing, so a concurrent webhook delivery or completion landing
  * between the query and the flip is a no-op for that doc.
  *
- * No outbound HTTP, no quota interaction — purely a Firestore status flip.
+ * Also scans for docs stuck at status="pending" beyond PENDING_STUCK_TIMEOUT_MS
+ * and transitions them to failed-transient (F-06). This recovers docs where
+ * dispatchSummary committed the idempotency tx (queued → pending) but crashed
+ * before the outbound HTTP call, leaving the doc permanently pending.
+ *
+ * Both passes use Promise.allSettled fan-out — each doc's transaction is
+ * independent (F-07). No outbound HTTP, no quota interaction.
  */
 export async function sweepStuckRunning(): Promise<{
   scanned: number;
@@ -62,40 +93,56 @@ export async function sweepStuckRunning(): Promise<{
   let scanned = 0;
   try {
     const db = admin.firestore();
-    const cutoffMs = Date.now() - STUCK_TIMEOUT_MS;
-    const cutoffTs = admin.firestore.Timestamp.fromMillis(cutoffMs);
-    const stuck = await db
+    const now = Date.now();
+
+    // --- Pass 1: stuck-running docs ---
+    const runningCutoffTs = admin.firestore.Timestamp.fromMillis(
+      now - STUCK_TIMEOUT_MS,
+    );
+    const stuckRunning = await db
       .collection("summaries")
       .where("status", "==", "running")
-      .where("requestedAt", "<", cutoffTs)
+      .where("requestedAt", "<", runningCutoffTs)
       .get();
 
-    scanned = stuck.docs.length;
-    for (const doc of stuck.docs) {
-      try {
-        await db.runTransaction(async (tx) => {
-          const snap = await tx.get(doc.ref);
-          if (!snap.exists) return;
-          const data = snap.data() as Partial<SummaryDocument> | undefined;
-          if (data?.status !== "running") return;
-          tx.set(
-            doc.ref,
-            {
-              status: "failed-transient",
-              errorCode: "stuck_running_timeout",
-              errorMessage: `No webhook within ${STUCK_TIMEOUT_MS / 1000}s.`,
-            },
-            { merge: true },
-          );
-          flipped += 1;
-        });
-      } catch (err) {
-        logger.warn("summarySweeper: per-doc tx error", {
-          videoId: doc.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+    scanned += stuckRunning.docs.length;
+    flipped += await sweepPass(
+      db,
+      stuckRunning.docs,
+      "running",
+      {
+        status: "failed-transient",
+        errorCode: "stuck_running_timeout",
+        errorMessage: `No webhook within ${STUCK_TIMEOUT_MS / 1000}s.`,
+      },
+      "running pass",
+    );
+
+    // --- Pass 2: stuck-pending docs (F-06) ---
+    // Recovers docs where dispatchSummary committed the idempotency tx
+    // (queued → pending) but then crashed before the outbound HTTP call,
+    // leaving the doc permanently at status="pending".
+    const pendingCutoffTs = admin.firestore.Timestamp.fromMillis(
+      now - PENDING_STUCK_TIMEOUT_MS,
+    );
+    const stuckPending = await db
+      .collection("summaries")
+      .where("status", "==", "pending")
+      .where("requestedAt", "<", pendingCutoffTs)
+      .get();
+
+    scanned += stuckPending.docs.length;
+    flipped += await sweepPass(
+      db,
+      stuckPending.docs,
+      "pending",
+      {
+        status: "failed-transient",
+        errorCode: "stuck_pending_timeout",
+        errorMessage: `Still pending after ${PENDING_STUCK_TIMEOUT_MS / 1000}s.`,
+      },
+      "pending pass",
+    );
   } finally {
     await releaseSweeperLock();
   }
@@ -109,6 +156,8 @@ export const summarySweeper = onSchedule(
     timeZone: "UTC",
     memory: "256MiB",
     timeoutSeconds: 540,
+    // F-05: belt-and-suspenders against concurrent Cloud Scheduler instances.
+    maxInstances: 1,
     retryCount: 1,
     minBackoffSeconds: 60,
   },

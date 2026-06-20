@@ -9,6 +9,7 @@ import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 import {
   DISPATCHER_LOCK_TTL_MS,
+  PENDING_STUCK_TIMEOUT_MS,
   STUCK_TIMEOUT_MS,
 } from "../src/summarizer/constants.js";
 
@@ -157,5 +158,81 @@ describe("summary sweeper — emulator-backed", () => {
     expect(await acquireSweeperLock()).toBe(true);
     const result = await sweepStuckRunning();
     expect(result).toEqual({ scanned: 0, flipped: 0 });
+  });
+
+  // F-06: stuck-pending recovery pass.
+  it("flips status=pending docs older than PENDING_STUCK_TIMEOUT_MS to failed-transient", async () => {
+    const { sweepStuckRunning } = await import(
+      "../src/summarizer/sweeper.js"
+    );
+    const now = Date.now();
+    // Seed a stuck-pending doc (older than threshold)
+    await admin
+      .firestore()
+      .doc("summaries/v-stuck-pending")
+      .set({
+        videoId: "v-stuck-pending",
+        status: "pending",
+        model: "free",
+        requestedAt: admin.firestore.Timestamp.fromMillis(
+          now - PENDING_STUCK_TIMEOUT_MS - 60_000,
+        ),
+      });
+    // Seed a fresh-pending doc (within threshold — should NOT be flipped)
+    await admin
+      .firestore()
+      .doc("summaries/v-fresh-pending")
+      .set({
+        videoId: "v-fresh-pending",
+        status: "pending",
+        model: "free",
+        requestedAt: admin.firestore.Timestamp.fromMillis(now - 30_000),
+      });
+
+    const result = await sweepStuckRunning();
+    // Only the stuck-pending doc is scanned+flipped; fresh-pending is not selected
+    expect(result.scanned).toBeGreaterThanOrEqual(1);
+    expect(result.flipped).toBeGreaterThanOrEqual(1);
+
+    const stuckDoc = await admin
+      .firestore()
+      .doc("summaries/v-stuck-pending")
+      .get();
+    expect(stuckDoc.data()?.status).toBe("failed-transient");
+    expect(stuckDoc.data()?.errorCode).toBe("stuck_pending_timeout");
+
+    const freshDoc = await admin
+      .firestore()
+      .doc("summaries/v-fresh-pending")
+      .get();
+    expect(freshDoc.data()?.status).toBe("pending");
+  });
+
+  // F-06: per-doc tx is a no-op when a pending doc's status changed before tx executes.
+  it("pending-pass per-doc tx is a no-op when status is no longer 'pending'", async () => {
+    const { sweepStuckRunning } = await import(
+      "../src/summarizer/sweeper.js"
+    );
+    const old = Date.now() - PENDING_STUCK_TIMEOUT_MS - 60_000;
+    // Seed as pending, then flip to running before the sweeper runs —
+    // simulates dispatchSummary completing the HTTP call between query and tx.
+    await admin.firestore().doc("summaries/v-pending-mid").set({
+      videoId: "v-pending-mid",
+      status: "pending",
+      model: "free",
+      requestedAt: admin.firestore.Timestamp.fromMillis(old),
+    });
+    await admin
+      .firestore()
+      .doc("summaries/v-pending-mid")
+      .set({ status: "running" }, { merge: true });
+
+    const result = await sweepStuckRunning();
+    // The pending query would not select it since it's now "running", so
+    // scanned may be 0 for this doc; the key assertion is it stays "running".
+    expect(result.flipped).toBe(0);
+
+    const doc = await admin.firestore().doc("summaries/v-pending-mid").get();
+    expect(doc.data()?.status).toBe("running");
   });
 });

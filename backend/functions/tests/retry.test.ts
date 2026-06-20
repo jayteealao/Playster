@@ -131,6 +131,19 @@ describe("summary retry cron — emulator-backed", () => {
       .where("status", "==", "failed-transient")
       .get();
     expect(remaining.docs.length).toBeGreaterThanOrEqual(2);
+
+    // F-10(a): no doc must be stranded at status="pending"
+    const pendingDocs = await admin
+      .firestore()
+      .collection("summaries")
+      .where("status", "==", "pending")
+      .get();
+    expect(pendingDocs.docs.length).toBe(0);
+
+    // F-10(b): rolled-back docs have errorCode="retry_quota_exhausted"
+    for (const doc of remaining.docs) {
+      expect(doc.data().errorCode).toBe("retry_quota_exhausted");
+    }
   });
 
   // Batch cap: at most DISPATCHER_BATCH_SIZE docs per firing.

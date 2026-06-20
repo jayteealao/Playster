@@ -22,8 +22,17 @@ export const OPENROUTER_WINDOW_MS = 60_000;
 /** Maximum age of an inbound webhook signature timestamp before it is rejected (seconds). */
 export const WEBHOOK_REPLAY_WINDOW_SECONDS = 300;
 
-/** Dispatcher distributed-lock TTL in milliseconds. */
-export const DISPATCHER_LOCK_TTL_MS = 240_000;
+/** Firestore doc path for the dispatcher cron's distributed lock. */
+export const DISPATCHER_LOCK_DOC_PATH = "locks/summaryDispatcher";
+
+/**
+ * Dispatcher distributed-lock TTL in milliseconds.
+ * Must be >= the cron timeoutSeconds (540 s) so a slow run cannot let a
+ * second Cloud Scheduler instance acquire the expired lock and produce
+ * concurrent dispatch. Set to 600 000 ms (10 min) as belt-and-suspenders
+ * on top of maxInstances: 1 on each scheduled function.
+ */
+export const DISPATCHER_LOCK_TTL_MS = 600_000;
 
 /** Maximum number of queued summaries processed per dispatcher invocation. */
 export const DISPATCHER_BATCH_SIZE = 200;
@@ -31,6 +40,15 @@ export const DISPATCHER_BATCH_SIZE = 200;
 /** Maximum age of a status="running" summary doc before the sweeper flips it
  *  to failed-transient. One hour in milliseconds. */
 export const STUCK_TIMEOUT_MS = 60 * 60 * 1000;
+
+/**
+ * Maximum age of a status="pending" summary doc before the sweeper flips it
+ * to failed-transient. Recovers docs stranded when dispatchSummary committed
+ * the idempotency tx (queued → pending) but then crashed before the HTTP call.
+ * Five minutes in milliseconds — long enough to not interfere with a
+ * legitimately in-progress dispatch but short enough to recover quickly.
+ */
+export const PENDING_STUCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Firestore doc path for the sweeper cron's distributed lock. */
 export const SWEEPER_LOCK_DOC_PATH = "locks/summarySweeper";

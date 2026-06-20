@@ -10,37 +10,14 @@ import {
   DISPATCHER_LOCK_TTL_MS,
   RETRY_LOCK_DOC_PATH,
 } from "./constants.js";
-
-const LOCK_DOC_PATH = RETRY_LOCK_DOC_PATH;
-const LOCK_TTL_MS = DISPATCHER_LOCK_TTL_MS;
+import { acquireCronLock, releaseCronLock } from "./lock.js";
 
 export async function acquireRetryLock(): Promise<boolean> {
-  const db = admin.firestore();
-  const ref = db.doc(LOCK_DOC_PATH);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const now = Date.now();
-    if (snap.exists) {
-      const data = snap.data() as { acquiredAt?: number } | undefined;
-      const acquiredAt = data?.acquiredAt ?? 0;
-      if (now - acquiredAt < LOCK_TTL_MS) {
-        return false;
-      }
-    }
-    tx.set(ref, { acquiredAt: now, ttlMs: LOCK_TTL_MS });
-    return true;
-  });
+  return acquireCronLock(RETRY_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS);
 }
 
 export async function releaseRetryLock(): Promise<void> {
-  const db = admin.firestore();
-  try {
-    await db.doc(LOCK_DOC_PATH).set({ acquiredAt: 0 }, { merge: true });
-  } catch (err) {
-    logger.warn("releaseRetryLock failed (best-effort)", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  return releaseCronLock(RETRY_LOCK_DOC_PATH, "releaseRetryLock");
 }
 
 /**
@@ -107,14 +84,27 @@ export async function retryFailedTransient(): Promise<{
           // is stranded — the next retry-cron firing's query selector
           // (status == "failed-transient") would skip it. Restore it so
           // the next run picks it up.
+          //
+          // F-01: wrap rollback in a transaction that re-reads and only
+          // writes failed-transient when status is still "pending", to
+          // avoid clobbering a concurrent webhook completion (completed →
+          // clobbered) or a race with another writer.
+          const docRef = failed.docs[i].ref;
           try {
-            await failed.docs[i].ref.set(
-              {
-                status: "failed-transient",
-                errorCode: "retry_quota_exhausted",
-              },
-              { merge: true },
-            );
+            await db.runTransaction(async (tx) => {
+              const snap = await tx.get(docRef);
+              if (!snap.exists) return;
+              const current = snap.data() as Partial<SummaryDocument> | undefined;
+              if (current?.status !== "pending") return;
+              tx.set(
+                docRef,
+                {
+                  status: "failed-transient",
+                  errorCode: "retry_quota_exhausted",
+                },
+                { merge: true },
+              );
+            });
           } catch (rollbackErr) {
             logger.warn("summaryRetryCron: rollback to failed-transient failed", {
               videoId,
@@ -148,6 +138,8 @@ export const summaryRetryCron = onSchedule(
     timeZone: "UTC",
     memory: "256MiB",
     timeoutSeconds: 540,
+    // F-05: belt-and-suspenders against concurrent Cloud Scheduler instances.
+    maxInstances: 1,
     secrets: summarizerSecrets,
     retryCount: 3,
     minBackoffSeconds: 60,

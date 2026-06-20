@@ -162,8 +162,11 @@ export async function processSummaryWebhook(
   const txResult = await db.runTransaction(async (tx): Promise<TxResult> => {
     const summarySnap = await tx.get(summaryRef);
     if (!summarySnap.exists) {
+      // AC-8: return the same shape as a bad-signature rejection so that a
+      // stranger cannot distinguish "unknown job" from "bad signature"
+      // (non-enumerable property — explicit in code, not just execution order).
       logger.warn("summaryWebhook: unknown client_job_id", { clientJobId });
-      return { httpStatus: 404, httpBody: "unknown-job" };
+      return { httpStatus: 401, httpBody: "bad-signature" };
     }
 
     const summary = summarySnap.data() as Partial<SummaryDocument> | undefined;

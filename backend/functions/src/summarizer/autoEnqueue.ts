@@ -10,6 +10,13 @@ export interface AutoEnqueueResult {
 
 const CHUNK_SIZE = DISPATCHER_BATCH_SIZE;
 
+class AlreadyExistsError extends Error {
+  constructor() {
+    super("ALREADY_EXISTS");
+    this.name = "AlreadyExistsError";
+  }
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -53,17 +60,14 @@ export async function enqueueAutoSummary(
           await db.runTransaction(async (tx) => {
             const snap = await tx.get(ref);
             if (snap.exists) {
-              // Signal skip via a sentinel error caught below.
-              throw Object.assign(new Error("ALREADY_EXISTS"), { _alreadyExists: true });
+              // Signal skip via a typed error caught below.
+              throw new AlreadyExistsError();
             }
             tx.set(ref, doc);
           });
           enqueued += 1;
         } catch (err: unknown) {
-          if (
-            err instanceof Error &&
-            (err as Error & { _alreadyExists?: boolean })._alreadyExists
-          ) {
+          if (err instanceof AlreadyExistsError) {
             skipped += 1;
           } else {
             // Re-throw genuine Firestore errors.
