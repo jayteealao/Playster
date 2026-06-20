@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"     # e.g., v1.4.0, v2.0.0-rc.1
 
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -173,6 +178,15 @@ jobs:
           } > "$BODY_FILE"
           echo "file=${BODY_FILE}" >> "$GITHUB_OUTPUT"
 
+      # Added by wf-meta build-pipeline — plan v1, 2026-06-20
+      - name: Generate SBOM (syft, SPDX)
+        if: ${{ env.ACT != 'true' }}
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
       # Create GitHub Release + upload assets
       - name: Create release & upload assets
         if: ${{ env.ACT != 'true' }}  # Skip on ACT runs
@@ -187,6 +201,7 @@ jobs:
             ${{ steps.find_outputs.outputs.aab }}
             ${{ steps.find_outputs.outputs.mapping }}
             CHANGELOG-${{ steps.find_outputs.outputs.tag }}.md
+            sbom.spdx.json
 
       - name: Upload release outputs
         if: ${{ env.ACT == 'true' }}   # only matters locally
@@ -198,3 +213,109 @@ jobs:
             ${{ steps.find_outputs.outputs.aab }}
             ${{ steps.find_outputs.outputs.mapping }}
             CHANGELOG-${{ steps.find_outputs.outputs.tag }}.md
+
+  # Added by wf-meta build-pipeline — plan v1, 2026-06-20
+  # Coordinated deploy of the backend + summarizer after the Android release publishes.
+  deploy-backend:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy Firebase Functions + Firestore rules
+        working-directory: backend
+        run: |
+          pnpm dlx firebase-tools deploy \
+            --only functions,firestore:rules \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --non-interactive --force
+
+  deploy-summarizer:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: us-central1   # TODO: set the Artifact Registry / Cloud Run region
+      SERVICE: summarizer
+      REPO: playster
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Build & push image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPO}/${SERVICE}:${GITHUB_REF_NAME}"
+          docker build -f summarizer/deploy/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --image "$IMAGE" \
+            --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --set-secrets "SUMMARIZE_TOKEN=SUMMARIZE_TOKEN:latest,API_KEYS=SUMMARIZER_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest"
+
+  post-publish:
+    needs: deploy-summarizer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: us-central1   # TODO: match the summarizer deploy region
+      SERVICE: summarizer
+    steps:
+      - name: Wait for propagation
+        run: sleep 300
+      - name: Verify GitHub release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ASSETS=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '[.assets[].name] | join(",")')
+          echo "Assets: $ASSETS"
+          echo "$ASSETS" | grep -qi '\.apk' && echo "$ASSETS" | grep -qi '\.aab' \
+            || { echo "APK/AAB missing from release"; exit 1; }
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Verify Cloud Run health
+        run: |
+          URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" --format='value(status.url)')
+          TOKEN=$(gcloud auth print-identity-token)
+          curl -fsS -H "Authorization: Bearer $TOKEN" "$URL/health" && echo "Cloud Run healthy"
+      - name: Verify backend functions deployed
+        run: gcloud functions list --project "${{ secrets.GCP_PROJECT_ID }}"
