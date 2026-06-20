@@ -185,7 +185,7 @@ describe("summary retry cron — emulator-backed", () => {
     });
 
     const acquired = await acquireRetryLock();
-    expect(acquired).toBe(true);
+    expect(acquired).toBeTruthy();
 
     const snap = await admin.firestore().doc("locks/summaryRetry").get();
     const newAcquiredAt = snap.data()?.acquiredAt as number | undefined;
@@ -197,10 +197,11 @@ describe("summary retry cron — emulator-backed", () => {
     const { acquireRetryLock, releaseRetryLock } = await import(
       "../src/summarizer/retry.js"
     );
-    expect(await acquireRetryLock()).toBe(true);
+    const token = await acquireRetryLock();
+    expect(token).toBeTruthy();
     expect(await acquireRetryLock()).toBe(false);
-    await releaseRetryLock();
-    expect(await acquireRetryLock()).toBe(true);
+    await releaseRetryLock(token as string);
+    expect(await acquireRetryLock()).toBeTruthy();
   });
 
   // Negative companion to AC-13: completed docs are not in the retry set.
@@ -246,7 +247,7 @@ describe("summary retry cron — emulator-backed", () => {
     const { retryFailedTransient, acquireRetryLock } = await import(
       "../src/summarizer/retry.js"
     );
-    expect(await acquireRetryLock()).toBe(true);
+    expect(await acquireRetryLock()).toBeTruthy();
     const result = await retryFailedTransient();
     expect(result).toEqual({
       attempted: 0,

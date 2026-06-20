@@ -10,12 +10,12 @@ import {
 } from "./constants.js";
 import { acquireCronLock, releaseCronLock } from "./lock.js";
 
-export async function acquireSweeperLock(): Promise<boolean> {
+export async function acquireSweeperLock(): Promise<string | false> {
   return acquireCronLock(SWEEPER_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS);
 }
 
-export async function releaseSweeperLock(): Promise<void> {
-  return releaseCronLock(SWEEPER_LOCK_DOC_PATH, "releaseSweeperLock");
+export async function releaseSweeperLock(ownerToken: string): Promise<void> {
+  return releaseCronLock(SWEEPER_LOCK_DOC_PATH, "releaseSweeperLock", ownerToken);
 }
 
 /**
@@ -88,6 +88,7 @@ export async function sweepStuckRunning(): Promise<{
     logger.info("summarySweeper: lock held by another instance");
     return { scanned: 0, flipped: 0 };
   }
+  const ownerToken = acquired;
 
   let flipped = 0;
   let scanned = 0;
@@ -144,7 +145,7 @@ export async function sweepStuckRunning(): Promise<{
       "pending pass",
     );
   } finally {
-    await releaseSweeperLock();
+    await releaseSweeperLock(ownerToken);
   }
 
   return { scanned, flipped };

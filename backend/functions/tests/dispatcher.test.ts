@@ -56,10 +56,11 @@ describe("summary dispatcher — emulator-backed", () => {
     const { acquireDispatcherLock, releaseDispatcherLock } = await import(
       "../src/summarizer/dispatcher-cron.js"
     );
-    expect(await acquireDispatcherLock()).toBe(true);
+    const token = await acquireDispatcherLock();
+    expect(token).toBeTruthy();
     expect(await acquireDispatcherLock()).toBe(false);
-    await releaseDispatcherLock();
-    expect(await acquireDispatcherLock()).toBe(true);
+    await releaseDispatcherLock(token as string);
+    expect(await acquireDispatcherLock()).toBeTruthy();
   });
 
   it("drainSummaryQueue respects per-minute cap", async () => {
@@ -121,7 +122,7 @@ describe("summary dispatcher — emulator-backed", () => {
     const { drainSummaryQueue, acquireDispatcherLock } = await import(
       "../src/summarizer/dispatcher-cron.js"
     );
-    expect(await acquireDispatcherLock()).toBe(true);
+    expect(await acquireDispatcherLock()).toBeTruthy();
     const result = await drainSummaryQueue();
     expect(result).toEqual({ attempted: 0, dispatched: 0 });
   });
@@ -139,7 +140,7 @@ describe("summary dispatcher — emulator-backed", () => {
     });
 
     const acquired = await acquireDispatcherLock();
-    expect(acquired).toBe(true);
+    expect(acquired).toBeTruthy();
 
     // The new lock doc should carry a fresh acquiredAt (strictly after the
     // stale value — sanity-check with a generous 5-second window).

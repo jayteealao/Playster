@@ -12,12 +12,12 @@ import {
 } from "./constants.js";
 import { acquireCronLock, releaseCronLock } from "./lock.js";
 
-export async function acquireRetryLock(): Promise<boolean> {
+export async function acquireRetryLock(): Promise<string | false> {
   return acquireCronLock(RETRY_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS);
 }
 
-export async function releaseRetryLock(): Promise<void> {
-  return releaseCronLock(RETRY_LOCK_DOC_PATH, "releaseRetryLock");
+export async function releaseRetryLock(ownerToken: string): Promise<void> {
+  return releaseCronLock(RETRY_LOCK_DOC_PATH, "releaseRetryLock", ownerToken);
 }
 
 /**
@@ -44,6 +44,7 @@ export async function retryFailedTransient(): Promise<{
     logger.info("summaryRetryCron: lock held by another instance");
     return { attempted: 0, dispatched: 0, quotaExhausted: false };
   }
+  const ownerToken = acquired;
 
   let attempted = 0;
   let dispatched = 0;
@@ -126,7 +127,7 @@ export async function retryFailedTransient(): Promise<{
       }
     }
   } finally {
-    await releaseRetryLock();
+    await releaseRetryLock(ownerToken);
   }
 
   return { attempted, dispatched, quotaExhausted };

@@ -133,7 +133,7 @@ describe("summary sweeper — emulator-backed", () => {
     });
 
     const acquired = await acquireSweeperLock();
-    expect(acquired).toBe(true);
+    expect(acquired).toBeTruthy();
 
     const snap = await admin.firestore().doc("locks/summarySweeper").get();
     const newAcquiredAt = snap.data()?.acquiredAt as number | undefined;
@@ -145,17 +145,18 @@ describe("summary sweeper — emulator-backed", () => {
     const { acquireSweeperLock, releaseSweeperLock } = await import(
       "../src/summarizer/sweeper.js"
     );
-    expect(await acquireSweeperLock()).toBe(true);
+    const token = await acquireSweeperLock();
+    expect(token).toBeTruthy();
     expect(await acquireSweeperLock()).toBe(false);
-    await releaseSweeperLock();
-    expect(await acquireSweeperLock()).toBe(true);
+    await releaseSweeperLock(token as string);
+    expect(await acquireSweeperLock()).toBeTruthy();
   });
 
   it("sweepStuckRunning returns early when lock is held", async () => {
     const { sweepStuckRunning, acquireSweeperLock } = await import(
       "../src/summarizer/sweeper.js"
     );
-    expect(await acquireSweeperLock()).toBe(true);
+    expect(await acquireSweeperLock()).toBeTruthy();
     const result = await sweepStuckRunning();
     expect(result).toEqual({ scanned: 0, flipped: 0 });
   });

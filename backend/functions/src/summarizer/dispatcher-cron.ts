@@ -9,12 +9,12 @@ import { summarizerSecrets } from "./secrets.js";
 import { DISPATCHER_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS } from "./constants.js";
 import { acquireCronLock, releaseCronLock } from "./lock.js";
 
-export async function acquireDispatcherLock(): Promise<boolean> {
+export async function acquireDispatcherLock(): Promise<string | false> {
   return acquireCronLock(DISPATCHER_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS);
 }
 
-export async function releaseDispatcherLock(): Promise<void> {
-  return releaseCronLock(DISPATCHER_LOCK_DOC_PATH, "releaseDispatcherLock");
+export async function releaseDispatcherLock(ownerToken: string): Promise<void> {
+  return releaseCronLock(DISPATCHER_LOCK_DOC_PATH, "releaseDispatcherLock", ownerToken);
 }
 
 export async function drainSummaryQueue(): Promise<{
@@ -94,7 +94,7 @@ export async function drainSummaryQueue(): Promise<{
       }
     }
   } finally {
-    await releaseDispatcherLock();
+    await releaseDispatcherLock(acquired);
   }
 
   return { attempted, dispatched };
