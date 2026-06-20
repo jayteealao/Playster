@@ -1,0 +1,71 @@
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+# SAST (plan.security.sast = codeql). Runs on PRs and weekly.
+# javascript-typescript analyzes the pnpm packages with no build.
+# java-kotlin analyzes the Android app and requires an assembleDebug build (+ google-services.json).
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '27 3 * * 1'  # weekly, Monday 03:27 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: java-kotlin
+            build-mode: manual
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Set up JDK
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        if: matrix.language == 'java-kotlin'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+
+      - name: Decode google-services.json
+        if: matrix.language == 'java-kotlin'
+        working-directory: android
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | tr -d '\r\n\t ' | base64 -d > app/google-services.json
+
+      - name: Build (java-kotlin)
+        if: matrix.language == 'java-kotlin'
+        working-directory: android
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug -x test
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

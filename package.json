@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@10.33.2",
   "scripts": {
+    "prepare": "lefthook install || true",
+    "bootstrap": "pnpm install && pnpm exec lefthook install",
     "backend:build": "pnpm --filter functions run build",
     "backend:deploy": "pnpm --filter functions run deploy",
     "summarizer:dev": "pnpm --filter summarize-api run dev",

@@ -1,0 +1,175 @@
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+# Pre-merge code-quality + security gates for the pnpm monorepo (backend + summarizer)
+# and the Android release dry-run. Job names match the plan's pre-merge-checks so they
+# can be wired as required status checks.
+name: PR Quality
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Requires `prettier` (root dev-dep) and the ktlint Gradle plugin in android/. See deps-to-install.
+      - name: format-check
+        run: pnpm -r exec prettier --check . && (cd android && ./gradlew ktlintCheck)
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # eslint is already configured in both packages; `detekt` Gradle plugin must be added in android/. See deps-to-install.
+      - name: lint
+        run: pnpm -r run lint && (cd android && ./gradlew detekt)
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: type-check
+        run: pnpm -r exec tsc --noEmit
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # plan test-coverage.min-percent is null — tests run, no hard threshold gate yet.
+      - name: test
+        run: pnpm -r run test
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # plan: fail-on high. osv-scanner fails on findings; tune severity via .osv-scanner.toml if needed.
+      - name: Dependency audit (osv-scanner)
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |-
+            --recursive
+            ./
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # license-checker scans the resolved dependency tree; in a pnpm monorepo run it per workspace if coverage gaps appear.
+      - name: License check
+        run: >-
+          npx --yes license-checker
+          --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense"
+          --excludePrivatePackages
+
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Lint PR commit messages
+        uses: wagoid/commitlint-github-action@v6
+
+  release-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - name: Fix gradlew perms & line endings
+        working-directory: android
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+      - name: Decode google-services.json
+        working-directory: android
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | tr -d '\r\n\t ' | base64 -d > app/google-services.json
+      # plan publish-dry-run-cmd. Heavy: builds full release artifacts on every PR.
+      - name: Release dry-run (assembleRelease + bundleRelease)
+        working-directory: android
+        run: ./gradlew --no-daemon clean assembleRelease bundleRelease

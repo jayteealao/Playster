@@ -6,3 +6,8 @@ android/app/google-services.json
 backend/functions/.tmp/
 .ai/**/*
 .claude/scheduled_tasks.lock
+
+# Release signing keystore (local only)
+android/keystore/
+arc_diff_tmp.txt
+summarizer/deploy/verify-artifacts/
