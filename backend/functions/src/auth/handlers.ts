@@ -1,12 +1,49 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, type Request } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { getAuthUrl, handleCallback, oauthSecrets } from "./oauth";
 import { storeCookies } from "./innertube";
 import { saveTvOauthCredentials } from "./tv-oauth";
+import { ALLOWED_UID } from "./verify";
 
 // Ensure Firebase Admin is initialized
 if (!admin.apps.length) {
   admin.initializeApp();
+}
+
+/**
+ * Verifies the Firebase ID token in the `Authorization: Bearer <token>` header
+ * and confirms the caller's uid matches the configured ALLOWED_UID.
+ *
+ * Returns an `{ status, message }` error for the caller to send when the check
+ * fails, or `null` when the caller is the authorized operator. Callers do:
+ * `const authError = await requireOperator(req); if (authError) { ... return; }`.
+ */
+async function requireOperator(
+  req: Request,
+): Promise<{ status: number; message: string } | null> {
+  const authHeader = req.headers["authorization"] ?? "";
+  const match = /^Bearer\s+(\S+)$/i.exec(authHeader);
+  if (!match) {
+    return {
+      status: 401,
+      message: "Unauthorized: missing or malformed Authorization header.",
+    };
+  }
+  const idToken = match[1];
+  let uid: string;
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    uid = decoded.uid;
+  } catch {
+    return { status: 401, message: "Unauthorized: invalid or expired ID token." };
+  }
+  if (uid !== ALLOWED_UID.value()) {
+    return {
+      status: 403,
+      message: "Forbidden: caller is not in the operator allowlist.",
+    };
+  }
+  return null;
 }
 
 /**
@@ -47,6 +84,12 @@ export const authCallback = onRequest(
  * in Firestore for InnerTube (Watch Later) access.
  */
 export const setCookies = onRequest(async (req, res) => {
+  const authError = await requireOperator(req);
+  if (authError) {
+    res.status(authError.status).send(authError.message);
+    return;
+  }
+
   if (req.method !== "POST") {
     res.status(405).send("Method not allowed. Use POST.");
     return;
@@ -76,6 +119,12 @@ export const setCookies = onRequest(async (req, res) => {
  * and stores them in Firestore for InnerTube-via-TV-OAuth access to Watch Later.
  */
 export const setTvOauthCredentials = onRequest(async (req, res) => {
+  const authError = await requireOperator(req);
+  if (authError) {
+    res.status(authError.status).send(authError.message);
+    return;
+  }
+
   if (req.method !== "POST") {
     res.status(405).send("Method not allowed. Use POST.");
     return;
