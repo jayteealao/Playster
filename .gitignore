@@ -4,3 +4,5 @@ node_modules/
 docs/internal/
 android/app/google-services.json
 backend/functions/.tmp/
+.ai/**/*
+.claude/scheduled_tasks.lock

@@ -1,8 +1,0 @@
-text=" · "
-text="G"
-text="P"
-text="Playster"
-text="Privacy"
-text="Sign in with Google"
-text="Terms"
-text="Your YouTube, organized"
