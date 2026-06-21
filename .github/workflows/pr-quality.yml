@@ -36,7 +36,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       # Requires `prettier` (root dev-dep) and the ktlint Gradle plugin in android/. See deps-to-install.
       - name: format-check
-        run: pnpm -r exec prettier --check . && (cd android && ./gradlew ktlintCheck)
+        run: pnpm exec prettier --check . && (cd android && ./gradlew ktlintCheck)
 
   lint:
     runs-on: ubuntu-latest
@@ -102,6 +102,7 @@ jobs:
         uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |-
+            --config=osv-scanner.toml
             --recursive
             ./
 
@@ -109,12 +110,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          VER=8.24.3
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      # Plan: gitleaks detect --no-banner --redact. `dir` scans the working tree
+      # deterministically (no PR-range quirks); exits non-zero on any finding.
       - name: Secret scan (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gitleaks dir . --no-banner --redact --exit-code 1
 
   license-check:
     runs-on: ubuntu-latest

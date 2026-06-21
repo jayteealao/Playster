@@ -1,0 +1,347 @@
+# osv-scanner suppression config — generated 2026-06-20T23:46:01Z
+#
+# Snapshot of known transitive / vendored dependency advisories with no
+# first-party fix available at adoption time. New advisories NOT in this list
+# still fail the dependency-audit gate. Tracked for upgrade via Dependabot;
+# accepted per the supply-chain review.
+
+[[IgnoredVulns]]
+id = "GHSA-2363-cqg2-863c"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-269q-hmxg-m83q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-2mjp-6q6p-2qxm"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-35p6-xmwp-9g52"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-3677-xxcr-wjqv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-389x-839f-4rhx"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-38f8-5428-x5cv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-3cqm-mf7h-prrj"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-3p8m-j85q-pgmj"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-3qp7-7mw8-wx86"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4265-ccf5-phj5"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-45q3-82m4-75jr"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4992-7rv2-5pvq"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4cx2-fc23-5wg6"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4g9r-vxhx-9pgx"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4gg5-vx3j-xwc7"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4h8f-2wvx-gg5w"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4jrv-ppp4-jm57"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4w7w-66w2-5vf9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-4x5r-pxfx-6jf8"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-5375-pq7m-f5r2"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-563q-j3cm-6jxm"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-57rv-r2g8-2cj3"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-5jpm-x58v-624v"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-5mg8-w23w-74h3"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-5x3r-wrvg-rp6q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-5xrq-8626-4rwp"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-6mjq-h674-j845"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-6qvw-249j-h44c"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-6v5v-wf23-fmfq"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-735f-pc8j-v9w8"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-78wr-2p64-hpwj"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-7g24-qg88-p43q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-7g45-4rm6-3mm3"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-84h7-rjj3-6jx4"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-87mf-gv2c-c62c"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-8xfc-gm6g-vgpv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-96hv-2xvq-fx4p"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-99f4-grh7-6pcq"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-c2gf-v879-257j"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-c653-97m9-rcg9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-f38q-mgvj-vph7"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-f6hv-jmp6-3vwv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-fghv-69vj-qj49"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-fx2h-pf6j-xcff"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-g5ww-5jh7-63cx"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-g7r4-m6w7-qqqr"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-g8m3-5g58-fq7m"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-g9mf-h72j-4rw9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-gwrp-pvrq-jmwv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-h4h5-3hr4-j3g2"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-h65f-jvqw-m9fj"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-h67p-54hq-rp68"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-hm92-r4w5-c3mj"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-hmw2-7cc7-3qxx"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-hr8g-6v94-x4m9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-hvcg-qmg6-jm4c"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-jgvc-jfgh-rjvv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-m4cv-j2px-7723"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-mj4r-2hfc-f8p6"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-p88m-4jfj-68fv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-ph9p-34f9-6g65"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-pr7r-676h-xcf6"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-prj3-ccx8-p6x4"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-pwqr-wmgm-9rr8"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-q8mj-m7cp-5q26"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-v435-xc8x-wvr9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-v6wh-96g9-6wx3"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-v8h7-rr48-vmmv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-v9p9-hfj2-hcw8"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-vmh5-mc38-953g"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-vrm6-8vpv-qv8q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-vxpw-j846-p89q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-w33c-445m-f8w7"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-w5hq-g745-h8pq"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-w7jw-789q-3m8p"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-w9fj-cfpg-grvv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-wcpc-wj8m-hjx6"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-wg6q-6289-32hp"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-wjxj-5m7g-mg7q"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-x4gw-5cx5-pgmh"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-xpw8-rcwv-8f8p"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-xq3w-v528-46rv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-xxqh-mfjm-7mv9"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
