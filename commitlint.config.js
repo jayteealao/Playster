@@ -16,7 +16,11 @@ module.exports = {
   extends: ["@commitlint/config-conventional"],
   ignores: [(message) => LEGACY_PATTERNS.some((re) => re.test(message))],
   rules: {
-    // Subject casing varies across vendored/legacy commits; don't block on style.
+    // Vendored/legacy commit messages vary in casing and length; enforce structure
+    // (type/subject presence) but don't block first-party PRs on those stylistic axes.
     "subject-case": [0],
+    "header-max-length": [0],
+    "body-max-line-length": [0],
+    "footer-max-line-length": [0],
   },
 };
