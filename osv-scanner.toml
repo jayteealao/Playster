@@ -151,6 +151,10 @@ id = "GHSA-7g45-4rm6-3mm3"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]
+id = "GHSA-7r82-7xv7-xcpj"
+reason = "httpclient 4.5.6 is a build-time Android lint toolchain dependency only; it is excluded from app runtime configurations (exclude(module=\"httpclient\")) and never ships in the APK/AAB."
+
+[[IgnoredVulns]]
 id = "GHSA-84h7-rjj3-6jx4"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
