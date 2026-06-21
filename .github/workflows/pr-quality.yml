@@ -89,9 +89,10 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      # plan test-coverage.min-percent is null — tests run, no hard threshold gate yet.
-      - name: test
-        run: pnpm -r run test
+      # Required gate runs fast unit tests only. Emulator-backed and env-dependent
+      # integration tests run in the non-required `integration-test` job below.
+      - name: test (unit)
+        run: pnpm -r run test:unit
 
   dependency-audit:
     runs-on: ubuntu-latest
@@ -177,3 +178,35 @@ jobs:
       - name: Release dry-run (assembleRelease + bundleRelease)
         working-directory: android
         run: ./gradlew --no-daemon clean assembleRelease bundleRelease
+
+  # Non-required: emulator-backed + env-dependent integration suite. Runs for visibility
+  # but is intentionally NOT a branch-protection required check, so it does not block merge.
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Backend integration (Firebase emulator)
+        working-directory: backend
+        run: >-
+          pnpm dlx firebase-tools@13 emulators:exec
+          --only auth,firestore --project demo-playster
+          "pnpm --filter functions run test"
+      - name: Summarizer integration
+        working-directory: summarizer/summarize-api
+        env:
+          API_KEYS: test-key-12345
+          SUMMARIZE_TOKEN: integration-test-token
+        run: pnpm run test

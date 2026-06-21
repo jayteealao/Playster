@@ -8,7 +8,8 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/{url-runner-webhook,webhook-schema,webhook-deliver}.test.ts'"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
