@@ -20,7 +20,8 @@ const REPLAY_WINDOW_S = Number(process.env.REPLAY_WINDOW_S ?? 300);
 
 if (!SECRET) {
   process.stderr.write(
-    JSON.stringify({ level: "error", msg: "WEBHOOK_SECRET is required" }) + "\n",
+    JSON.stringify({ level: "error", msg: "WEBHOOK_SECRET is required" }) +
+      "\n",
   );
   process.exit(1);
 }
@@ -47,7 +48,9 @@ function parseSignature(header) {
 
 function verify(rawBody, sig) {
   const canonical = `${sig.t}.${rawBody}`;
-  const expectedHex = createHmac("sha256", SECRET).update(canonical, "utf8").digest("hex");
+  const expectedHex = createHmac("sha256", SECRET)
+    .update(canonical, "utf8")
+    .digest("hex");
   // Decode both as hex so timingSafeEqual compares the raw HMAC bytes (32 bytes
   // each), not the variable-length hex string representations.  This matches
   // the pattern used in backend/functions/src/summarizer/webhook.ts.
@@ -118,13 +121,20 @@ const server = createServer((req, res) => {
       writeFileSync(
         artifactPath,
         JSON.stringify(
-          { received_at: new Date().toISOString(), signature: req.headers["x-summarizer-signature"], payload: parsed },
+          {
+            received_at: new Date().toISOString(),
+            signature: req.headers["x-summarizer-signature"],
+            payload: parsed,
+          },
           null,
           2,
         ),
         "utf8",
       );
-      log("info", "captured webhook", { client_job_id: cjid, status: parsed.status });
+      log("info", "captured webhook", {
+        client_job_id: cjid,
+        status: parsed.status,
+      });
 
       res.writeHead(204);
       res.end();
@@ -162,5 +172,8 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  log("info", "mock-backend listening", { port: PORT, artifactDir: ARTIFACT_DIR });
+  log("info", "mock-backend listening", {
+    port: PORT,
+    artifactDir: ARTIFACT_DIR,
+  });
 });

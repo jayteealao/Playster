@@ -12,7 +12,13 @@
 
 import { spawnSync } from "node:child_process";
 import { randomBytes, createHmac } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -89,7 +95,9 @@ async function pollUntilOk(url, timeoutMs, label) {
     }
     await sleep(500);
   }
-  throw new Error(`${label} did not become healthy at ${url} within ${timeoutMs}ms`);
+  throw new Error(
+    `${label} did not become healthy at ${url} within ${timeoutMs}ms`,
+  );
 }
 
 async function postJob(url, body) {
@@ -116,7 +124,9 @@ async function waitForWebhook(clientJobId, timeoutMs) {
     if (res.ok) return res.json();
     await sleep(1000);
   }
-  throw new Error(`webhook for ${clientJobId} not captured within ${timeoutMs}ms`);
+  throw new Error(
+    `webhook for ${clientJobId} not captured within ${timeoutMs}ms`,
+  );
 }
 
 function runFixture(fixturePath) {
@@ -140,11 +150,17 @@ async function runHarness() {
     const env = harnessEnv();
 
     // AC-6 + AC-14: dispatch both fixtures
-    const captioned = runFixture(join(DEPLOY_DIR, "fixtures", "captioned.json"));
-    const noCaption = runFixture(join(DEPLOY_DIR, "fixtures", "no-caption.json"));
+    const captioned = runFixture(
+      join(DEPLOY_DIR, "fixtures", "captioned.json"),
+    );
+    const noCaption = runFixture(
+      join(DEPLOY_DIR, "fixtures", "no-caption.json"),
+    );
 
     for (const fixture of [captioned, noCaption]) {
-      log("info", "dispatching fixture", { client_job_id: fixture.client_job_id });
+      log("info", "dispatching fixture", {
+        client_job_id: fixture.client_job_id,
+      });
       await postJob(SUMMARIZER_URL, {
         url: fixture.url,
         webhook_url: `http://mock-backend:9000/webhook`,
@@ -154,14 +170,21 @@ async function runHarness() {
     }
 
     // Wait for both webhooks to arrive.
-    const capturedHappy = await waitForWebhook(captioned.client_job_id, 12 * 60_000);
-    const capturedFallback = await waitForWebhook(noCaption.client_job_id, 12 * 60_000);
+    const capturedHappy = await waitForWebhook(
+      captioned.client_job_id,
+      12 * 60_000,
+    );
+    const capturedFallback = await waitForWebhook(
+      noCaption.client_job_id,
+      12 * 60_000,
+    );
 
     // AC-6: signature already verified by mock-backend before capture.
     // Re-verify here as belt-and-suspenders.
     for (const cap of [capturedHappy, capturedFallback]) {
       const sig = cap.signature.match(/^t=(\d+),v1=(.+)$/);
-      if (!sig) throw new Error(`captured signature is malformed: ${cap.signature}`);
+      if (!sig)
+        throw new Error(`captured signature is malformed: ${cap.signature}`);
       const t = Number(sig[1]);
       const v1 = sig[2];
       const rawBody = JSON.stringify(cap.payload);
@@ -171,12 +194,18 @@ async function runHarness() {
       if (expected !== v1) {
         // The mock-backend already accepted this — if our re-derivation
         // mismatches it's a JSON-serialization drift bug.
-        log("warn", "re-derived signature mismatch (likely JSON drift in re-stringify)", {
-          client_job_id: cap.payload.client_job_id,
-        });
+        log(
+          "warn",
+          "re-derived signature mismatch (likely JSON drift in re-stringify)",
+          {
+            client_job_id: cap.payload.client_job_id,
+          },
+        );
       }
       if (cap.payload.status !== "completed") {
-        throw new Error(`${cap.payload.client_job_id} did not complete: ${cap.payload.status}`);
+        throw new Error(
+          `${cap.payload.client_job_id} did not complete: ${cap.payload.status}`,
+        );
       }
     }
 
@@ -205,9 +234,13 @@ async function runHarness() {
       body: replayBody,
     });
     if (replayRes.status !== 401) {
-      throw new Error(`replay attack was not rejected; got ${replayRes.status}`);
+      throw new Error(
+        `replay attack was not rejected; got ${replayRes.status}`,
+      );
     }
-    log("info", "replay attack correctly rejected", { status: replayRes.status });
+    log("info", "replay attack correctly rejected", {
+      status: replayRes.status,
+    });
 
     // Slice-local AC: yt-dlp version floor
     const ytdlpRes = spawnSync(
@@ -241,7 +274,9 @@ async function runHarness() {
 }
 
 runHarness().catch((err) => {
-  log("error", "harness failed", { error: err instanceof Error ? err.message : String(err) });
+  log("error", "harness failed", {
+    error: err instanceof Error ? err.message : String(err),
+  });
   flushLog();
   process.exit(1);
 });

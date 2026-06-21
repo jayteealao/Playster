@@ -74,7 +74,9 @@ async function waitForDaemonHealth() {
     }
     await sleep(DAEMON_HEALTH_POLL_MS);
   }
-  throw new Error(`daemon /health did not return 200 within ${DAEMON_HEALTH_TIMEOUT_MS}ms (last: ${lastErr})`);
+  throw new Error(
+    `daemon /health did not return 200 within ${DAEMON_HEALTH_TIMEOUT_MS}ms (last: ${lastErr})`,
+  );
 }
 
 async function refreshFree() {
@@ -88,7 +90,10 @@ async function refreshFree() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
-      logError("/v1/refresh-free returned non-2xx — continuing with cached free models", { status: res.status });
+      logError(
+        "/v1/refresh-free returned non-2xx — continuing with cached free models",
+        { status: res.status },
+      );
       return;
     }
     logInfo("/v1/refresh-free dispatched");
@@ -107,7 +112,9 @@ function installSignalHandlers() {
     logInfo("received signal, forwarding to daemon", { signal });
     daemon.kill(signal);
     setTimeout(() => {
-      logError("daemon did not exit within grace period; force-killing", { graceMs: SHUTDOWN_GRACE_MS });
+      logError("daemon did not exit within grace period; force-killing", {
+        graceMs: SHUTDOWN_GRACE_MS,
+      });
       daemon.kill("SIGKILL");
       process.exit(1);
     }, SHUTDOWN_GRACE_MS).unref();
@@ -127,7 +134,9 @@ try {
   logInfo("starting summarize-api gateway in-process");
   await import("/app/summarizer/summarize-api/dist/index.js");
 } catch (err) {
-  logError("startup failed", { error: err instanceof Error ? err.message : String(err) });
+  logError("startup failed", {
+    error: err instanceof Error ? err.message : String(err),
+  });
   daemon.kill("SIGTERM");
   process.exit(1);
 }
