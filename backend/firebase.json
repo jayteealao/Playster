@@ -19,7 +19,7 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json",
-    "predeploy": "bash backend/scripts/check-allowlist-uid.sh"
+    "predeploy": "bash scripts/check-allowlist-uid.sh"
   },
   "emulators": {
     "auth": { "host": "127.0.0.1", "port": 9099 },

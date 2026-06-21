@@ -21,6 +21,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+# Firebase Functions per-project param files (hold the operator ALLOWED_UID)
+functions/.env.*
 
 # Logs
 *.log
