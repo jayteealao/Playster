@@ -1,9 +1,9 @@
 rules_version = '2';
 
-// IMPORTANT: "__BOOTSTRAP_UID__" is a deploy-time placeholder.
-// It must be replaced with the real operator UID before deploying.
-// A predeploy guard (backend/scripts/check-allowlist-uid.sh) enforces this
-// and will cause `firebase deploy` to fail if the sentinel is still present.
+// Single-tenant: the operator's Firebase Auth uid is baked directly into
+// isAllowlisted() below. A predeploy guard (backend/scripts/check-allowlist-uid.sh)
+// blocks `firebase deploy` while the bootstrap placeholder is still present, so the
+// rules can never ship matching nobody. See docs/operations/bootstrap-allowlisted-uid.md.
 //
 // Single-tenant enforcement — there are TWO places that gate access by uid.
 // Both must be updated together for any multi-tenant migration:
@@ -20,12 +20,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAllowlisted() {
-      return request.auth != null && request.auth.uid == "__BOOTSTRAP_UID__";
+      return request.auth != null && request.auth.uid == "XLGNnIxqCwSckmrErKIdWftK9Vg2";
     }
 
     match /playlists/{document=**}                     { allow read: if isAllowlisted(); allow write: if false; }
     match /playlists/{playlistId}/videos/{videoId}     { allow read: if isAllowlisted(); allow write: if false; }
     match /videos/{document=**}                        { allow read: if isAllowlisted(); allow write: if false; }
+    // Collection-group reads: VideoDetail looks a video up by id across every
+    // playlist's videos/ subcollection (collectionGroup("videos")). The path
+    // rules above do not authorize a collection-group query — this recursive
+    // match does. Single-tenant: still gated on the operator allowlist.
+    match /{path=**}/videos/{videoId}                  { allow read: if isAllowlisted(); allow write: if false; }
     match /sync_state/{document=**}                    { allow read: if isAllowlisted(); allow write: if false; }
     match /tokens/{document=**}                        { allow read: if false;            allow write: if false; }
     match /summaries/{document=**}                     { allow read: if isAllowlisted(); allow write: if false; }
