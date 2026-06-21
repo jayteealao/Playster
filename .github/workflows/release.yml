@@ -240,6 +240,20 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
+      - name: Write functions params (operator allowlist uid)
+        working-directory: backend/functions
+        env:
+          ALLOWED_UID: ${{ vars.ALLOWED_UID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          # firebase loads params from .env.<projectId> at deploy time; the
+          # operator uid is not secret (it is public in firestore.rules), so it
+          # lives in a repository variable rather than a secret.
+          if [ -z "$ALLOWED_UID" ]; then
+            echo "::error::ALLOWED_UID repository variable is not set" >&2
+            exit 1
+          fi
+          printf 'ALLOWED_UID=%s\n' "$ALLOWED_UID" > ".env.${PROJECT_ID}"
       - name: Deploy Firebase Functions + Firestore rules
         working-directory: backend
         run: |
