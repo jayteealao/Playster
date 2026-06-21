@@ -66,7 +66,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Sign only when signing material is available — the CI release job
+            // (SIGNING_* env) or a local.properties keystore. The PR release
+            // dry-run has no keystore and builds an unsigned release; it exists
+            // to validate the release build, not to produce a shippable artifact.
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
     compileOptions {
