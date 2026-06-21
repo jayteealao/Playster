@@ -45,6 +45,9 @@ importers:
       eslint-config-google:
         specifier: ^0.14.0
         version: 0.14.0(eslint@8.57.1)
+      eslint-config-prettier:
+        specifier: ^10.1.8
+        version: 10.1.8(eslint@8.57.1)
       eslint-plugin-import:
         specifier: ^2.29.0
         version: 2.32.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)
@@ -2213,6 +2216,12 @@ packages:
     engines: {node: '>=0.10.0'}
     peerDependencies:
       eslint: '>=5.16.0'
+
+  eslint-config-prettier@10.1.8:
+    resolution: {integrity: sha512-82GZUjRS0p/jganf6q1rEO25VSoHH0hKPCTrgillPjdI/3bgBhAE1QzHrHTizjpRvy6pGAvKjDJtk2pF9NDq8w==}
+    hasBin: true
+    peerDependencies:
+      eslint: '>=7.0.0'
 
   eslint-import-resolver-node@0.3.10:
     resolution: {integrity: sha512-tRrKqFyCaKict5hOd244sL6EQFNycnMQnBe+j8uqGNXYzsImGbGUU4ibtoaBmv5FLwJwcFJNeg1GeVjQfbMrDQ==}
@@ -6612,6 +6621,10 @@ snapshots:
   escape-string-regexp@4.0.0: {}
 
   eslint-config-google@0.14.0(eslint@8.57.1):
+    dependencies:
+      eslint: 8.57.1
+
+  eslint-config-prettier@10.1.8(eslint@8.57.1):
     dependencies:
       eslint: 8.57.1
 

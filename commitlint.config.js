@@ -15,4 +15,8 @@ const LEGACY_PATTERNS = [
 module.exports = {
   extends: ["@commitlint/config-conventional"],
   ignores: [(message) => LEGACY_PATTERNS.some((re) => re.test(message))],
+  rules: {
+    // Subject casing varies across vendored/legacy commits; don't block on style.
+    "subject-case": [0],
+  },
 };

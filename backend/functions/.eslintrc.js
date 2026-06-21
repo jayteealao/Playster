@@ -15,12 +15,12 @@ module.exports = {
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "google",
+    // Must be last: turns off all stylistic rules that conflict with Prettier.
+    "prettier",
   ],
   rules: {
-    quotes: ["error", "double"],
+    // Formatting (quotes, indent, spacing) is owned by Prettier — see "prettier" in extends.
     "import/no-unresolved": "off",
-    indent: ["error", 2],
-    "object-curly-spacing": ["error", "always"],
     "max-len": ["warn", { code: 120, ignoreUrls: true, ignoreStrings: true }],
     "require-jsdoc": "off",
     "valid-jsdoc": "off",

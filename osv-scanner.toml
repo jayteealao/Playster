@@ -1,12 +1,13 @@
-# osv-scanner suppression config — generated 2026-06-20T23:46:01Z
-#
-# Snapshot of known transitive / vendored dependency advisories with no
-# first-party fix available at adoption time. New advisories NOT in this list
-# still fail the dependency-audit gate. Tracked for upgrade via Dependabot;
-# accepted per the supply-chain review.
+# osv-scanner suppression — generated 2026-06-21T00:18:19Z
+# Known transitive/vendored advisories with no first-party fix at adoption.
+# New advisories not listed still fail the gate. Tracked via Dependabot.
 
 [[IgnoredVulns]]
 id = "GHSA-2363-cqg2-863c"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-25qh-j22f-pwp8"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]
@@ -127,6 +128,10 @@ reason = "Transitive/vendored dependency; no first-party fix at adoption; tracke
 
 [[IgnoredVulns]]
 id = "GHSA-6v5v-wf23-fmfq"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-6v67-2wr5-gvf4"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]
@@ -262,6 +267,10 @@ id = "GHSA-pr7r-676h-xcf6"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]
+id = "GHSA-pr98-23f8-jwxv"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
 id = "GHSA-prj3-ccx8-p6x4"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
@@ -271,6 +280,10 @@ reason = "Transitive/vendored dependency; no first-party fix at adoption; tracke
 
 [[IgnoredVulns]]
 id = "GHSA-q8mj-m7cp-5q26"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-qqpg-mvqg-649v"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]
@@ -291,6 +304,10 @@ reason = "Transitive/vendored dependency; no first-party fix at adoption; tracke
 
 [[IgnoredVulns]]
 id = "GHSA-vmh5-mc38-953g"
+reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
+
+[[IgnoredVulns]]
+id = "GHSA-vmq6-5m68-f53m"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
 [[IgnoredVulns]]

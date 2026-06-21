@@ -1,0 +1,14 @@
+title = "Playster gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation, tests/fixtures, example env files, and the vendored summarize-daemon subtree carry illustrative (non-real) tokens, not first-party secrets. Real secrets live in GCP Secret Manager and GitHub Actions secrets."
+paths = [
+  '''.*\.md$''',
+  '''.*/tests?/.*''',
+  '''.*\.test\.(ts|js|mjs)$''',
+  '''.*\.env\.example$''',
+  '''summarizer/summarize-daemon/.*''',
+]
