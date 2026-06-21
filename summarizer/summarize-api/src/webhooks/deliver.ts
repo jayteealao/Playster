@@ -18,6 +18,9 @@ export interface DeliverWebhookOptions {
   // Indirection for tests. Defaults to global fetch.
   fetchImpl?: typeof fetch;
   sleepImpl?: (ms: number) => Promise<void>;
+  // Jitter source for the retry backoff. Defaults to Math.random; tests
+  // override it to make the computed delays deterministic.
+  randomFn?: () => number;
 }
 
 export async function deliverWebhook(
@@ -29,6 +32,7 @@ export async function deliverWebhook(
   const sleep =
     opts.sleepImpl ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const randomFn = opts.randomFn ?? Math.random;
 
   // Compute the raw body ONCE — the same bytes go to the HMAC and the POST.
   // Re-stringifying would risk key-order or whitespace drift between signer
@@ -73,7 +77,7 @@ export async function deliverWebhook(
     }
     if (i < attempts - 1) {
       const baseMs = baseDelayMs * 3 ** i;
-      const jitterMs = baseMs * (0.75 + Math.random() * 0.5);
+      const jitterMs = baseMs * (0.75 + randomFn() * 0.5);
       await sleep(jitterMs);
     }
   }

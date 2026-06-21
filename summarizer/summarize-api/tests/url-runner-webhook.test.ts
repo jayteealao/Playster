@@ -1,5 +1,18 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer, type Server, type IncomingMessage } from "node:http";
+
+// These tests verify webhook *delivery* to a local (loopback) receiver; SSRF
+// enforcement is covered separately in ssrf.test.ts. Stub validateUrl so the
+// 127.0.0.1 receiver URL passes the route's SSRF gate.
+vi.mock("../src/security/ssrf.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/security/ssrf.js")
+  >("../src/security/ssrf.js");
+  return {
+    ...actual,
+    validateUrl: vi.fn(async () => ({ safe: true })),
+  };
+});
 import {
   buildApp,
   startSummarizeDaemon,

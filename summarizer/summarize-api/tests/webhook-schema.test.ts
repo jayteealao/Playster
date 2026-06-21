@@ -1,5 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { buildApp, TEST_API_KEY, type TestContext } from "./setup.js";
+
+// This suite checks webhook field *schema* validation (zod + the explicit
+// secret check), not SSRF. Stub validateUrl so well-formed test URLs (including
+// the reserved-TLD example.test that never resolves) clear the SSRF gate.
+vi.mock("../src/security/ssrf.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/security/ssrf.js")
+  >("../src/security/ssrf.js");
+  return {
+    ...actual,
+    validateUrl: vi.fn(async () => ({ safe: true })),
+  };
+});
 
 describe("POST /v1/jobs — webhook field validation", () => {
   let ctx: TestContext;

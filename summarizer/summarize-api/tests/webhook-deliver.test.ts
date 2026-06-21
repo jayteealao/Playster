@@ -80,6 +80,8 @@ describe("deliverWebhook", () => {
       baseDelayMs: 10,
       fetchImpl,
       sleepImpl,
+      // Pin the jitter factor to 1.0 (0.75 + 0.5*0.5) so the backoff is exact.
+      randomFn: () => 0.5,
     });
 
     expect(result).toEqual({ ok: true, status: 200, attempts: 3 });

@@ -25,149 +25,163 @@ export async function jobRoutes(
 ) {
   const { config, eventStore, db, urlRunnerOpts } = opts;
 
-  // POST /v1/jobs — create a new job
-  app.post("/v1/jobs", async (request, reply) => {
-    const contentType = request.headers["content-type"] ?? "";
+  // POST /v1/jobs — create a new job.
+  // An app-wide @fastify/rate-limit limiter already guards every route; the
+  // explicit per-route config below makes the protection on this expensive
+  // (filesystem + outbound-fetch) endpoint visible to static analysis.
+  app.post(
+    "/v1/jobs",
+    {
+      config: {
+        rateLimit: {
+          max: config.rateLimitMax,
+          timeWindow: config.rateLimitWindow,
+        },
+      },
+    },
+    async (request, reply) => {
+      const contentType = request.headers["content-type"] ?? "";
 
-    // --- Multipart file upload ---
-    if (contentType.includes("multipart/form-data")) {
-      const file = await request.file();
-      if (!file) {
-        return reply.code(400).send({ error: "No file uploaded" });
-      }
-
-      // Check file size via Content-Length header as a pre-check
-      const declaredSize = Number(request.headers["content-length"] ?? 0);
-      if (declaredSize > config.maxUploadSize) {
-        return reply.code(413).send({ error: "File too large" });
-      }
-
-      // Ensure upload directory exists
-      mkdirSync(UPLOAD_DIR, { recursive: true });
-
-      const ext = extname(file.filename) || ".bin";
-      const tempName = `${nanoid()}${ext}`;
-      const tempPath = join(UPLOAD_DIR, tempName);
-
-      // Stream file to disk
-      await pipeline(file.file, createWriteStream(tempPath));
-
-      // Check if the stream was truncated (file exceeded limit)
-      if (file.file.truncated) {
-        return reply.code(413).send({ error: "File too large" });
-      }
-
-      // Parse options from the multipart form field
-      let uploadOptions: Record<string, unknown> = {};
-      const fields = file.fields;
-      const optionsField = fields["options"];
-      if (
-        optionsField &&
-        "value" in optionsField &&
-        typeof optionsField.value === "string"
-      ) {
-        try {
-          uploadOptions = JSON.parse(optionsField.value);
-        } catch {
-          return reply
-            .code(400)
-            .send({ error: "Invalid JSON in options field" });
+      // --- Multipart file upload ---
+      if (contentType.includes("multipart/form-data")) {
+        const file = await request.file();
+        if (!file) {
+          return reply.code(400).send({ error: "No file uploaded" });
         }
-      }
 
-      const job = createJob({
-        type: "upload",
-        source: tempPath,
-        options: uploadOptions,
-      });
+        // Check file size via Content-Length header as a pre-check
+        const declaredSize = Number(request.headers["content-length"] ?? 0);
+        if (declaredSize > config.maxUploadSize) {
+          return reply.code(413).send({ error: "File too large" });
+        }
 
-      dispatchJob(job, config, eventStore, db, urlRunnerOpts);
+        // Ensure upload directory exists
+        mkdirSync(UPLOAD_DIR, { recursive: true });
 
-      return reply.code(201).send({ ok: true, id: job.id });
-    }
+        const ext = extname(file.filename) || ".bin";
+        const tempName = `${nanoid()}${ext}`;
+        const tempPath = join(UPLOAD_DIR, tempName);
 
-    // --- JSON body ---
-    const body = request.body as Record<string, unknown> | undefined;
-    if (!body || typeof body !== "object") {
-      return reply.code(400).send({ error: "Request body is required" });
-    }
+        // Stream file to disk
+        await pipeline(file.file, createWriteStream(tempPath));
 
-    // URL job
-    if ("url" in body) {
-      const parsed = urlJobSchema.safeParse(body);
-      if (!parsed.success) {
-        return reply.code(400).send({
-          error: "Validation failed",
-          details: parsed.error.flatten().fieldErrors,
+        // Check if the stream was truncated (file exceeded limit)
+        if (file.file.truncated) {
+          return reply.code(413).send({ error: "File too large" });
+        }
+
+        // Parse options from the multipart form field
+        let uploadOptions: Record<string, unknown> = {};
+        const fields = file.fields;
+        const optionsField = fields["options"];
+        if (
+          optionsField &&
+          "value" in optionsField &&
+          typeof optionsField.value === "string"
+        ) {
+          try {
+            uploadOptions = JSON.parse(optionsField.value);
+          } catch {
+            return reply
+              .code(400)
+              .send({ error: "Invalid JSON in options field" });
+          }
+        }
+
+        const job = createJob({
+          type: "upload",
+          source: tempPath,
+          options: uploadOptions,
         });
+
+        dispatchJob(job, config, eventStore, db, urlRunnerOpts);
+
+        return reply.code(201).send({ ok: true, id: job.id });
       }
 
-      if (parsed.data.webhook_url && !parsed.data.webhook_secret) {
-        return reply.code(400).send({
-          error: "webhook_secret is required when webhook_url is set",
-        });
+      // --- JSON body ---
+      const body = request.body as Record<string, unknown> | undefined;
+      if (!body || typeof body !== "object") {
+        return reply.code(400).send({ error: "Request body is required" });
       }
 
-      const ssrfResult = await validateUrl(parsed.data.url);
-      if (!ssrfResult.safe) {
-        return reply
-          .code(403)
-          .send({ error: ssrfResult.error ?? "URL blocked by SSRF policy" });
-      }
-
-      if (parsed.data.webhook_url) {
-        const webhookSsrfResult = await validateUrl(parsed.data.webhook_url);
-        if (!webhookSsrfResult.safe) {
-          return reply.code(403).send({
-            error:
-              webhookSsrfResult.error ?? "webhook_url blocked by SSRF policy",
+      // URL job
+      if ("url" in body) {
+        const parsed = urlJobSchema.safeParse(body);
+        if (!parsed.success) {
+          return reply.code(400).send({
+            error: "Validation failed",
+            details: parsed.error.flatten().fieldErrors,
           });
         }
-      }
 
-      const job = createJob({
-        type: "url",
-        source: parsed.data.url,
-        options: parsed.data.options,
-        webhookUrl: parsed.data.webhook_url,
-        webhookSecret: parsed.data.webhook_secret,
-        clientJobId: parsed.data.client_job_id,
-      });
+        if (parsed.data.webhook_url && !parsed.data.webhook_secret) {
+          return reply.code(400).send({
+            error: "webhook_secret is required when webhook_url is set",
+          });
+        }
 
-      dispatchJob(job, config, eventStore, db, urlRunnerOpts);
+        const ssrfResult = await validateUrl(parsed.data.url);
+        if (!ssrfResult.safe) {
+          return reply
+            .code(403)
+            .send({ error: ssrfResult.error ?? "URL blocked by SSRF policy" });
+        }
 
-      return reply.code(201).send({ ok: true, id: job.id });
-    }
+        if (parsed.data.webhook_url) {
+          const webhookSsrfResult = await validateUrl(parsed.data.webhook_url);
+          if (!webhookSsrfResult.safe) {
+            return reply.code(403).send({
+              error:
+                webhookSsrfResult.error ?? "webhook_url blocked by SSRF policy",
+            });
+          }
+        }
 
-    // RSS job
-    if ("rss" in body) {
-      const parsed = rssJobSchema.safeParse(body);
-      if (!parsed.success) {
-        return reply.code(400).send({
-          error: "Validation failed",
-          details: parsed.error.flatten().fieldErrors,
+        const job = createJob({
+          type: "url",
+          source: parsed.data.url,
+          options: parsed.data.options,
+          webhookUrl: parsed.data.webhook_url,
+          webhookSecret: parsed.data.webhook_secret,
+          clientJobId: parsed.data.client_job_id,
         });
+
+        dispatchJob(job, config, eventStore, db, urlRunnerOpts);
+
+        return reply.code(201).send({ ok: true, id: job.id });
       }
 
-      const job = createJob({
-        type: "rss",
-        source: parsed.data.rss,
-        options: {
-          ...parsed.data.options,
-          item: parsed.data.item,
-        },
+      // RSS job
+      if ("rss" in body) {
+        const parsed = rssJobSchema.safeParse(body);
+        if (!parsed.success) {
+          return reply.code(400).send({
+            error: "Validation failed",
+            details: parsed.error.flatten().fieldErrors,
+          });
+        }
+
+        const job = createJob({
+          type: "rss",
+          source: parsed.data.rss,
+          options: {
+            ...parsed.data.options,
+            item: parsed.data.item,
+          },
+        });
+
+        dispatchJob(job, config, eventStore, db);
+
+        return reply.code(201).send({ ok: true, id: job.id });
+      }
+
+      return reply.code(400).send({
+        error:
+          "Request must include a 'url' or 'rss' field, or be a multipart file upload",
       });
-
-      dispatchJob(job, config, eventStore, db);
-
-      return reply.code(201).send({ ok: true, id: job.id });
-    }
-
-    return reply.code(400).send({
-      error:
-        "Request must include a 'url' or 'rss' field, or be a multipart file upload",
-    });
-  });
+    },
+  );
 
   // GET /v1/jobs/:id — get job status
   app.get<{ Params: { id: string } }>(
