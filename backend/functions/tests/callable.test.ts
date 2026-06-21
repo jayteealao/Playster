@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 
@@ -120,7 +129,10 @@ describe("requestVideoSummary callable — auth gating", () => {
   it("rejects stranger uid with permission-denied", async () => {
     const wrapped = functionsTest.wrap(mod.requestVideoSummary);
     await expect(
-      wrapped({ data: { videoId: "v1" }, auth: { uid: "stranger", token: {} } } as never),
+      wrapped({
+        data: { videoId: "v1" },
+        auth: { uid: "stranger", token: {} },
+      } as never),
     ).rejects.toMatchObject({ code: "permission-denied" });
   });
 });
@@ -180,10 +192,10 @@ describe("requestVideoSummary callable — quota + dispatch (emulator-backed)", 
         .set({ videoId: "v-happy", title: "test" });
 
       const wrapped = functionsTest.wrap(mod.requestVideoSummary);
-      const result = await wrapped({
+      const result = (await wrapped({
         data: { videoId: "v-happy" },
         auth: { uid: ALLOWLISTED_UID, token: {} },
-      } as never) as { summaryId: string };
+      } as never)) as { summaryId: string };
 
       expect(result).toMatchObject({ summaryId: "v-happy" });
       const doc = await admin.firestore().doc("summaries/v-happy").get();

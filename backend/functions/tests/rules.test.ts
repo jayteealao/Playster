@@ -1,19 +1,6 @@
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  it,
-} from "vitest";
-import {
-  assertFails,
-  assertSucceeds,
-} from "@firebase/rules-unit-testing";
-import {
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import {
   ALLOWLISTED_UID,
   STRANGER_UID,

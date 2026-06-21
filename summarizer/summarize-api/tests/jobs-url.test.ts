@@ -1,5 +1,10 @@
 import { describe, it, expect, afterAll, beforeAll, vi } from "vitest";
-import { buildApp, TEST_API_KEY, startMockDaemon, type TestContext } from "./setup.js";
+import {
+  buildApp,
+  TEST_API_KEY,
+  startMockDaemon,
+  type TestContext,
+} from "./setup.js";
 import type { Server } from "node:http";
 
 // Mock dispatchJob so it doesn't actually run async work
@@ -9,7 +14,9 @@ vi.mock("../src/runners/index.js", () => ({
 
 // Mock validateUrl to allow our test URLs through
 vi.mock("../src/security/ssrf.js", async () => {
-  const actual = await vi.importActual<typeof import("../src/security/ssrf.js")>("../src/security/ssrf.js");
+  const actual = await vi.importActual<
+    typeof import("../src/security/ssrf.js")
+  >("../src/security/ssrf.js");
   return {
     ...actual,
     validateUrl: vi.fn(async (url: string) => {
@@ -40,7 +47,10 @@ describe("URL job endpoints", () => {
     return ctx.app.inject({
       method: "POST",
       url,
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify(payload),
     });
   }
@@ -73,7 +83,9 @@ describe("URL job endpoints", () => {
   });
 
   it("GET /v1/jobs/:id returns created job", async () => {
-    const createRes = await post("/v1/jobs", { url: "https://example.com/page" });
+    const createRes = await post("/v1/jobs", {
+      url: "https://example.com/page",
+    });
     const { id } = createRes.json();
 
     const getRes = await get(`/v1/jobs/${id}`);

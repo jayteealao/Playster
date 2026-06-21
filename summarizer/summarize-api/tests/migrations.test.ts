@@ -55,9 +55,9 @@ describe("schema migrations", () => {
       closeDb();
       process.env.DB_PATH = path;
       const db = getDb();
-      const cols = db
-        .prepare("PRAGMA table_info(jobs)")
-        .all() as { name: string }[];
+      const cols = db.prepare("PRAGMA table_info(jobs)").all() as {
+        name: string;
+      }[];
       const colNames = cols.map((c) => c.name);
       expect(colNames).toContain("webhook_url");
       expect(colNames).toContain("webhook_secret");

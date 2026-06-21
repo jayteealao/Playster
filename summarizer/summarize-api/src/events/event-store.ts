@@ -33,10 +33,7 @@ export class EventStore {
     }
   }
 
-  subscribe(
-    jobId: string,
-    callback: (event: JobEvent) => void,
-  ): () => void {
+  subscribe(jobId: string, callback: (event: JobEvent) => void): () => void {
     const buffer = this.getOrCreateBuffer(jobId);
 
     for (const event of buffer.events) {

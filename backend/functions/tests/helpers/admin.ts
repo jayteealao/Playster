@@ -32,4 +32,3 @@ export async function clearFirestore(): Promise<void> {
     throw new Error(`clearFirestore failed: ${res.status}`);
   }
 }
-

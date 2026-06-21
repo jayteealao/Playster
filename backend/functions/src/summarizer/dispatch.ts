@@ -3,7 +3,10 @@ import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { allowlistedCall } from "../auth/verify.js";
-import type { SummaryDocument, WebhookSecretDocument } from "../models/index.js";
+import type {
+  SummaryDocument,
+  WebhookSecretDocument,
+} from "../models/index.js";
 import {
   reserveOpenRouterQuotaSlot,
   releaseOpenRouterQuotaSlot,
@@ -110,9 +113,9 @@ export async function dispatchSummary(
       }
     }
 
-    const prior = snap.exists ?
-      (snap.data() as Partial<SummaryDocument> | undefined) :
-      undefined;
+    const prior = snap.exists
+      ? (snap.data() as Partial<SummaryDocument> | undefined)
+      : undefined;
     const next: SummaryDocument = {
       videoId,
       status: "pending",
@@ -191,9 +194,9 @@ export async function dispatchSummary(
   if (!response.ok) {
     const errBody = await response.text().catch(() => "");
     const status =
-      response.status >= 500 ?
-        ("failed-transient" as const) :
-        ("failed-permanent" as const);
+      response.status >= 500
+        ? ("failed-transient" as const)
+        : ("failed-permanent" as const);
     const errorCode =
       status === "failed-permanent" ? "dispatch_4xx" : "dispatch_5xx";
     logger.warn("summarizer dispatch failed", {
@@ -255,4 +258,8 @@ export const requestVideoSummary = allowlistedCall<
   },
 );
 
-export const __dispatchInternals = { videoExists, TERMINAL_STATUSES, NON_REDISPATCHABLE_STATUSES };
+export const __dispatchInternals = {
+  videoExists,
+  TERMINAL_STATUSES,
+  NON_REDISPATCHABLE_STATUSES,
+};

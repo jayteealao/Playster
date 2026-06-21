@@ -1,10 +1,4 @@
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 
@@ -22,7 +16,8 @@ describe("quota module — emulator-backed", () => {
   });
 
   it("reserves a slot and persists the increment", async () => {
-    const { reserveOpenRouterQuotaSlot } = await import("../src/summarizer/quota.js");
+    const { reserveOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
     await reserveOpenRouterQuotaSlot();
     const snap = await admin.firestore().doc("quota/openrouter").get();
     expect(snap.exists).toBe(true);
@@ -32,7 +27,8 @@ describe("quota module — emulator-backed", () => {
   });
 
   it("throws resource-exhausted when daily cap reached", async () => {
-    const { reserveOpenRouterQuotaSlot } = await import("../src/summarizer/quota.js");
+    const { reserveOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
     const today = new Date().toISOString().slice(0, 10);
     await admin.firestore().doc("quota/openrouter").set({
       date: today,
@@ -47,23 +43,28 @@ describe("quota module — emulator-backed", () => {
   });
 
   it("throws resource-exhausted when per-minute cap reached", async () => {
-    const { reserveOpenRouterQuotaSlot } = await import("../src/summarizer/quota.js");
+    const { reserveOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
     const today = new Date().toISOString().slice(0, 10);
     const now = Date.now();
-    await admin.firestore().doc("quota/openrouter").set({
-      date: today,
-      requestCount: 5,
-      dailyLimit: 1000,
-      perMinuteLimit: 20,
-      recentTimestamps: Array.from({ length: 20 }, (_, i) => now - i * 100),
-    });
+    await admin
+      .firestore()
+      .doc("quota/openrouter")
+      .set({
+        date: today,
+        requestCount: 5,
+        dailyLimit: 1000,
+        perMinuteLimit: 20,
+        recentTimestamps: Array.from({ length: 20 }, (_, i) => now - i * 100),
+      });
     await expect(reserveOpenRouterQuotaSlot()).rejects.toMatchObject({
       code: "resource-exhausted",
     });
   });
 
   it("resets counters on day-rollover atomically", async () => {
-    const { reserveOpenRouterQuotaSlot } = await import("../src/summarizer/quota.js");
+    const { reserveOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
     await admin.firestore().doc("quota/openrouter").set({
       date: "2024-01-01",
       requestCount: 999,
@@ -88,7 +89,8 @@ describe("quota module — emulator-backed", () => {
   });
 
   it("N concurrent reservations honor the hard cap", async () => {
-    const { reserveOpenRouterQuotaSlot } = await import("../src/summarizer/quota.js");
+    const { reserveOpenRouterQuotaSlot } =
+      await import("../src/summarizer/quota.js");
     const today = new Date().toISOString().slice(0, 10);
     await admin.firestore().doc("quota/openrouter").set({
       date: today,
@@ -114,13 +116,16 @@ describe("quota module — emulator-backed", () => {
     const N = 10;
     const today = new Date().toISOString().slice(0, 10);
     // Start from zero so the final count is easy to reason about.
-    await admin.firestore().doc("quota/openrouter").set({
-      date: today,
-      requestCount: 0,
-      dailyLimit: N * 2, // generous cap — none should be rejected
-      perMinuteLimit: N * 2,
-      recentTimestamps: [],
-    });
+    await admin
+      .firestore()
+      .doc("quota/openrouter")
+      .set({
+        date: today,
+        requestCount: 0,
+        dailyLimit: N * 2, // generous cap — none should be rejected
+        perMinuteLimit: N * 2,
+        recentTimestamps: [],
+      });
 
     // Each cycle: reserve then immediately release.
     await Promise.all(

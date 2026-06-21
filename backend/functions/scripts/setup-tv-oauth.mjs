@@ -16,7 +16,12 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = path.resolve(__dirname, "..", ".tmp", "innertube-oauth");
-const CREDS_PATH = path.resolve(__dirname, "..", ".tmp", "tv-oauth-credentials.json");
+const CREDS_PATH = path.resolve(
+  __dirname,
+  "..",
+  ".tmp",
+  "tv-oauth-credentials.json",
+);
 
 async function main() {
   await fs.mkdir(CACHE_DIR, { recursive: true });
@@ -28,7 +33,9 @@ async function main() {
   innertube.session.on("auth-pending", (data) => {
     console.log("\n  Open: " + data.verification_url);
     console.log("  Code: " + data.user_code);
-    console.log("\n  Sign in with the Google account whose Watch Later you want to sync.");
+    console.log(
+      "\n  Sign in with the Google account whose Watch Later you want to sync.",
+    );
     console.log("  Waiting for you to approve...\n");
   });
 
@@ -47,10 +54,12 @@ async function main() {
   await fs.writeFile(CREDS_PATH, JSON.stringify(creds, null, 2));
   console.log("\nCredentials saved to: " + CREDS_PATH);
 
-  console.log("\nUpload to Firestore by POSTing to your setTvOauthCredentials endpoint:");
+  console.log(
+    "\nUpload to Firestore by POSTing to your setTvOauthCredentials endpoint:",
+  );
   console.log("");
   console.log("  curl -X POST \\");
-  console.log("    -H \"Content-Type: application/json\" \\");
+  console.log('    -H "Content-Type: application/json" \\');
   console.log("    -d @" + CREDS_PATH + " \\");
   console.log("    https://settvoauthcredentials-<HASH>-uc.a.run.app");
   console.log("");

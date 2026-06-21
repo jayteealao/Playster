@@ -35,7 +35,10 @@ async function requireOperator(
     const decoded = await admin.auth().verifyIdToken(idToken);
     uid = decoded.uid;
   } catch {
-    return { status: 401, message: "Unauthorized: invalid or expired ID token." };
+    return {
+      status: 401,
+      message: "Unauthorized: invalid or expired ID token.",
+    };
   }
   if (uid !== ALLOWED_UID.value()) {
     return {
@@ -95,13 +98,12 @@ export const setCookies = onRequest(async (req, res) => {
     return;
   }
 
-  const cookies =
-    typeof req.body === "string" ? req.body : req.body?.cookies;
+  const cookies = typeof req.body === "string" ? req.body : req.body?.cookies;
 
   if (!cookies || typeof cookies !== "string") {
     res
       .status(400)
-      .send("Missing cookies. Send as raw body or JSON { \"cookies\": \"...\" }.");
+      .send('Missing cookies. Send as raw body or JSON { "cookies": "..." }.');
     return;
   }
 
@@ -134,10 +136,12 @@ export const setTvOauthCredentials = onRequest(async (req, res) => {
     typeof req.body === "string" ? safeJsonParse(req.body) : req.body;
 
   if (!body || typeof body !== "object" || !body.refresh_token) {
-    res.status(400).send(
-      "Missing TV OAuth credentials. POST JSON: " +
-        "{ access_token, refresh_token, scope, token_type, expiry_date }",
-    );
+    res
+      .status(400)
+      .send(
+        "Missing TV OAuth credentials. POST JSON: " +
+          "{ access_token, refresh_token, scope, token_type, expiry_date }",
+      );
     return;
   }
 

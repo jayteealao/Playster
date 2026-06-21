@@ -2,8 +2,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import type { SummaryDocument, WebhookSecretDocument } from "../models/index.js";
-import { WEBHOOK_REPLAY_WINDOW_SECONDS, TERMINAL_STATUSES } from "./constants.js";
+import type {
+  SummaryDocument,
+  WebhookSecretDocument,
+} from "../models/index.js";
+import {
+  WEBHOOK_REPLAY_WINDOW_SECONDS,
+  TERMINAL_STATUSES,
+} from "./constants.js";
 
 interface ParsedSignature {
   t: number;
@@ -43,7 +49,9 @@ export interface WebhookHandlerResult {
   body: string;
 }
 
-function parseSignatureHeader(value: string | undefined): ParsedSignature | null {
+function parseSignatureHeader(
+  value: string | undefined,
+): ParsedSignature | null {
   if (!value) return null;
   let t: number | null = null;
   let v1: string | null = null;
@@ -74,13 +82,18 @@ function verifySignature(
     .digest("hex");
   if (expected.length !== v1.length) return false;
   try {
-    return timingSafeEqual(Buffer.from(v1, "hex"), Buffer.from(expected, "hex"));
+    return timingSafeEqual(
+      Buffer.from(v1, "hex"),
+      Buffer.from(expected, "hex"),
+    );
   } catch {
     return false;
   }
 }
 
-function classifyFailure(errorCode: string | undefined): SummaryDocument["status"] {
+function classifyFailure(
+  errorCode: string | undefined,
+): SummaryDocument["status"] {
   if (errorCode && TERMINAL_PERMANENT_CODES.has(errorCode)) {
     return "failed-permanent";
   }
@@ -134,7 +147,9 @@ export async function processSummaryWebhook(
 
   // Fetch the secret outside the transaction (read-only, stable after dispatch).
   const secretSnap = await secretRef.get();
-  const secretData = secretSnap.data() as Partial<WebhookSecretDocument> | undefined;
+  const secretData = secretSnap.data() as
+    | Partial<WebhookSecretDocument>
+    | undefined;
   const secret = secretData?.secret ?? "";
 
   // Verify signature before touching Firestore state to avoid unnecessary writes.
@@ -147,11 +162,13 @@ export async function processSummaryWebhook(
 
   const incomingStatus = typeof parsed.status === "string" ? parsed.status : "";
   const inboundTerminal: SummaryDocument["status"] =
-    incomingStatus === "completed" ?
-      "completed" :
-      classifyFailure(
-        typeof parsed.error?.code === "string" ? parsed.error.code : undefined,
-      );
+    incomingStatus === "completed"
+      ? "completed"
+      : classifyFailure(
+          typeof parsed.error?.code === "string"
+            ? parsed.error.code
+            : undefined,
+        );
 
   // Wrap terminal-status guard + status update in a transaction so that two
   // concurrent identical deliveries cannot both pass the guard and both write.
@@ -171,7 +188,10 @@ export async function processSummaryWebhook(
 
     const summary = summarySnap.data() as Partial<SummaryDocument> | undefined;
     const currentStatus = summary?.status;
-    if (currentStatus && (TERMINAL_STATUSES as ReadonlyArray<string>).includes(currentStatus)) {
+    if (
+      currentStatus &&
+      (TERMINAL_STATUSES as ReadonlyArray<string>).includes(currentStatus)
+    ) {
       if (currentStatus === inboundTerminal) {
         return { httpStatus: 204, httpBody: "" };
       }
@@ -195,9 +215,9 @@ export async function processSummaryWebhook(
       updates.errorCode =
         typeof parsed.error?.code === "string" ? parsed.error.code : "unknown";
       updates.errorMessage =
-        typeof parsed.error?.message === "string" ?
-          parsed.error.message :
-          undefined;
+        typeof parsed.error?.message === "string"
+          ? parsed.error.message
+          : undefined;
     }
 
     tx.set(summaryRef, updates, { merge: true });

@@ -92,7 +92,10 @@ export async function validateUrl(
   }
 
   if (ips.length === 0) {
-    return { safe: false, error: `DNS resolution failed for hostname: ${hostname}` };
+    return {
+      safe: false,
+      error: `DNS resolution failed for hostname: ${hostname}`,
+    };
   }
 
   for (const ip of ips) {

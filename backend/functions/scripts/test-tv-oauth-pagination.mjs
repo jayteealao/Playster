@@ -37,10 +37,13 @@ async function main() {
 
   // Patch context to send the wire-correct client_name (v13.4.0 sends the
   // literal enum tag otherwise — YouTube returns 400 INVALID_ARGUMENT).
-  innertube.session.context.client.clientName = "TVHTML5_SIMPLY_EMBEDDED_PLAYER";
+  innertube.session.context.client.clientName =
+    "TVHTML5_SIMPLY_EMBEDDED_PLAYER";
   innertube.session.context.client.clientVersion = "2.0";
 
-  console.log("signed in. client=" + innertube.session.context.client.clientName);
+  console.log(
+    "signed in. client=" + innertube.session.context.client.clientName,
+  );
   console.log("\nFetching first page of WL...");
 
   let current = await innertube.getPlaylist("WL");
@@ -50,8 +53,12 @@ async function main() {
     allItems.push(...items);
   };
   pushItems(current);
-  console.log("  page 1: " + (current.videos?.length ?? 0) +
-    " items, has_continuation=" + Boolean(current.has_continuation));
+  console.log(
+    "  page 1: " +
+      (current.videos?.length ?? 0) +
+      " items, has_continuation=" +
+      Boolean(current.has_continuation),
+  );
 
   let pageNum = 1;
   while (current.has_continuation) {
@@ -59,13 +66,23 @@ async function main() {
     try {
       current = await current.getContinuation();
     } catch (err) {
-      console.log("  page " + pageNum + " continuation FAILED: " +
-        (err instanceof Error ? err.message : String(err)));
+      console.log(
+        "  page " +
+          pageNum +
+          " continuation FAILED: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
       break;
     }
     pushItems(current);
-    console.log("  page " + pageNum + ": " + (current.videos?.length ?? current.items?.length ?? 0) +
-      " items, has_continuation=" + Boolean(current.has_continuation));
+    console.log(
+      "  page " +
+        pageNum +
+        ": " +
+        (current.videos?.length ?? current.items?.length ?? 0) +
+        " items, has_continuation=" +
+        Boolean(current.has_continuation),
+    );
     if (pageNum > 100) {
       console.log("  safety break at 100 pages");
       break;
@@ -75,13 +92,22 @@ async function main() {
   console.log("\nTotal items collected: " + allItems.length);
   console.log("First 3:");
   allItems.slice(0, 3).forEach((v, i) => {
-    const title = typeof v.title?.toString === "function" ? v.title.toString() : v.title;
+    const title =
+      typeof v.title?.toString === "function" ? v.title.toString() : v.title;
     console.log("  " + (i + 1) + ". " + (v.id ?? "?") + "  " + (title ?? ""));
   });
   console.log("Last 3:");
   allItems.slice(-3).forEach((v, i) => {
-    const title = typeof v.title?.toString === "function" ? v.title.toString() : v.title;
-    console.log("  " + (allItems.length - 2 + i) + ". " + (v.id ?? "?") + "  " + (title ?? ""));
+    const title =
+      typeof v.title?.toString === "function" ? v.title.toString() : v.title;
+    console.log(
+      "  " +
+        (allItems.length - 2 + i) +
+        ". " +
+        (v.id ?? "?") +
+        "  " +
+        (title ?? ""),
+    );
   });
 }
 

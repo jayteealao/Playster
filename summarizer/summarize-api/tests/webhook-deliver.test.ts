@@ -27,13 +27,21 @@ describe("deliverWebhook", () => {
   it("sends the same raw bytes used in the HMAC", async () => {
     let capturedBody: string | undefined;
     let capturedHeader: string | undefined;
-    const fetchImpl = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
-      capturedBody = init.body as string;
-      capturedHeader = (init.headers as Record<string, string>)["X-Summarizer-Signature"];
-      return Promise.resolve(jsonResponse(200));
-    });
+    const fetchImpl = vi
+      .fn()
+      .mockImplementation((_url: string, init: RequestInit) => {
+        capturedBody = init.body as string;
+        capturedHeader = (init.headers as Record<string, string>)[
+          "X-Summarizer-Signature"
+        ];
+        return Promise.resolve(jsonResponse(200));
+      });
 
-    const payload = { client_job_id: "abc", status: "completed", result: { summary: "ok" } };
+    const payload = {
+      client_job_id: "abc",
+      status: "completed",
+      result: { summary: "ok" },
+    };
     await deliverWebhook({
       url: "https://example.test/webhook",
       secret: "sixteen-byte-key",
@@ -49,7 +57,11 @@ describe("deliverWebhook", () => {
     const tMatch = capturedHeader!.match(/^t=(\d+),v1=(.+)$/);
     expect(tMatch).not.toBeNull();
     const t = Number(tMatch![1]);
-    const expected = buildSignatureHeader("sixteen-byte-key", capturedBody!, t).header;
+    const expected = buildSignatureHeader(
+      "sixteen-byte-key",
+      capturedBody!,
+      t,
+    ).header;
     expect(capturedHeader).toBe(expected);
   });
 

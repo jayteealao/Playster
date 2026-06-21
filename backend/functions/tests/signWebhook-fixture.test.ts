@@ -17,7 +17,11 @@ describe("signWebhook helper", () => {
       .update(`${timestamp}.${rawBody}`, "utf8")
       .digest("hex");
 
-    const { header, rawBody: signedRaw } = signWebhook(payload, secret, timestamp);
+    const { header, rawBody: signedRaw } = signWebhook(
+      payload,
+      secret,
+      timestamp,
+    );
     expect(signedRaw).toBe(rawBody);
     expect(header).toBe(`t=${timestamp},v1=${expectedMac}`);
   });

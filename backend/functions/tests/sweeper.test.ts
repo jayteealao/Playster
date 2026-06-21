@@ -1,10 +1,4 @@
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 import {
@@ -39,9 +33,7 @@ describe("summary sweeper — emulator-backed", () => {
 
   // AC-12: stuck-running flip.
   it("flips status=running docs older than STUCK_TIMEOUT_MS to failed-transient", async () => {
-    const { sweepStuckRunning } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning } = await import("../src/summarizer/sweeper.js");
     const now = Date.now();
     await seedRunning("v-stuck", now - 2 * 60 * 60 * 1000); // 2h old
     await seedRunning("v-fresh", now - 5 * 60 * 1000); //     5min old
@@ -52,9 +44,7 @@ describe("summary sweeper — emulator-backed", () => {
     const stuck = await admin.firestore().doc("summaries/v-stuck").get();
     expect(stuck.data()?.status).toBe("failed-transient");
     expect(stuck.data()?.errorCode).toBe("stuck_running_timeout");
-    expect(stuck.data()?.errorMessage).toContain(
-      `${STUCK_TIMEOUT_MS / 1000}s`,
-    );
+    expect(stuck.data()?.errorMessage).toContain(`${STUCK_TIMEOUT_MS / 1000}s`);
 
     const fresh = await admin.firestore().doc("summaries/v-fresh").get();
     expect(fresh.data()?.status).toBe("running");
@@ -62,9 +52,7 @@ describe("summary sweeper — emulator-backed", () => {
 
   // AC-14: idempotent re-runs — the second pass must produce zero further mutations.
   it("second run produces zero further mutations (idempotent)", async () => {
-    const { sweepStuckRunning } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning } = await import("../src/summarizer/sweeper.js");
     await seedRunning("v-stuck", Date.now() - 2 * 60 * 60 * 1000);
 
     const first = await sweepStuckRunning();
@@ -87,9 +75,7 @@ describe("summary sweeper — emulator-backed", () => {
   // guard line directly: pre-flip a stuck doc to completed and assert the tx
   // does NOT clobber it. This is the unit-style fallback the plan calls out.
   it("per-doc tx is a no-op when status is no longer 'running'", async () => {
-    const { sweepStuckRunning } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning } = await import("../src/summarizer/sweeper.js");
     // Seed two docs old enough to be selected by the query.
     const old = Date.now() - 2 * 60 * 60 * 1000;
     await seedRunning("v-completed-mid", old);
@@ -123,9 +109,7 @@ describe("summary sweeper — emulator-backed", () => {
 
   // AC-16 (sweeper side): a stale lock beyond DISPATCHER_LOCK_TTL_MS is reclaimed.
   it("acquireSweeperLock reclaims a lock whose TTL has expired", async () => {
-    const { acquireSweeperLock } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { acquireSweeperLock } = await import("../src/summarizer/sweeper.js");
     const staleAcquiredAt = Date.now() - (DISPATCHER_LOCK_TTL_MS + 1_000);
     await admin.firestore().doc("locks/summarySweeper").set({
       acquiredAt: staleAcquiredAt,
@@ -142,9 +126,8 @@ describe("summary sweeper — emulator-backed", () => {
   });
 
   it("acquireSweeperLock returns true once, false on overlap, true after release", async () => {
-    const { acquireSweeperLock, releaseSweeperLock } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { acquireSweeperLock, releaseSweeperLock } =
+      await import("../src/summarizer/sweeper.js");
     const token = await acquireSweeperLock();
     expect(token).toBeTruthy();
     expect(await acquireSweeperLock()).toBe(false);
@@ -153,9 +136,8 @@ describe("summary sweeper — emulator-backed", () => {
   });
 
   it("sweepStuckRunning returns early when lock is held", async () => {
-    const { sweepStuckRunning, acquireSweeperLock } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning, acquireSweeperLock } =
+      await import("../src/summarizer/sweeper.js");
     expect(await acquireSweeperLock()).toBeTruthy();
     const result = await sweepStuckRunning();
     expect(result).toEqual({ scanned: 0, flipped: 0 });
@@ -163,9 +145,7 @@ describe("summary sweeper — emulator-backed", () => {
 
   // F-06: stuck-pending recovery pass.
   it("flips status=pending docs older than PENDING_STUCK_TIMEOUT_MS to failed-transient", async () => {
-    const { sweepStuckRunning } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning } = await import("../src/summarizer/sweeper.js");
     const now = Date.now();
     // Seed a stuck-pending doc (older than threshold)
     await admin
@@ -211,18 +191,19 @@ describe("summary sweeper — emulator-backed", () => {
 
   // F-06: per-doc tx is a no-op when a pending doc's status changed before tx executes.
   it("pending-pass per-doc tx is a no-op when status is no longer 'pending'", async () => {
-    const { sweepStuckRunning } = await import(
-      "../src/summarizer/sweeper.js"
-    );
+    const { sweepStuckRunning } = await import("../src/summarizer/sweeper.js");
     const old = Date.now() - PENDING_STUCK_TIMEOUT_MS - 60_000;
     // Seed as pending, then flip to running before the sweeper runs —
     // simulates dispatchSummary completing the HTTP call between query and tx.
-    await admin.firestore().doc("summaries/v-pending-mid").set({
-      videoId: "v-pending-mid",
-      status: "pending",
-      model: "free",
-      requestedAt: admin.firestore.Timestamp.fromMillis(old),
-    });
+    await admin
+      .firestore()
+      .doc("summaries/v-pending-mid")
+      .set({
+        videoId: "v-pending-mid",
+        status: "pending",
+        model: "free",
+        requestedAt: admin.firestore.Timestamp.fromMillis(old),
+      });
     await admin
       .firestore()
       .doc("summaries/v-pending-mid")

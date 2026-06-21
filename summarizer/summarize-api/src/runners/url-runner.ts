@@ -46,7 +46,10 @@ interface SseContext {
   terminalEventReceived: { value: boolean };
 }
 
-function handleDaemonSseEvent(event: { event?: string; data: string }, ctx: SseContext): void {
+function handleDaemonSseEvent(
+  event: { event?: string; data: string },
+  ctx: SseContext,
+): void {
   const now = new Date().toISOString();
   let eventData: unknown;
   try {
@@ -58,7 +61,9 @@ function handleDaemonSseEvent(event: { event?: string; data: string }, ctx: SseC
   switch (event.event) {
     case "chunk":
       ctx.accumulatedChunks.push(
-        typeof eventData === "object" && eventData !== null && "text" in eventData
+        typeof eventData === "object" &&
+          eventData !== null &&
+          "text" in eventData
           ? (eventData as { text: string }).text
           : String(event.data),
       );
@@ -66,7 +71,9 @@ function handleDaemonSseEvent(event: { event?: string; data: string }, ctx: SseC
         type: "chunk",
         data: {
           text:
-            typeof eventData === "object" && eventData !== null && "text" in eventData
+            typeof eventData === "object" &&
+            eventData !== null &&
+            "text" in eventData
               ? (eventData as { text: string }).text
               : event.data,
         },
@@ -179,7 +186,10 @@ export async function runUrlJob(
     }
 
     // Step 3: Get daemon session ID
-    const daemonResponse = (await response.json()) as { id: string; status: string };
+    const daemonResponse = (await response.json()) as {
+      id: string;
+      status: string;
+    };
     const daemonId = daemonResponse.id;
 
     // Step 4: Update daemon_job_id
@@ -249,11 +259,15 @@ export async function runUrlJob(
       result: { summary: result },
     });
 
-    await maybeDeliverWebhook(job, {
-      client_job_id: job.client_job_id ?? job.id,
-      status: "completed",
-      result: { summary: result },
-    }, opts?.webhookOverrides);
+    await maybeDeliverWebhook(
+      job,
+      {
+        client_job_id: job.client_job_id ?? job.id,
+        status: "completed",
+        result: { summary: result },
+      },
+      opts?.webhookOverrides,
+    );
   } catch (err: unknown) {
     // Step 7: Error handling
     const message = err instanceof Error ? err.message : String(err);
@@ -266,11 +280,15 @@ export async function runUrlJob(
       timestamp: new Date().toISOString(),
     });
 
-    await maybeDeliverWebhook(job, {
-      client_job_id: job.client_job_id ?? job.id,
-      status: "failed",
-      error: { message },
-    }, opts?.webhookOverrides);
+    await maybeDeliverWebhook(
+      job,
+      {
+        client_job_id: job.client_job_id ?? job.id,
+        status: "failed",
+        error: { message },
+      },
+      opts?.webhookOverrides,
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -298,20 +316,20 @@ async function maybeDeliverWebhook(
     fetchImpl: overrides?.fetchImpl,
   });
 
-  logWebhookEvent(
-    job.id,
-    result.ok ? "delivered" : "failed",
-    {
-      url: job.webhook_url,
-      status: result.status,
-      attempts: result.attempts,
-      error: result.error,
-      // `webhook_secret` is intentionally never logged.
-    },
-  );
+  logWebhookEvent(job.id, result.ok ? "delivered" : "failed", {
+    url: job.webhook_url,
+    status: result.status,
+    attempts: result.attempts,
+    error: result.error,
+    // `webhook_secret` is intentionally never logged.
+  });
 }
 
-function logWebhookEvent(jobId: string, outcome: string, extra: Record<string, unknown>): void {
+function logWebhookEvent(
+  jobId: string,
+  outcome: string,
+  extra: Record<string, unknown>,
+): void {
   const entry = {
     level: outcome === "delivered" ? "info" : "warn",
     component: "webhook",

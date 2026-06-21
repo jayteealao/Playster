@@ -59,5 +59,8 @@ export const ADD_WEBHOOK_COLUMN_STATEMENTS = [
 export const NAMED_MIGRATIONS: NamedMigration[] = [
   { name: "001_create_jobs", sql: CREATE_JOBS_TABLE },
   { name: "002_create_indexes", sql: CREATE_INDEXES },
-  { name: "003_add_webhook_columns", statements: ADD_WEBHOOK_COLUMN_STATEMENTS },
+  {
+    name: "003_add_webhook_columns",
+    statements: ADD_WEBHOOK_COLUMN_STATEMENTS,
+  },
 ];

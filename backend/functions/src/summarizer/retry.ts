@@ -95,7 +95,9 @@ export async function retryFailedTransient(): Promise<{
             await db.runTransaction(async (tx) => {
               const snap = await tx.get(docRef);
               if (!snap.exists) return;
-              const current = snap.data() as Partial<SummaryDocument> | undefined;
+              const current = snap.data() as
+                | Partial<SummaryDocument>
+                | undefined;
               if (current?.status !== "pending") return;
               tx.set(
                 docRef,
@@ -107,13 +109,16 @@ export async function retryFailedTransient(): Promise<{
               );
             });
           } catch (rollbackErr) {
-            logger.warn("summaryRetryCron: rollback to failed-transient failed", {
-              videoId,
-              error:
-                rollbackErr instanceof Error ?
-                  rollbackErr.message :
-                  String(rollbackErr),
-            });
+            logger.warn(
+              "summaryRetryCron: rollback to failed-transient failed",
+              {
+                videoId,
+                error:
+                  rollbackErr instanceof Error
+                    ? rollbackErr.message
+                    : String(rollbackErr),
+              },
+            );
           }
           logger.info("summaryRetryCron: budget exhausted for item", {
             videoId,

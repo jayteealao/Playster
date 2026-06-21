@@ -123,7 +123,8 @@ export async function syncRegularPlaylists(): Promise<{
 
     for (const item of videos) {
       const itemSnippet = item.snippet!;
-      const videoId = item.contentDetails?.videoId ?? itemSnippet.resourceId?.videoId ?? "";
+      const videoId =
+        item.contentDetails?.videoId ?? itemSnippet.resourceId?.videoId ?? "";
       if (!videoId) continue;
 
       const videoDoc: VideoDocument = {
@@ -215,7 +216,8 @@ export async function syncPlaylistById(playlistId: string): Promise<{
 
   for (const item of videos) {
     const itemSnippet = item.snippet!;
-    const videoId = item.contentDetails?.videoId ?? itemSnippet.resourceId?.videoId ?? "";
+    const videoId =
+      item.contentDetails?.videoId ?? itemSnippet.resourceId?.videoId ?? "";
     if (!videoId) continue;
 
     const videoDoc: VideoDocument = {

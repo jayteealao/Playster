@@ -32,9 +32,7 @@ function collectSseEvents(
           buffer = messages.pop() ?? "";
 
           for (const msg of messages) {
-            const dataLine = msg
-              .split("\n")
-              .find((l) => l.startsWith("data:"));
+            const dataLine = msg.split("\n").find((l) => l.startsWith("data:"));
             if (!dataLine) continue;
             const json = dataLine.slice(5).trim();
             if (!json || json.startsWith(":")) continue;

@@ -1,0 +1,22 @@
+# Dependencies & build output
+node_modules
+**/node_modules
+**/lib
+**/dist
+**/build
+**/.gradle
+
+# Vendored third-party subtree (carries its own formatting)
+summarizer/summarize-daemon
+
+# Android (formatting owned by ktlint/detekt)
+android
+
+# Workflow artifacts, lockfiles, prose, and non-JS config
+.ai
+.github
+*.md
+**/*.md
+*.toml
+pnpm-lock.yaml
+**/pnpm-lock.yaml

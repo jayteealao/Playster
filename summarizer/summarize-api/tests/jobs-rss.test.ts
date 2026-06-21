@@ -8,7 +8,9 @@ vi.mock("../src/runners/index.js", () => ({
 
 // Mock validateUrl to allow test URLs through
 vi.mock("../src/security/ssrf.js", async () => {
-  const actual = await vi.importActual<typeof import("../src/security/ssrf.js")>("../src/security/ssrf.js");
+  const actual = await vi.importActual<
+    typeof import("../src/security/ssrf.js")
+  >("../src/security/ssrf.js");
   return {
     ...actual,
     validateUrl: vi.fn(async () => ({ safe: true })),
@@ -30,7 +32,10 @@ describe("RSS job endpoints", () => {
     return ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify(payload),
     });
   }

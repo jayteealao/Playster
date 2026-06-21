@@ -1,11 +1,4 @@
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 import {
@@ -26,9 +19,7 @@ async function seedFailedTransient(videoIds: string[]): Promise<void> {
       status: "failed-transient",
       model: "free",
       errorCode: "dispatch_5xx",
-      requestedAt: admin.firestore.Timestamp.fromMillis(
-        Date.now() - i * 1_000,
-      ),
+      requestedAt: admin.firestore.Timestamp.fromMillis(Date.now() - i * 1_000),
     });
     i += 1;
   }
@@ -40,15 +31,15 @@ function counting2xxFetch(): {
   spy: ReturnType<typeof vi.fn>;
 } {
   const spy = vi.fn();
-  const fetchImpl = (async (
-    _u: RequestInfo | URL,
-    _init?: RequestInit,
-  ) => {
+  const fetchImpl = (async (_u: RequestInfo | URL, _init?: RequestInit) => {
     spy();
-    return new Response(JSON.stringify({ id: `job-${spy.mock.calls.length}` }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ id: `job-${spy.mock.calls.length}` }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }) as unknown as typeof fetch;
   return { fetchImpl, spy };
 }
@@ -66,9 +57,7 @@ describe("summary retry cron — emulator-backed", () => {
 
   // AC-13: failed-transient → re-dispatched (pending → running).
   it("re-dispatches failed-transient docs and transitions them to running", async () => {
-    const { retryFailedTransient } = await import(
-      "../src/summarizer/retry.js"
-    );
+    const { retryFailedTransient } = await import("../src/summarizer/retry.js");
     await seedFailedTransient(["v1", "v2"]);
     const { fetchImpl, spy } = counting2xxFetch();
     const realFetch = globalThis.fetch;
@@ -87,10 +76,7 @@ describe("summary retry cron — emulator-backed", () => {
       const summary = await admin.firestore().doc(`summaries/${id}`).get();
       expect(summary.data()?.status).toBe("running");
       expect(summary.data()?.summarizerJobId).toBeTruthy();
-      const secret = await admin
-        .firestore()
-        .doc(`webhook_secrets/${id}`)
-        .get();
+      const secret = await admin.firestore().doc(`webhook_secrets/${id}`).get();
       expect(secret.exists).toBe(true);
       expect(typeof secret.data()?.secret).toBe("string");
       expect((secret.data()?.secret as string).length).toBeGreaterThan(0);
@@ -99,9 +85,7 @@ describe("summary retry cron — emulator-backed", () => {
 
   // AC-15: quota awareness mid-batch.
   it("stops dispatching when daily quota is exhausted mid-batch", async () => {
-    const { retryFailedTransient } = await import(
-      "../src/summarizer/retry.js"
-    );
+    const { retryFailedTransient } = await import("../src/summarizer/retry.js");
     // Pre-seed quota with 3 daily slots left.
     const today = new Date().toISOString().slice(0, 10);
     await admin.firestore().doc("quota/openrouter").set({
@@ -147,33 +131,27 @@ describe("summary retry cron — emulator-backed", () => {
   });
 
   // Batch cap: at most DISPATCHER_BATCH_SIZE docs per firing.
-  it(
-    "caps a single firing at DISPATCHER_BATCH_SIZE attempts",
-    async () => {
-      const { retryFailedTransient } = await import(
-        "../src/summarizer/retry.js"
-      );
-      const ids = Array.from(
-        { length: DISPATCHER_BATCH_SIZE + 5 },
-        (_, i) => `bulk-${i}`,
-      );
-      await seedFailedTransient(ids);
-      // Pre-cap quota so retry HTTP attempts short-circuit cheaply — we only
-      // care that the query selector caps at DISPATCHER_BATCH_SIZE.
-      const today = new Date().toISOString().slice(0, 10);
-      await admin.firestore().doc("quota/openrouter").set({
-        date: today,
-        requestCount: 1000,
-        dailyLimit: 1000,
-        perMinuteLimit: 20,
-        recentTimestamps: [],
-      });
-      const result = await retryFailedTransient();
-      expect(result.attempted).toBe(DISPATCHER_BATCH_SIZE);
-      expect(result.quotaExhausted).toBe(true);
-    },
-    60_000,
-  );
+  it("caps a single firing at DISPATCHER_BATCH_SIZE attempts", async () => {
+    const { retryFailedTransient } = await import("../src/summarizer/retry.js");
+    const ids = Array.from(
+      { length: DISPATCHER_BATCH_SIZE + 5 },
+      (_, i) => `bulk-${i}`,
+    );
+    await seedFailedTransient(ids);
+    // Pre-cap quota so retry HTTP attempts short-circuit cheaply — we only
+    // care that the query selector caps at DISPATCHER_BATCH_SIZE.
+    const today = new Date().toISOString().slice(0, 10);
+    await admin.firestore().doc("quota/openrouter").set({
+      date: today,
+      requestCount: 1000,
+      dailyLimit: 1000,
+      perMinuteLimit: 20,
+      recentTimestamps: [],
+    });
+    const result = await retryFailedTransient();
+    expect(result.attempted).toBe(DISPATCHER_BATCH_SIZE);
+    expect(result.quotaExhausted).toBe(true);
+  }, 60_000);
 
   // AC-16 (retry side): stale lock reclaim.
   it("acquireRetryLock reclaims a lock whose TTL has expired", async () => {
@@ -194,9 +172,8 @@ describe("summary retry cron — emulator-backed", () => {
   });
 
   it("acquireRetryLock returns true once, false on overlap, true after release", async () => {
-    const { acquireRetryLock, releaseRetryLock } = await import(
-      "../src/summarizer/retry.js"
-    );
+    const { acquireRetryLock, releaseRetryLock } =
+      await import("../src/summarizer/retry.js");
     const token = await acquireRetryLock();
     expect(token).toBeTruthy();
     expect(await acquireRetryLock()).toBe(false);
@@ -206,9 +183,7 @@ describe("summary retry cron — emulator-backed", () => {
 
   // Negative companion to AC-13: completed docs are not in the retry set.
   it("does not re-dispatch docs that are already completed", async () => {
-    const { retryFailedTransient } = await import(
-      "../src/summarizer/retry.js"
-    );
+    const { retryFailedTransient } = await import("../src/summarizer/retry.js");
     // Seed a completed doc — should be ignored by the query selector.
     await admin
       .firestore()
@@ -244,9 +219,8 @@ describe("summary retry cron — emulator-backed", () => {
   });
 
   it("returns early when the lock is held by another instance", async () => {
-    const { retryFailedTransient, acquireRetryLock } = await import(
-      "../src/summarizer/retry.js"
-    );
+    const { retryFailedTransient, acquireRetryLock } =
+      await import("../src/summarizer/retry.js");
     expect(await acquireRetryLock()).toBeTruthy();
     const result = await retryFailedTransient();
     expect(result).toEqual({

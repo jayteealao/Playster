@@ -1,5 +1,10 @@
 import { describe, it, expect, afterAll, beforeAll } from "vitest";
-import { buildApp, TEST_API_KEY, startMockDaemon, type TestContext } from "./setup.js";
+import {
+  buildApp,
+  TEST_API_KEY,
+  startMockDaemon,
+  type TestContext,
+} from "./setup.js";
 import type { Server } from "node:http";
 
 describe("Auth middleware", () => {
@@ -41,7 +46,10 @@ describe("Auth middleware", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({ url: "https://example.com" }),
     });
     // Should not be 401 — may be 201 or 403 (SSRF) depending on DNS, but not auth error

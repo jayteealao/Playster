@@ -1,7 +1,12 @@
 import { syncRegularPlaylists } from "./api-sync.js";
 import { syncWatchLater, type WatchLaterSyncResult } from "./innertube-sync.js";
 
-export { syncRegularPlaylists, fetchAllPlaylists, fetchPlaylistVideos, syncPlaylistById } from "./api-sync.js";
+export {
+  syncRegularPlaylists,
+  fetchAllPlaylists,
+  fetchPlaylistVideos,
+  syncPlaylistById,
+} from "./api-sync.js";
 export { syncWatchLater, type WatchLaterSyncResult } from "./innertube-sync.js";
 
 /**
@@ -29,9 +34,9 @@ export async function syncAll(): Promise<SyncAllResult> {
   }
 
   const wlIds =
-    "videoIds" in watchLater && Array.isArray(watchLater.videoIds) ?
-      watchLater.videoIds :
-      [];
+    "videoIds" in watchLater && Array.isArray(watchLater.videoIds)
+      ? watchLater.videoIds
+      : [];
   const videoIds = [...regular.videoIds, ...wlIds];
 
   return {

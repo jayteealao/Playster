@@ -76,7 +76,9 @@ export function startSummarizeDaemon(
 
       if (req.method === "POST" && req.url === "/v1/summarize") {
         if (opts.summarizeError) {
-          res.writeHead(opts.summarizeError.status, { "Content-Type": "text/plain" });
+          res.writeHead(opts.summarizeError.status, {
+            "Content-Type": "text/plain",
+          });
           res.end(opts.summarizeError.body);
           return;
         }
@@ -85,9 +87,15 @@ export function startSummarizeDaemon(
         return;
       }
 
-      if (req.method === "GET" && req.url && /^\/v1\/summarize\/[^/]+\/events$/.test(req.url)) {
+      if (
+        req.method === "GET" &&
+        req.url &&
+        /^\/v1\/summarize\/[^/]+\/events$/.test(req.url)
+      ) {
         if (opts.eventsError) {
-          res.writeHead(opts.eventsError.status, { "Content-Type": "text/plain" });
+          res.writeHead(opts.eventsError.status, {
+            "Content-Type": "text/plain",
+          });
           res.end(opts.eventsError.body);
           return;
         }
@@ -96,7 +104,9 @@ export function startSummarizeDaemon(
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
         });
-        res.write(`event: status\ndata: ${JSON.stringify({ status: "running" })}\n\n`);
+        res.write(
+          `event: status\ndata: ${JSON.stringify({ status: "running" })}\n\n`,
+        );
         if (opts.daemonError) {
           res.write(
             `event: error\ndata: ${JSON.stringify({ message: opts.daemonError.message })}\n\n`,
@@ -105,7 +115,9 @@ export function startSummarizeDaemon(
           return;
         }
         for (const chunk of chunks) {
-          res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
+          res.write(
+            `event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`,
+          );
         }
         // Real daemon emits `done`. Older fixtures (and this mock historically)
         // used `complete`; the gateway accepts both.
@@ -138,8 +150,12 @@ export function startMockDaemon(): Promise<{ url: string; server: Server }> {
       }
       // Default: 200 with a stub summarize response (SSE-style)
       res.writeHead(200, { "Content-Type": "text/event-stream" });
-      res.write(`data: ${JSON.stringify({ type: "status", data: { status: "running" } })}\n\n`);
-      res.write(`data: ${JSON.stringify({ type: "done", data: { summary: "test summary" } })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: "status", data: { status: "running" } })}\n\n`,
+      );
+      res.write(
+        `data: ${JSON.stringify({ type: "done", data: { summary: "test summary" } })}\n\n`,
+      );
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {

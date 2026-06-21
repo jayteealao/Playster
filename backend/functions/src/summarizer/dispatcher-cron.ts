@@ -6,7 +6,10 @@ import type { SummaryDocument } from "../models/index.js";
 import { dispatchSummary } from "./dispatch.js";
 import { getQuotaBudget } from "./quota.js";
 import { summarizerSecrets } from "./secrets.js";
-import { DISPATCHER_LOCK_DOC_PATH, DISPATCHER_LOCK_TTL_MS } from "./constants.js";
+import {
+  DISPATCHER_LOCK_DOC_PATH,
+  DISPATCHER_LOCK_TTL_MS,
+} from "./constants.js";
 import { acquireCronLock, releaseCronLock } from "./lock.js";
 
 export async function acquireDispatcherLock(): Promise<string | false> {
@@ -14,7 +17,11 @@ export async function acquireDispatcherLock(): Promise<string | false> {
 }
 
 export async function releaseDispatcherLock(ownerToken: string): Promise<void> {
-  return releaseCronLock(DISPATCHER_LOCK_DOC_PATH, "releaseDispatcherLock", ownerToken);
+  return releaseCronLock(
+    DISPATCHER_LOCK_DOC_PATH,
+    "releaseDispatcherLock",
+    ownerToken,
+  );
 }
 
 export async function drainSummaryQueue(): Promise<{
@@ -70,7 +77,9 @@ export async function drainSummaryQueue(): Promise<{
         dispatched += 1;
       } else {
         const err = result.reason;
-        const data = queued.docs[i].data() as Partial<SummaryDocument> | undefined;
+        const data = queued.docs[i].data() as
+          | Partial<SummaryDocument>
+          | undefined;
         const videoId = data?.videoId ?? queued.docs[i].id;
         if (err instanceof HttpsError && err.code === "resource-exhausted") {
           // F-09: distinguish per-minute exhaustion from daily exhaustion.
@@ -81,9 +90,14 @@ export async function drainSummaryQueue(): Promise<{
           // separate recovery path.
           const isPerMinute = err.message.includes("Rate limit");
           if (isPerMinute) {
-            logger.info("summaryDispatcher: per-minute rate limit hit, leaving doc queued", { videoId });
+            logger.info(
+              "summaryDispatcher: per-minute rate limit hit, leaving doc queued",
+              { videoId },
+            );
           } else {
-            logger.info("summaryDispatcher: daily budget exhausted for item", { videoId });
+            logger.info("summaryDispatcher: daily budget exhausted for item", {
+              videoId,
+            });
           }
         } else {
           logger.warn("summaryDispatcher: dispatch error", {

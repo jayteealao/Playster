@@ -49,7 +49,9 @@ function extractThumbnailUrl(node: Json): string | undefined {
   if (!node || typeof node !== "object") return undefined;
   const thumbs = node.thumbnails;
   if (Array.isArray(thumbs) && thumbs.length) {
-    const best = thumbs.reduce((a, b) => ((b?.width ?? 0) > (a?.width ?? 0) ? b : a));
+    const best = thumbs.reduce((a, b) =>
+      (b?.width ?? 0) > (a?.width ?? 0) ? b : a,
+    );
     if (typeof best?.url === "string") return best.url;
   }
   return undefined;
@@ -83,12 +85,16 @@ function walk(
       "";
 
     let channelId = "";
-    const byline = node.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
+    const byline =
+      node.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint
+        ?.browseId;
     if (typeof byline === "string") channelId = byline;
 
     const duration =
       extractText(node.lengthText) ??
-      extractText(node.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text) ??
+      extractText(
+        node.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text,
+      ) ??
       "";
 
     const thumbnailUrl = extractThumbnailUrl(node.thumbnail) ?? "";
@@ -125,14 +131,19 @@ async function readSyncState(): Promise<WatchLaterSyncState | null> {
   return doc.data() as WatchLaterSyncState;
 }
 
-async function writeSyncState(state: Partial<WatchLaterSyncState>): Promise<void> {
-  await admin.firestore().doc(SYNC_STATE_DOC_PATH).set(
-    {
-      ...state,
-      last_run_at: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
+async function writeSyncState(
+  state: Partial<WatchLaterSyncState>,
+): Promise<void> {
+  await admin
+    .firestore()
+    .doc(SYNC_STATE_DOC_PATH)
+    .set(
+      {
+        ...state,
+        last_run_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
 }
 
 export interface WatchLaterSyncResult {
@@ -237,9 +248,7 @@ export async function syncWatchLater(
 
   const priorState = opts.reset ? null : await readSyncState();
   const resuming =
-    !opts.reset &&
-    priorState?.next_continuation_token &&
-    !priorState.complete;
+    !opts.reset && priorState?.next_continuation_token && !priorState.complete;
 
   // Accumulator that gets flushed periodically. Tracks items NOT yet written.
   const pending = new Map<string, ExtractedVideo>();
@@ -392,7 +401,8 @@ export async function syncWatchLater(
   );
   totalNewItemsThisRun += wrote;
   collectedIds.push(...ids);
-  const totalItemsKnown = (resuming ? priorState.total_items : 0) + totalNewItemsThisRun;
+  const totalItemsKnown =
+    (resuming ? priorState.total_items : 0) + totalNewItemsThisRun;
 
   console.log(
     `[innertube-sync] this run: +${totalNewItemsThisRun} videos across ${pagesThisRun} page(s), rebuilds=${clientRebuilds}, complete=${complete}, total_known=${totalItemsKnown}`,

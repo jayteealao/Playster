@@ -118,9 +118,10 @@ export async function jobRoutes(
       if (parsed.data.webhook_url) {
         const webhookSsrfResult = await validateUrl(parsed.data.webhook_url);
         if (!webhookSsrfResult.safe) {
-          return reply
-            .code(403)
-            .send({ error: webhookSsrfResult.error ?? "webhook_url blocked by SSRF policy" });
+          return reply.code(403).send({
+            error:
+              webhookSsrfResult.error ?? "webhook_url blocked by SSRF policy",
+          });
         }
       }
 
@@ -163,72 +164,82 @@ export async function jobRoutes(
     }
 
     return reply.code(400).send({
-      error: "Request must include a 'url' or 'rss' field, or be a multipart file upload",
+      error:
+        "Request must include a 'url' or 'rss' field, or be a multipart file upload",
     });
   });
 
   // GET /v1/jobs/:id — get job status
-  app.get<{ Params: { id: string } }>("/v1/jobs/:id", async (request, reply) => {
-    const job = getJob(request.params.id);
-    if (!job) {
-      return reply.code(404).send({ error: "Job not found" });
-    }
-    return redactJob(job);
-  });
+  app.get<{ Params: { id: string } }>(
+    "/v1/jobs/:id",
+    async (request, reply) => {
+      const job = getJob(request.params.id);
+      if (!job) {
+        return reply.code(404).send({ error: "Job not found" });
+      }
+      return redactJob(job);
+    },
+  );
 
   // GET /v1/jobs/:id/events — SSE stream
-  app.get<{ Params: { id: string } }>("/v1/jobs/:id/events", async (request, reply) => {
-    const job = getJob(request.params.id);
-    if (!job) {
-      return reply.code(404).send({ error: "Job not found" });
-    }
-
-    // Take over the response from Fastify
-    reply.hijack();
-
-    const raw = reply.raw;
-
-    raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    });
-
-    // Keepalive timer
-    const keepalive = setInterval(() => {
-      if (!raw.destroyed) {
-        raw.write(":\n\n");
-      }
-    }, 15_000);
-
-    let unsubscribe: (() => void) | null = null;
-
-    function cleanup() {
-      clearInterval(keepalive);
-      if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-      }
-    }
-
-    // Handle client disconnect
-    request.raw.on("close", cleanup);
-
-    // Subscribe to events — this replays existing events first, then streams new ones
-    unsubscribe = eventStore.subscribe(request.params.id, (event: JobEvent) => {
-      if (raw.destroyed) {
-        cleanup();
-        return;
+  app.get<{ Params: { id: string } }>(
+    "/v1/jobs/:id/events",
+    async (request, reply) => {
+      const job = getJob(request.params.id);
+      if (!job) {
+        return reply.code(404).send({ error: "Job not found" });
       }
 
-      raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      // Take over the response from Fastify
+      reply.hijack();
 
-      // Close connection after terminal events
-      if (event.type === "done" || event.type === "error") {
-        cleanup();
-        raw.end();
+      const raw = reply.raw;
+
+      raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+
+      // Keepalive timer
+      const keepalive = setInterval(() => {
+        if (!raw.destroyed) {
+          raw.write(":\n\n");
+        }
+      }, 15_000);
+
+      let unsubscribe: (() => void) | null = null;
+
+      function cleanup() {
+        clearInterval(keepalive);
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = null;
+        }
       }
-    });
-  });
+
+      // Handle client disconnect
+      request.raw.on("close", cleanup);
+
+      // Subscribe to events — this replays existing events first, then streams new ones
+      unsubscribe = eventStore.subscribe(
+        request.params.id,
+        (event: JobEvent) => {
+          if (raw.destroyed) {
+            cleanup();
+            return;
+          }
+
+          raw.write(`data: ${JSON.stringify(event)}\n\n`);
+
+          // Close connection after terminal events
+          if (event.type === "done" || event.type === "error") {
+            cleanup();
+            raw.end();
+          }
+        },
+      );
+    },
+  );
 }

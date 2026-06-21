@@ -13,11 +13,12 @@ export { storeCookies, getInnertubeClient } from "./innertube";
 export { getInnertubeTvClient, saveTvOauthCredentials } from "./tv-oauth";
 
 // HTTP endpoint handlers
-export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./handlers";
+export {
+  authRedirect,
+  authCallback,
+  setCookies,
+  setTvOauthCredentials,
+} from "./handlers";
 
 // Allowlist gate for callable functions
-export {
-  requireAllowlistedUid,
-  allowlistedCall,
-  ALLOWED_UID,
-} from "./verify";
+export { requireAllowlistedUid, allowlistedCall, ALLOWED_UID } from "./verify";

@@ -15,7 +15,11 @@ export async function acquireSweeperLock(): Promise<string | false> {
 }
 
 export async function releaseSweeperLock(ownerToken: string): Promise<void> {
-  return releaseCronLock(SWEEPER_LOCK_DOC_PATH, "releaseSweeperLock", ownerToken);
+  return releaseCronLock(
+    SWEEPER_LOCK_DOC_PATH,
+    "releaseSweeperLock",
+    ownerToken,
+  );
 }
 
 /**

@@ -47,11 +47,15 @@ function makeJob(overrides: Partial<Job> = {}): Job {
   };
 }
 
-function mockParserItems(items: Array<{ link?: string; title?: string; guid?: string }>) {
+function mockParserItems(
+  items: Array<{ link?: string; title?: string; guid?: string }>,
+) {
   const parserInstance = {
     parseURL: vi.fn().mockResolvedValue({ items }),
   };
-  vi.mocked(Parser).mockImplementation(() => parserInstance as unknown as Parser);
+  vi.mocked(Parser).mockImplementation(
+    () => parserInstance as unknown as Parser,
+  );
 }
 
 describe("rss-runner SSRF on item URL", () => {
@@ -77,8 +81,12 @@ describe("rss-runner SSRF on item URL", () => {
     await runRssJob(job, {} as Config, eventStore, {} as Database.Database);
 
     expect(vi.mocked(validateUrl)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(validateUrl).mock.calls[0][0]).toBe("https://example.com/feed.xml");
-    expect(vi.mocked(validateUrl).mock.calls[1][0]).toBe("http://127.0.0.1/blocked");
+    expect(vi.mocked(validateUrl).mock.calls[0][0]).toBe(
+      "https://example.com/feed.xml",
+    );
+    expect(vi.mocked(validateUrl).mock.calls[1][0]).toBe(
+      "http://127.0.0.1/blocked",
+    );
 
     expect(vi.mocked(updateJobStatus)).toHaveBeenCalledWith(
       job.id,

@@ -24,15 +24,24 @@ const CACHE_DIR = path.resolve(__dirname, "..", ".tmp", "innertube-oauth");
 // zerodytrash/YouTube-Internal-Clients).
 const TV_CLIENTS = [
   { libName: "TV", wireName: "TVHTML5", version: "7.20250812.07.00" },
-  { libName: "TV_SIMPLY", wireName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", version: "2.0" },
-  { libName: "TV_EMBEDDED", wireName: "TVHTML5_FOR_KIDS", version: "7.20250812.07.00" },
+  {
+    libName: "TV_SIMPLY",
+    wireName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+    version: "2.0",
+  },
+  {
+    libName: "TV_EMBEDDED",
+    wireName: "TVHTML5_FOR_KIDS",
+    version: "7.20250812.07.00",
+  },
 ];
 
 function dumpError(err) {
   const lines = [];
   lines.push("    message: " + (err?.message ?? String(err)));
   if (err?.info) {
-    const info = typeof err.info === "string" ? err.info : JSON.stringify(err.info);
+    const info =
+      typeof err.info === "string" ? err.info : JSON.stringify(err.info);
     lines.push("    info: " + info.slice(0, 600));
   }
   return lines.join("\n");
@@ -52,7 +61,15 @@ globalThis.fetch = async (input, init) => {
 };
 
 async function tryClient({ libName, wireName, version }) {
-  console.log("\n========== " + libName + " -> wire " + wireName + " v" + version + " ==========");
+  console.log(
+    "\n========== " +
+      libName +
+      " -> wire " +
+      wireName +
+      " v" +
+      version +
+      " ==========",
+  );
 
   const innertube = await Innertube.create({
     cache: new UniversalCache(true, CACHE_DIR),
@@ -73,9 +90,14 @@ async function tryClient({ libName, wireName, version }) {
   innertube.session.context.client.clientName = wireName;
   innertube.session.context.client.clientVersion = version;
 
-  console.log("patched context: client_name=" + innertube.session.context.client.clientName +
-    " client_version=" + innertube.session.context.client.clientVersion +
-    " logged_in=" + innertube.session.logged_in);
+  console.log(
+    "patched context: client_name=" +
+      innertube.session.context.client.clientName +
+      " client_version=" +
+      innertube.session.context.client.clientVersion +
+      " logged_in=" +
+      innertube.session.logged_in,
+  );
 
   console.log("\n[baseline] getInfo('dQw4w9WgXcQ')");
   try {
@@ -90,10 +112,15 @@ async function tryClient({ libName, wireName, version }) {
   try {
     const wl = await innertube.getPlaylist("WL");
     const items = wl.videos ?? wl.items ?? [];
-    console.log("    ok. items=" + items.length + " title=" + (wl.info?.title ?? "?"));
+    console.log(
+      "    ok. items=" + items.length + " title=" + (wl.info?.title ?? "?"),
+    );
     items.slice(0, 3).forEach((v, i) => {
-      const title = typeof v.title?.toString === "function" ? v.title.toString() : v.title;
-      console.log("      " + (i + 1) + ". " + (v.id ?? "?") + "  " + (title ?? ""));
+      const title =
+        typeof v.title?.toString === "function" ? v.title.toString() : v.title;
+      console.log(
+        "      " + (i + 1) + ". " + (v.id ?? "?") + "  " + (title ?? ""),
+      );
     });
   } catch (err) {
     console.log("    FAILED");
@@ -123,8 +150,11 @@ async function main() {
     try {
       await tryClient(cfg);
     } catch (err) {
-      console.log(cfg.libName + " failed entirely: " +
-        (err instanceof Error ? err.message : String(err)));
+      console.log(
+        cfg.libName +
+          " failed entirely: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     }
   }
   console.log("\nDone. Cached credentials at " + CACHE_DIR);

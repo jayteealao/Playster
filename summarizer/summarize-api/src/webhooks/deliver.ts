@@ -20,11 +20,15 @@ export interface DeliverWebhookOptions {
   sleepImpl?: (ms: number) => Promise<void>;
 }
 
-export async function deliverWebhook(opts: DeliverWebhookOptions): Promise<WebhookDeliveryResult> {
+export async function deliverWebhook(
+  opts: DeliverWebhookOptions,
+): Promise<WebhookDeliveryResult> {
   const attempts = opts.attempts ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 5_000;
   const doFetch = opts.fetchImpl ?? fetch;
-  const sleep = opts.sleepImpl ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const sleep =
+    opts.sleepImpl ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
   // Compute the raw body ONCE — the same bytes go to the HMAC and the POST.
   // Re-stringifying would risk key-order or whitespace drift between signer
@@ -51,8 +55,18 @@ export async function deliverWebhook(opts: DeliverWebhookOptions): Promise<Webho
       }
       // 4xx (other than 408/429) are not retried — the receiver disagrees on
       // body/sig and a retry will just repeat the same rejection.
-      if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
-        return { ok: false, status: res.status, attempts: i + 1, error: `non-retryable ${res.status}` };
+      if (
+        res.status >= 400 &&
+        res.status < 500 &&
+        res.status !== 408 &&
+        res.status !== 429
+      ) {
+        return {
+          ok: false,
+          status: res.status,
+          attempts: i + 1,
+          error: `non-retryable ${res.status}`,
+        };
       }
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
@@ -67,6 +81,10 @@ export async function deliverWebhook(opts: DeliverWebhookOptions): Promise<Webho
     ok: false,
     status: lastStatus,
     attempts,
-    error: lastError ?? (lastStatus !== undefined ? `last status ${lastStatus}` : "exhausted retries"),
+    error:
+      lastError ??
+      (lastStatus !== undefined
+        ? `last status ${lastStatus}`
+        : "exhausted retries"),
   };
 }

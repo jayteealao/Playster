@@ -97,7 +97,9 @@ describe("SSRF protection", () => {
     });
 
     it("blocks URLs with metadata IP 169.254.169.254", async () => {
-      const result = await validateUrl("http://169.254.169.254/latest/meta-data/");
+      const result = await validateUrl(
+        "http://169.254.169.254/latest/meta-data/",
+      );
       expect(result.safe).toBe(false);
       expect(result.error).toContain("private");
     });

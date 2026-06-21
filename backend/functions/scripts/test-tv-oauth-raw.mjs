@@ -52,7 +52,10 @@ async function main() {
     }
     if (node.continuationCommand?.token) {
       acc.continuations.push(node.continuationCommand.token);
-    } else if (node.token && node.request === "CONTINUATION_REQUEST_TYPE_BROWSE") {
+    } else if (
+      node.token &&
+      node.request === "CONTINUATION_REQUEST_TYPE_BROWSE"
+    ) {
       acc.continuations.push(node.token);
     } else if (typeof node.continuation === "string") {
       acc.continuations.push(node.continuation);
@@ -63,7 +66,9 @@ async function main() {
   }
 
   console.log("\n[page 1] /browse browseId=VLWL");
-  const first = await innertube.actions.execute("/browse", { browseId: "VLWL" });
+  const first = await innertube.actions.execute("/browse", {
+    browseId: "VLWL",
+  });
   const firstData = first.data ?? first;
   const result1 = collect(firstData);
 
@@ -81,7 +86,9 @@ async function main() {
   console.log("  items on page 1: " + dedupedItems.length);
   console.log("  continuation tokens found: " + uniqueCont.length);
   if (uniqueCont.length) {
-    console.log("  first token (truncated): " + uniqueCont[0].slice(0, 60) + "...");
+    console.log(
+      "  first token (truncated): " + uniqueCont[0].slice(0, 60) + "...",
+    );
   }
 
   let pageNum = 1;
@@ -94,10 +101,16 @@ async function main() {
     }
     let next;
     try {
-      next = await innertube.actions.execute("/browse", { continuation: nextToken });
+      next = await innertube.actions.execute("/browse", {
+        continuation: nextToken,
+      });
     } catch (err) {
-      console.log("  page " + pageNum + " /browse FAILED: " +
-        (err instanceof Error ? err.message : String(err)));
+      console.log(
+        "  page " +
+          pageNum +
+          " /browse FAILED: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
       break;
     }
     const result = collect(next.data ?? next);
@@ -109,20 +122,38 @@ async function main() {
         added++;
       }
     }
-    const tokens = [...new Set(result.continuations)].filter((t) => t !== nextToken);
-    console.log("  page " + pageNum + ": +" + added + " new, " +
-      tokens.length + " token(s), total=" + dedupedItems.length);
+    const tokens = [...new Set(result.continuations)].filter(
+      (t) => t !== nextToken,
+    );
+    console.log(
+      "  page " +
+        pageNum +
+        ": +" +
+        added +
+        " new, " +
+        tokens.length +
+        " token(s), total=" +
+        dedupedItems.length,
+    );
     nextToken = tokens[0];
   }
 
   console.log("\nTotal unique items: " + dedupedItems.length);
   if (dedupedItems.length) {
     console.log("First 3:");
-    dedupedItems.slice(0, 3).forEach((v, i) =>
-      console.log("  " + (i + 1) + ". " + v.id + "  " + v.title));
+    dedupedItems
+      .slice(0, 3)
+      .forEach((v, i) =>
+        console.log("  " + (i + 1) + ". " + v.id + "  " + v.title),
+      );
     console.log("Last 3:");
-    dedupedItems.slice(-3).forEach((v, i) =>
-      console.log("  " + (dedupedItems.length - 2 + i) + ". " + v.id + "  " + v.title));
+    dedupedItems
+      .slice(-3)
+      .forEach((v, i) =>
+        console.log(
+          "  " + (dedupedItems.length - 2 + i) + ". " + v.id + "  " + v.title,
+        ),
+      );
   }
 }
 

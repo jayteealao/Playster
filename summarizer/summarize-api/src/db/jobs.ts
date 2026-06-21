@@ -103,9 +103,7 @@ export function updateJobStatus(
 
   values.push(id);
 
-  const stmt = db.prepare(
-    `UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`,
-  );
+  const stmt = db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`);
   stmt.run(...values);
 }
 

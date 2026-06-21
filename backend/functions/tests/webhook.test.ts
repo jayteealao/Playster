@@ -1,10 +1,4 @@
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 import { signWebhook } from "./helpers/signWebhook";
@@ -35,7 +29,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("AC-7: valid signature + known job → 204 + status=completed", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const payload = {
       client_job_id: VIDEO_ID,
@@ -60,7 +55,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
     // from a bad signature and returns 401 (non-enumerable, harder to probe).
     // This is the intended contract; an unknown job is unreachable with a
     // valid signature, so a dedicated 404 path would be dead code.
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     const payload = { client_job_id: "missing", status: "completed" };
     const { header, rawBody } = signWebhook(payload, SECRET);
     const result = await processSummaryWebhook({
@@ -73,7 +69,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("AC-9: stale timestamp (>300s) → 401, doc unchanged", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const stale = Math.floor(Date.now() / 1000) - 301;
     const payload = { client_job_id: VIDEO_ID, status: "completed" };
@@ -88,7 +85,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("bad signature → 401", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const payload = { client_job_id: VIDEO_ID, status: "completed" };
     const { rawBody, timestamp } = signWebhook(payload, "wrong-secret");
@@ -101,7 +99,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("length-mismatch signature → 401, no throw", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const payload = { client_job_id: VIDEO_ID, status: "completed" };
     const { rawBody, timestamp } = signWebhook(payload, SECRET);
@@ -113,7 +112,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("failed-permanent: error.code=transcript_impossible → failed-permanent", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const payload = {
       client_job_id: VIDEO_ID,
@@ -132,7 +132,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("failed-transient: other error.code → failed-transient", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
     const payload = {
       client_job_id: VIDEO_ID,
@@ -150,7 +151,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("idempotent replay: terminal state + matching status → 204 no-op", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
       videoId: VIDEO_ID,
       status: "completed",
@@ -176,7 +178,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   });
 
   it("missing signature header → 400", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     const result = await processSummaryWebhook({
       signatureHeader: undefined,
       rawBody: Buffer.from("{}", "utf8"),
@@ -188,7 +191,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
   // "failure". Must return 200 (idempotent short-circuit) and leave the
   // existing "completed" doc untouched.
   it("M-11: completed doc + failure webhook → 200 short-circuit, doc unchanged", async () => {
-    const { processSummaryWebhook } = await import("../src/summarizer/webhook.js");
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
     await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
       videoId: VIDEO_ID,
       status: "completed",

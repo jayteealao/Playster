@@ -39,14 +39,14 @@ function readQuota(
   const rolledOver = date !== today;
   const dailyLimit = data?.dailyLimit ?? DEFAULT_DAILY_LIMIT;
   const perMinuteLimit = data?.perMinuteLimit ?? DEFAULT_PER_MINUTE_LIMIT;
-  const requestCount = rolledOver ? 0 : data?.requestCount ?? 0;
-  const recentTimestamps = rolledOver ?
-    [] :
-    // Defensive cap: guard against runaway array growth if perMinuteLimit is
-    // ever mis-configured to a very large value.
-    trimWindow(data?.recentTimestamps ?? [], now).slice(
-      -Math.max(OPENROUTER_PER_MINUTE_LIMIT, 100),
-    );
+  const requestCount = rolledOver ? 0 : (data?.requestCount ?? 0);
+  const recentTimestamps = rolledOver
+    ? []
+    : // Defensive cap: guard against runaway array growth if perMinuteLimit is
+      // ever mis-configured to a very large value.
+      trimWindow(data?.recentTimestamps ?? [], now).slice(
+        -Math.max(OPENROUTER_PER_MINUTE_LIMIT, 100),
+      );
   return {
     date: today,
     requestCount,
@@ -72,7 +72,10 @@ export async function reserveOpenRouterQuotaSlot(): Promise<void> {
   await db.runTransaction(async (tx) => {
     const now = Date.now();
     const snap = await tx.get(ref);
-    const current = readQuota(snap.data() as Partial<QuotaDocument> | undefined, now);
+    const current = readQuota(
+      snap.data() as Partial<QuotaDocument> | undefined,
+      now,
+    );
     if (current.requestCount >= current.dailyLimit) {
       throw new HttpsError(
         "resource-exhausted",

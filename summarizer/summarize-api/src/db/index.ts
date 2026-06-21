@@ -25,8 +25,12 @@ export function getDb(): Database.Database {
 
   db.exec(SCHEMA_MIGRATIONS_DDL);
 
-  const isApplied = db.prepare("SELECT 1 FROM schema_migrations WHERE name = ?");
-  const markApplied = db.prepare("INSERT INTO schema_migrations(name) VALUES(?)");
+  const isApplied = db.prepare(
+    "SELECT 1 FROM schema_migrations WHERE name = ?",
+  );
+  const markApplied = db.prepare(
+    "INSERT INTO schema_migrations(name) VALUES(?)",
+  );
 
   // Bootstrap: if the `jobs` table already exists but schema_migrations has no
   // rows (i.e. this is a pre-migration database), mark 001 and 002 as applied

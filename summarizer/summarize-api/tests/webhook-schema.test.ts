@@ -16,7 +16,10 @@ describe("POST /v1/jobs — webhook field validation", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({
         url: "https://example.com",
         webhook_url: "https://example.test/webhook",
@@ -31,7 +34,10 @@ describe("POST /v1/jobs — webhook field validation", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({
         url: "https://example.com",
         webhook_url: "https://example.test/webhook",
@@ -47,7 +53,10 @@ describe("POST /v1/jobs — webhook field validation", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({
         url: "https://example.com",
         webhook_url: "not-a-url",
@@ -61,7 +70,10 @@ describe("POST /v1/jobs — webhook field validation", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({
         url: "https://example.com",
         webhook_url: "https://example.test/webhook",
@@ -75,7 +87,10 @@ describe("POST /v1/jobs — webhook field validation", () => {
     const res = await ctx.app.inject({
       method: "POST",
       url: "/v1/jobs",
-      headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+      headers: {
+        "x-api-key": TEST_API_KEY,
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({ url: "https://example.com" }),
     });
     expect(res.statusCode).toBe(201);

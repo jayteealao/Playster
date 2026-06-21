@@ -20,6 +20,8 @@ export function buildSignatureHeader(
   timestamp: number = Math.floor(Date.now() / 1000),
 ): SignatureHeader {
   const canonical = `${timestamp}.${rawBody}`;
-  const mac = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
+  const mac = createHmac("sha256", secret)
+    .update(canonical, "utf8")
+    .digest("hex");
   return { header: `t=${timestamp},v1=${mac}`, timestamp };
 }

@@ -34,14 +34,17 @@ interface TvOauthCredentials {
 export async function saveTvOauthCredentials(
   creds: TvOauthCredentials,
 ): Promise<void> {
-  await admin.firestore().doc(TV_OAUTH_DOC_PATH).set({
-    access_token: creds.access_token,
-    refresh_token: creds.refresh_token,
-    scope: creds.scope ?? null,
-    token_type: creds.token_type ?? "Bearer",
-    expiry_date: creds.expiry_date ?? null,
-    updated_at: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  await admin
+    .firestore()
+    .doc(TV_OAUTH_DOC_PATH)
+    .set({
+      access_token: creds.access_token,
+      refresh_token: creds.refresh_token,
+      scope: creds.scope ?? null,
+      token_type: creds.token_type ?? "Bearer",
+      expiry_date: creds.expiry_date ?? null,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
 }
 
 /**

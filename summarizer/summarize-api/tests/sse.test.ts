@@ -10,7 +10,9 @@ vi.mock("../src/runners/index.js", () => ({
 
 // Mock validateUrl
 vi.mock("../src/security/ssrf.js", async () => {
-  const actual = await vi.importActual<typeof import("../src/security/ssrf.js")>("../src/security/ssrf.js");
+  const actual = await vi.importActual<
+    typeof import("../src/security/ssrf.js")
+  >("../src/security/ssrf.js");
   return {
     ...actual,
     validateUrl: vi.fn(async () => ({ safe: true })),
@@ -103,7 +105,10 @@ describe("SSE events", () => {
       const createRes = await ctx.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        headers: {
+          "x-api-key": TEST_API_KEY,
+          "content-type": "application/json",
+        },
         payload: JSON.stringify({ url: "https://example.com" }),
       });
       const { id } = createRes.json();

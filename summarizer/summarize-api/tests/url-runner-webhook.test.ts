@@ -44,7 +44,10 @@ function startWebhookReceiver(): Promise<WebhookReceiver> {
           body,
           signature: String(req.headers["x-summarizer-signature"] ?? ""),
           headers: Object.fromEntries(
-            Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v ?? "")]),
+            Object.entries(req.headers).map(([k, v]) => [
+              k,
+              Array.isArray(v) ? v.join(",") : String(v ?? ""),
+            ]),
           ),
         });
         res.writeHead(status, { "Content-Type": "text/plain" });
@@ -109,7 +112,10 @@ describe("url-runner webhook delivery", () => {
       const createRes = await ctx.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        headers: {
+          "x-api-key": TEST_API_KEY,
+          "content-type": "application/json",
+        },
         payload: JSON.stringify({
           url: "https://example.com",
           webhook_url: receiver.url,
@@ -174,7 +180,10 @@ describe("url-runner webhook delivery", () => {
       const createRes = await ctx.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        headers: {
+          "x-api-key": TEST_API_KEY,
+          "content-type": "application/json",
+        },
         payload: JSON.stringify({
           url: "https://example.com",
           webhook_url: receiver.url,
@@ -204,7 +213,7 @@ describe("url-runner webhook delivery", () => {
 
     beforeAll(async () => {
       daemon = await startSummarizeDaemon({
-        daemonError: { message: "Unsupported model provider \"meta-llama\"" },
+        daemonError: { message: 'Unsupported model provider "meta-llama"' },
       });
       receiver = await startWebhookReceiver();
       ctx = await buildApp({ daemonUrl: daemon.url });
@@ -220,7 +229,10 @@ describe("url-runner webhook delivery", () => {
       const createRes = await ctx.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        headers: {
+          "x-api-key": TEST_API_KEY,
+          "content-type": "application/json",
+        },
         payload: JSON.stringify({
           url: "https://example.com",
           webhook_url: receiver.url,
@@ -263,7 +275,10 @@ describe("url-runner webhook delivery", () => {
       const createRes = await ctx.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { "x-api-key": TEST_API_KEY, "content-type": "application/json" },
+        headers: {
+          "x-api-key": TEST_API_KEY,
+          "content-type": "application/json",
+        },
         payload: JSON.stringify({ url: "https://example.com" }),
       });
       expect(createRes.statusCode).toBe(201);

@@ -14,7 +14,11 @@ export function authHook(config: Config) {
 
     const apiKey = request.headers["x-api-key"];
 
-    if (!apiKey || typeof apiKey !== "string" || !config.apiKeys.includes(apiKey)) {
+    if (
+      !apiKey ||
+      typeof apiKey !== "string" ||
+      !config.apiKeys.includes(apiKey)
+    ) {
       reply.code(401).send({
         error: "Unauthorized",
         message: "Invalid or missing API key",

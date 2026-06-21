@@ -6,7 +6,12 @@ import { allowlistedCall } from "./auth/verify";
 import { enqueueAutoSummary } from "./summarizer/autoEnqueue";
 
 // --- Auth functions ---
-export { authRedirect, authCallback, setCookies, setTvOauthCredentials } from "./auth/handlers";
+export {
+  authRedirect,
+  authCallback,
+  setCookies,
+  setTvOauthCredentials,
+} from "./auth/handlers";
 
 // --- Sync engine ---
 import {
@@ -45,7 +50,10 @@ type SyncAllResponse = Omit<SyncAllResult, "videoIds">;
 /**
  * Syncs all playlists and Watch Later on demand. Allowlisted operator only.
  */
-export const syncAllPlaylists = allowlistedCall<Record<string, never>, SyncAllResponse>(
+export const syncAllPlaylists = allowlistedCall<
+  Record<string, never>,
+  SyncAllResponse
+>(
   { memory: "512MiB", timeoutSeconds: 540, secrets: oauthSecrets },
   async () => {
     logger.info("syncAllPlaylists: starting full sync");

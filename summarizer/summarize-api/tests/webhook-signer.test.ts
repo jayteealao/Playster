@@ -17,7 +17,10 @@ describe("buildSignatureHeader", () => {
   });
 
   it("emits the t=<unix>,v1=<hex> header format", () => {
-    const { header, timestamp } = buildSignatureHeader("sixteen-byte-key", "{}");
+    const { header, timestamp } = buildSignatureHeader(
+      "sixteen-byte-key",
+      "{}",
+    );
     expect(header).toMatch(/^t=\d+,v1=[0-9a-f]{64}$/);
     expect(header.startsWith(`t=${timestamp},v1=`)).toBe(true);
   });

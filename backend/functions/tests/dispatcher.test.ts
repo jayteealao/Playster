@@ -1,11 +1,4 @@
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as admin from "firebase-admin";
 import { clearFirestore, initAdminEmulator } from "./helpers/admin";
 import { DISPATCHER_LOCK_TTL_MS } from "../src/summarizer/constants.js";
@@ -33,10 +26,13 @@ function counting2xxFetch(): {
   const spy = vi.fn();
   const fetchImpl = (async (_u: RequestInfo | URL, _init?: RequestInit) => {
     spy();
-    return new Response(JSON.stringify({ id: `job-${spy.mock.calls.length}` }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ id: `job-${spy.mock.calls.length}` }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }) as unknown as typeof fetch;
   return { fetchImpl, spy };
 }
@@ -53,9 +49,8 @@ describe("summary dispatcher — emulator-backed", () => {
   });
 
   it("acquireDispatcherLock returns true once, false on overlap", async () => {
-    const { acquireDispatcherLock, releaseDispatcherLock } = await import(
-      "../src/summarizer/dispatcher-cron.js"
-    );
+    const { acquireDispatcherLock, releaseDispatcherLock } =
+      await import("../src/summarizer/dispatcher-cron.js");
     const token = await acquireDispatcherLock();
     expect(token).toBeTruthy();
     expect(await acquireDispatcherLock()).toBe(false);
@@ -68,7 +63,8 @@ describe("summary dispatcher — emulator-backed", () => {
     // drainSummaryQueue calls dispatchSummary internally without forwarding
     // fetchImpl, so we seed quota close to the per-minute cap and assert the
     // dispatcher honours the budget without needing to intercept HTTP.
-    const { drainSummaryQueue } = await import("../src/summarizer/dispatcher-cron.js");
+    const { drainSummaryQueue } =
+      await import("../src/summarizer/dispatcher-cron.js");
     const dispatch = await import("../src/summarizer/dispatch.js");
     const { fetchImpl, spy } = counting2xxFetch();
 
@@ -82,13 +78,16 @@ describe("summary dispatcher — emulator-backed", () => {
       // remain inside the per-minute cap of 20.
       const today = new Date().toISOString().slice(0, 10);
       const now = Date.now();
-      await admin.firestore().doc("quota/openrouter").set({
-        date: today,
-        requestCount: 18,
-        dailyLimit: 1000,
-        perMinuteLimit: 20,
-        recentTimestamps: Array.from({ length: 18 }, (_, i) => now - i * 100),
-      });
+      await admin
+        .firestore()
+        .doc("quota/openrouter")
+        .set({
+          date: today,
+          requestCount: 18,
+          dailyLimit: 1000,
+          perMinuteLimit: 20,
+          recentTimestamps: Array.from({ length: 18 }, (_, i) => now - i * 100),
+        });
       await seedQueued(["v1", "v2", "v3", "v4", "v5"]);
       const result = await drainSummaryQueue();
       // Lower bound guards against a regression where queued docs are treated
@@ -119,9 +118,8 @@ describe("summary dispatcher — emulator-backed", () => {
   });
 
   it("returns early when lock is held by another instance", async () => {
-    const { drainSummaryQueue, acquireDispatcherLock } = await import(
-      "../src/summarizer/dispatcher-cron.js"
-    );
+    const { drainSummaryQueue, acquireDispatcherLock } =
+      await import("../src/summarizer/dispatcher-cron.js");
     expect(await acquireDispatcherLock()).toBeTruthy();
     const result = await drainSummaryQueue();
     expect(result).toEqual({ attempted: 0, dispatched: 0 });
@@ -129,9 +127,8 @@ describe("summary dispatcher — emulator-backed", () => {
 
   // R-11: stale lock beyond TTL is reclaimed by a new instance.
   it("acquireDispatcherLock reclaims a lock whose TTL has expired", async () => {
-    const { acquireDispatcherLock } = await import(
-      "../src/summarizer/dispatcher-cron.js"
-    );
+    const { acquireDispatcherLock } =
+      await import("../src/summarizer/dispatcher-cron.js");
     // Seed the lock doc with an acquiredAt that is beyond the TTL.
     const staleAcquiredAt = Date.now() - (DISPATCHER_LOCK_TTL_MS + 1_000);
     await admin.firestore().doc("locks/summaryDispatcher").set({
