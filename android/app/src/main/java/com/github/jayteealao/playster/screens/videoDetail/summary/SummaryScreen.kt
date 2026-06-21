@@ -22,9 +22,7 @@ import com.github.jayteealao.playster.screens.common.InProgressIndicator
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 @Composable
-fun SummaryScreen(
-    viewModel: SummaryViewModel = hiltViewModel(),
-) {
+fun SummaryScreen(viewModel: SummaryViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SummaryScreenContent(
         state = state,
@@ -33,8 +31,7 @@ fun SummaryScreen(
     )
 }
 
-private fun stateTag(state: SummaryUiState): String =
-    "SummaryScreen-${state::class.simpleName}"
+private fun stateTag(state: SummaryUiState): String = "SummaryScreen-${state::class.simpleName}"
 
 @Composable
 fun SummaryScreenContent(
@@ -44,9 +41,10 @@ fun SummaryScreenContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag(stateTag(state)),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .testTag(stateTag(state)),
     ) {
         when (state) {
             is SummaryUiState.InProgress -> {
@@ -55,10 +53,11 @@ fun SummaryScreenContent(
 
             is SummaryUiState.Completed -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
                 ) {
                     MarkdownText(
                         markdown = state.content,
@@ -83,9 +82,10 @@ fun SummaryScreenContent(
 
             is SummaryUiState.NoSummary -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -96,9 +96,10 @@ fun SummaryScreenContent(
                     )
                     Button(
                         onClick = onSummarize,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .testTag("summary-summarize-button"),
+                        modifier =
+                            Modifier
+                                .padding(top = 16.dp)
+                                .testTag("summary-summarize-button"),
                     ) {
                         Text(text = "Summarize this video")
                     }

@@ -54,11 +54,12 @@ fun AuthScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val googleIdOption = GetGoogleIdOption.Builder()
-        .setFilterByAuthorizedAccounts(false)
-        .setServerClientId(SERVER_CLIENT_ID)
-        .setAutoSelectEnabled(true)
-        .build()
+    val googleIdOption =
+        GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(SERVER_CLIENT_ID)
+            .setAutoSelectEnabled(true)
+            .build()
 
     fun handleGoogleIdToken(idToken: String) {
         authViewModel.bridgeToFirebase(idToken) { uid ->
@@ -94,17 +95,19 @@ fun AuthScreen(
     }
 
     fun startCredentialSignIn() {
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
+        val request =
+            GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
         val credentialManager = CredentialManager.create(context)
 
         coroutineScope.launch {
             try {
-                val result = credentialManager.getCredential(
-                    request = request,
-                    context = context,
-                )
+                val result =
+                    credentialManager.getCredential(
+                        request = request,
+                        context = context,
+                    )
                 processCredentialSignIn(result)
             } catch (e: GetCredentialException) {
                 Log.e(TAG, "Credential Manager sign-in failed", e)
@@ -114,28 +117,32 @@ fun AuthScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(Cyan500, Purple500),
-                    start = Offset(0f, 0f),
-                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    brush =
+                        Brush.linearGradient(
+                            colors = listOf(Cyan500, Purple500),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                        ),
                 ),
-            ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.weight(0.35f))
 
             Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+                modifier =
+                    Modifier
+                        .size(80.dp)
+                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -165,14 +172,16 @@ fun AuthScreen(
 
             Button(
                 onClick = { startCredentialSignIn() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Gray900,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Gray900,
+                    ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
             ) {
                 Row(

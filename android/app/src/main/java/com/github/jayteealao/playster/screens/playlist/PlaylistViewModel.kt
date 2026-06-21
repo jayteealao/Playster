@@ -19,35 +19,37 @@ import javax.inject.Inject
 private const val TAG = "PlaylistViewModel"
 
 @HiltViewModel
-class PlaylistViewModel @Inject constructor(
-    private val firestoreRepository: FirestoreRepository,
-    private val firebaseFunctions: FirebaseFunctions,
-) : ViewModel() {
+class PlaylistViewModel
+    @Inject
+    constructor(
+        private val firestoreRepository: FirestoreRepository,
+        private val firebaseFunctions: FirebaseFunctions,
+    ) : ViewModel() {
+        val playlists: StateFlow<List<PlaylistDoc>> =
+            firestoreRepository.playlistsFlow()
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = emptyList(),
+                )
 
-    val playlists: StateFlow<List<PlaylistDoc>> = firestoreRepository.playlistsFlow()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
-        )
+        private val _isRefreshing = MutableStateFlow(false)
+        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
-
-    fun refresh() {
-        if (_isRefreshing.value) return
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            try {
-                firebaseFunctions
-                    .getHttpsCallable("syncAllPlaylists")
-                    .call(emptyMap<String, Any>())
-                    .await()
-            } catch (e: Exception) {
-                Log.e(TAG, "syncAllPlaylists call failed", e)
-            } finally {
-                _isRefreshing.value = false
+        fun refresh() {
+            if (_isRefreshing.value) return
+            viewModelScope.launch {
+                _isRefreshing.value = true
+                try {
+                    firebaseFunctions
+                        .getHttpsCallable("syncAllPlaylists")
+                        .call(emptyMap<String, Any>())
+                        .await()
+                } catch (e: Exception) {
+                    Log.e(TAG, "syncAllPlaylists call failed", e)
+                } finally {
+                    _isRefreshing.value = false
+                }
             }
         }
     }
-}

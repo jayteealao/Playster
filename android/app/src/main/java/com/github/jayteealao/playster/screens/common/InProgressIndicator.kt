@@ -20,9 +20,10 @@ fun InProgressIndicator(
     testTagValue: String = "summary-in-progress-spinner",
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

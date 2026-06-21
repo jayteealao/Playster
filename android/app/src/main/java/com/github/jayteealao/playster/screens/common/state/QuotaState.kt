@@ -9,13 +9,16 @@ import com.github.jayteealao.playster.data.firestore.QuotaDoc
  */
 sealed interface QuotaState {
     data object Healthy : QuotaState
+
     data object DailyExhausted : QuotaState
+
     data object PerMinuteExhausted : QuotaState
 
     val isDisabled: Boolean
         get() = this !is Healthy
 }
 
+@Suppress("ReturnCount") // Guard-style mapper reads clearer with early returns.
 fun QuotaDoc?.toQuotaState(nowMillis: Long = System.currentTimeMillis()): QuotaState {
     if (this == null) return QuotaState.Healthy
     if (requestCount >= dailyLimit) return QuotaState.DailyExhausted

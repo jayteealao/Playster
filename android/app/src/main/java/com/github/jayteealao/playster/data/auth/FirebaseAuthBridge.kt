@@ -18,42 +18,48 @@ import javax.inject.Singleton
  * without holding a `FirebaseAuth` reference.
  */
 @Singleton
-class FirebaseAuthBridge @Inject constructor(
-    private val firebaseAuth: FirebaseAuth,
-) {
-    private val _currentUid = MutableStateFlow(firebaseAuth.currentUser?.uid)
-    val currentUid: StateFlow<String?> = _currentUid.asStateFlow()
+class FirebaseAuthBridge
+    @Inject
+    constructor(
+        private val firebaseAuth: FirebaseAuth,
+    ) {
+        private val _currentUid = MutableStateFlow(firebaseAuth.currentUser?.uid)
+        val currentUid: StateFlow<String?> = _currentUid.asStateFlow()
 
-    private val authStateListener = FirebaseAuth.AuthStateListener { auth ->
-        _currentUid.value = auth.currentUser?.uid
-    }
+        private val authStateListener =
+            FirebaseAuth.AuthStateListener { auth ->
+                _currentUid.value = auth.currentUser?.uid
+            }
 
-    init {
-        firebaseAuth.addAuthStateListener(authStateListener)
-    }
-
-    /**
-     * Exchange a Google Sign-In ID token for a Firebase Auth session.
-     * Returns the resulting Firebase uid.
-     */
-    suspend fun signInWithGoogleIdToken(idToken: String): String {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        val result = firebaseAuth.signInWithCredential(credential).await()
-        val uid = result.user?.uid
-            ?: error("signInWithCredential returned no Firebase user")
-        return uid
-    }
-
-    suspend fun signOut() {
-        firebaseAuth.signOut()
-    }
-
-    /** Cold flow form of the auth state, for non-injected consumers. */
-    fun authStateFlow(): Flow<String?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            trySend(auth.currentUser?.uid)
+        init {
+            firebaseAuth.addAuthStateListener(authStateListener)
         }
-        firebaseAuth.addAuthStateListener(listener)
-        awaitClose { firebaseAuth.removeAuthStateListener(listener) }
+
+        /**
+         * Exchange a Google Sign-In ID token for a Firebase Auth session.
+         * Returns the resulting Firebase uid.
+         */
+        suspend fun signInWithGoogleIdToken(idToken: String): String {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val result = firebaseAuth.signInWithCredential(credential).await()
+            val uid =
+                result.user?.uid
+                    ?: error("signInWithCredential returned no Firebase user")
+            return uid
+        }
+
+        suspend fun signOut() {
+            firebaseAuth.signOut()
+        }
+
+        /** Cold flow form of the auth state, for non-injected consumers. */
+        fun authStateFlow(): Flow<String?> =
+            callbackFlow {
+                val listener =
+                    FirebaseAuth.AuthStateListener { auth ->
+                        trySend(auth.currentUser?.uid)
+                    }
+                firebaseAuth.addAuthStateListener(listener)
+                awaitClose { firebaseAuth.removeAuthStateListener(listener) }
+            }
     }
-}

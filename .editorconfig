@@ -11,6 +11,8 @@ indent_size = 2
 
 [*.{kt,kts}]
 indent_size = 4
+# @Composable functions follow PascalCase by Compose convention, not ktlint's camelCase rule.
+ktlint_function_naming_ignore_when_annotated_with = Composable
 
 [*.{md,markdown}]
 trim_trailing_whitespace = false

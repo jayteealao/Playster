@@ -38,17 +38,19 @@ fun PlayCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
                 model = playlist.thumbnailUrl.takeIf { it.isNotBlank() },
                 contentDescription = "playlist image",
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                modifier =
+                    Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop,
             )
 

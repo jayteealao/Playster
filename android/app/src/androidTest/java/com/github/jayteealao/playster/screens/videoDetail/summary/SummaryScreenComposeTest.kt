@@ -16,7 +16,6 @@ import org.junit.Test
  * stateless half — the ViewModel is not involved.
  */
 class SummaryScreenComposeTest {
-
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
@@ -37,10 +36,11 @@ class SummaryScreenComposeTest {
     fun completed_rendersMarkdownAndModel() {
         composeTestRule.setContent {
             SummaryScreenContent(
-                state = SummaryUiState.Completed(
-                    content = "# Hello\n\nBody",
-                    model = "free",
-                ),
+                state =
+                    SummaryUiState.Completed(
+                        content = "# Hello\n\nBody",
+                        model = "free",
+                    ),
                 onRetry = {},
                 onSummarize = {},
             )

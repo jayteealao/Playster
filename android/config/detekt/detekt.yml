@@ -1,0 +1,26 @@
+# Compose-aware detekt config. buildUponDefaultConfig = true (see app/build.gradle.kts),
+# so this only overrides rules that conflict with Jetpack Compose / Android idioms.
+
+naming:
+  FunctionNaming:
+    # @Composable functions follow PascalCase by Compose convention.
+    ignoreAnnotated: ['Composable']
+
+complexity:
+  LongMethod:
+    # Composable layout functions are declaratively long by nature.
+    ignoreAnnotated: ['Composable', 'Preview']
+
+style:
+  MagicNumber:
+    # dp/sp/color/animation literals in Compose UI are not magic numbers worth extracting.
+    ignoreAnnotated: ['Composable', 'Preview']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNamedArgument: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    # ViewModels and callable wrappers intentionally catch broad exceptions to surface
+    # user-facing error states; this is a deliberate pattern here, not a smell.
+    active: false

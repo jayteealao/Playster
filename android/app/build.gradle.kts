@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 android {
@@ -26,9 +28,10 @@ android {
                 // Local development - load from local.properties
                 val localPropsFile = rootProject.file("local.properties")
                 if (localPropsFile.exists()) {
-                    val localProps = Properties().apply {
-                        localPropsFile.inputStream().use { load(it) }
-                    }
+                    val localProps =
+                        Properties().apply {
+                            localPropsFile.inputStream().use { load(it) }
+                        }
                     val localStoreFile = localProps.getProperty("signing.storeFile")
                     if (localStoreFile != null) {
                         storeFile = file(localStoreFile)
@@ -61,7 +64,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("release")
         }
@@ -91,6 +94,12 @@ android {
             exclude(module = "commons-logging")
         }
     }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    parallel = true
 }
 
 dependencies {
@@ -127,7 +136,7 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
-    //credentials
+    // credentials
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.identity)
@@ -143,7 +152,7 @@ dependencies {
     // Markdown rendering for summaries (slice 4)
     implementation(libs.compose.markdown)
 
-    //hilt
+    // hilt
     implementation(libs.hilt.android)
     implementation(libs.bundles.hilt)
 //    ksp(libs.hilt.android.compiler)

@@ -20,12 +20,13 @@ fun DocumentSnapshot.toQuotaDoc(): QuotaDoc? {
     if (!exists()) return null
     @Suppress("UNCHECKED_CAST")
     val raw = (get("recentTimestamps") as? List<Any?>).orEmpty()
-    val timestamps = raw.mapNotNull { entry ->
-        when (entry) {
-            is Number -> entry.toLong()
-            else -> null
+    val timestamps =
+        raw.mapNotNull { entry ->
+            when (entry) {
+                is Number -> entry.toLong()
+                else -> null
+            }
         }
-    }
     return QuotaDoc(
         date = getString("date") ?: "",
         requestCount = getLong("requestCount") ?: 0L,

@@ -33,8 +33,10 @@ import com.github.jayteealao.playster.ui.theme.Gray100
 import kotlinx.coroutines.delay
 
 @Composable
-fun LoadingScreen(loggedIn: Boolean, navigator: (String) -> Unit = {}) {
-
+fun LoadingScreen(
+    loggedIn: Boolean,
+    navigator: (String) -> Unit = {},
+) {
     LaunchedEffect(loggedIn) {
         Log.d("Loading Screen", "navigation event - $loggedIn")
         delay(2000L)
@@ -46,25 +48,27 @@ fun LoadingScreen(loggedIn: Boolean, navigator: (String) -> Unit = {}) {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Gray100, MaterialTheme.colorScheme.background),
-                    startY = 0f,
-                    endY = 400f
-                )
-            ),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            colors = listOf(Gray100, MaterialTheme.colorScheme.background),
+                            startY = 0f,
+                            endY = 400f,
+                        ),
+                ),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             Text(
                 text = "Playster",
                 style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -80,25 +84,27 @@ private fun PulsingDots() {
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(3) { index ->
             val scale by infiniteTransition.animateFloat(
                 initialValue = 0.6f,
                 targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, easing = EaseInOut),
-                    repeatMode = RepeatMode.Reverse,
-                    initialStartOffset = StartOffset(index * 200)
-                ),
-                label = "dot_$index"
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(600, easing = EaseInOut),
+                        repeatMode = RepeatMode.Reverse,
+                        initialStartOffset = StartOffset(index * 200),
+                    ),
+                label = "dot_$index",
             )
 
             Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .scale(scale)
-                    .background(Cyan500, CircleShape)
+                modifier =
+                    Modifier
+                        .size(10.dp)
+                        .scale(scale)
+                        .background(Cyan500, CircleShape),
             )
         }
     }

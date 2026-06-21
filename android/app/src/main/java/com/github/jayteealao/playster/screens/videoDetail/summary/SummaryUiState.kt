@@ -7,8 +7,12 @@ package com.github.jayteealao.playster.screens.videoDetail.summary
  */
 sealed interface SummaryUiState {
     data object NoSummary : SummaryUiState
+
     data object InProgress : SummaryUiState
+
     data class Completed(val content: String, val model: String) : SummaryUiState
+
     data class FailedTransient(val message: String) : SummaryUiState
+
     data class FailedPermanent(val message: String) : SummaryUiState
 }

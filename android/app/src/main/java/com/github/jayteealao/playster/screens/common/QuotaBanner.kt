@@ -35,25 +35,31 @@ fun QuotaBanner(
 
     when (state) {
         is QuotaState.Healthy -> Box(modifier = modifier.height(0.dp))
-        is QuotaState.DailyExhausted -> BannerBox(
-            modifier = modifier,
-            text = "Daily summary limit reached. Resets at midnight UTC.",
-        )
-        is QuotaState.PerMinuteExhausted -> BannerBox(
-            modifier = modifier,
-            text = "Rate limited — try again in a moment.",
-        )
+        is QuotaState.DailyExhausted ->
+            BannerBox(
+                modifier = modifier,
+                text = "Daily summary limit reached. Resets at midnight UTC.",
+            )
+        is QuotaState.PerMinuteExhausted ->
+            BannerBox(
+                modifier = modifier,
+                text = "Rate limited — try again in a moment.",
+            )
     }
 }
 
 @Composable
-private fun BannerBox(modifier: Modifier, text: String) {
+private fun BannerBox(
+    modifier: Modifier,
+    text: String,
+) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.errorContainer)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .testTag("quota-banner"),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.errorContainer)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .testTag("quota-banner"),
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(
@@ -69,9 +75,7 @@ private fun BannerBox(modifier: Modifier, text: String) {
  * same listener. Renders nothing; returns the current state for caller logic.
  */
 @Composable
-fun rememberQuotaState(
-    viewModel: QuotaBannerViewModel = hiltViewModel(),
-): QuotaState {
+fun rememberQuotaState(viewModel: QuotaBannerViewModel = hiltViewModel()): QuotaState {
     val quotaDoc by viewModel.quotaDoc.collectAsStateWithLifecycle()
     return quotaDoc.toQuotaState()
 }

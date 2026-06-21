@@ -26,9 +26,10 @@ fun ErrorPanel(
     retryTagValue: String = "summary-retry-button",
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -48,9 +49,10 @@ fun ErrorPanel(
         if (onRetry != null) {
             Button(
                 onClick = onRetry,
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .testTag(retryTagValue),
+                modifier =
+                    Modifier
+                        .padding(top = 16.dp)
+                        .testTag(retryTagValue),
             ) {
                 Text(text = "Retry")
             }

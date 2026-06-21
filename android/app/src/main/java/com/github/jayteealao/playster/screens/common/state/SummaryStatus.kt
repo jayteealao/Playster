@@ -11,17 +11,19 @@ enum class SummaryStatus {
     COMPLETED,
     FAILED_TRANSIENT,
     FAILED_PERMANENT,
-    UNKNOWN;
+    UNKNOWN,
+    ;
 
     companion object {
-        fun fromWire(value: String?): SummaryStatus = when (value) {
-            "queued" -> QUEUED
-            "pending" -> PENDING
-            "running" -> RUNNING
-            "completed" -> COMPLETED
-            "failed-transient" -> FAILED_TRANSIENT
-            "failed-permanent" -> FAILED_PERMANENT
-            else -> UNKNOWN
-        }
+        fun fromWire(value: String?): SummaryStatus =
+            when (value) {
+                "queued" -> QUEUED
+                "pending" -> PENDING
+                "running" -> RUNNING
+                "completed" -> COMPLETED
+                "failed-transient" -> FAILED_TRANSIENT
+                "failed-permanent" -> FAILED_PERMANENT
+                else -> UNKNOWN
+            }
     }
 }

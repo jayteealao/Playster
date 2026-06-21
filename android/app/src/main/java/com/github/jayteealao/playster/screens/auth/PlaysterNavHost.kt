@@ -57,13 +57,14 @@ fun PlaysterNavHost(
 
         composable(
             route = "videoDetail/{videoId}?autoDispatch={autoDispatch}",
-            arguments = listOf(
-                navArgument("videoId") { type = NavType.StringType },
-                navArgument("autoDispatch") {
-                    type = NavType.BoolType
-                    defaultValue = false
-                },
-            ),
+            arguments =
+                listOf(
+                    navArgument("videoId") { type = NavType.StringType },
+                    navArgument("autoDispatch") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
         ) {
             VideoDetailScreen(onBack = { navHostController.popBackStack() })
         }

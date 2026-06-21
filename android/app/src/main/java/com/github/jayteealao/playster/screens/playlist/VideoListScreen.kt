@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName") // VideoListViewModel is deliberately co-located with its screen.
+
 package com.github.jayteealao.playster.screens.playlist
 
 import androidx.compose.foundation.background
@@ -37,8 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
 import com.github.jayteealao.playster.data.firestore.VideoDoc
@@ -46,36 +48,41 @@ import com.github.jayteealao.playster.screens.common.rememberQuotaState
 import com.github.jayteealao.playster.screens.common.state.QuotaState
 import com.github.jayteealao.playster.ui.theme.Gray50
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
 @HiltViewModel
-class VideoListViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
-    firestoreRepository: FirestoreRepository,
-) : ViewModel() {
+class VideoListViewModel
+    @Inject
+    constructor(
+        savedStateHandle: SavedStateHandle,
+        firestoreRepository: FirestoreRepository,
+    ) : ViewModel() {
+        val playlistId: String = savedStateHandle["playlistId"] ?: ""
 
-    val playlistId: String = savedStateHandle["playlistId"] ?: ""
+        val videos: StateFlow<List<VideoDoc>> =
+            firestoreRepository
+                .videosFlow(playlistId)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = emptyList(),
+                )
 
-    val videos: StateFlow<List<VideoDoc>> = firestoreRepository
-        .videosFlow(playlistId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Navigate directly to the SummaryScreen with autoDispatch=true.
-     * SummaryViewModel.init performs the same cold-start check on entry, so
-     * duplicating it here was redundant and added a full round-trip delay.
-     */
-    fun onSummarizeClick(videoId: String, onNavigate: (String, Boolean) -> Unit) {
-        onNavigate(videoId, true)
+        /**
+         * Navigate directly to the SummaryScreen with autoDispatch=true.
+         * SummaryViewModel.init performs the same cold-start check on entry, so
+         * duplicating it here was redundant and added a full round-trip delay.
+         */
+        fun onSummarizeClick(
+            videoId: String,
+            onNavigate: (String, Boolean) -> Unit,
+        ) {
+            onNavigate(videoId, true)
+        }
     }
-}
 
 @Composable
 fun VideoListScreen(
@@ -87,15 +94,17 @@ fun VideoListScreen(
     val quotaState = rememberQuotaState()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .clickable { onBack() },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clickable { onBack() },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -107,9 +116,10 @@ fun VideoListScreen(
 
         if (videos.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -148,24 +158,27 @@ private fun VideoRow(
 ) {
     val summarizeEnabled = quotaState is QuotaState.Healthy
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onOpen() },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onOpen() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Gray50),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
                 model = video.thumbnailUrl.takeIf { it.isNotBlank() },
                 contentDescription = "video thumbnail",
-                modifier = Modifier
-                    .size(width = 96.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                modifier =
+                    Modifier
+                        .size(width = 96.dp, height = 56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
             )
 
@@ -192,17 +205,19 @@ private fun VideoRow(
             IconButton(
                 onClick = onSummarize,
                 enabled = summarizeEnabled,
-                modifier = Modifier.testTag(
-                    if (summarizeEnabled) "summarize-button-enabled" else "summarize-button-disabled",
-                ),
+                modifier =
+                    Modifier.testTag(
+                        if (summarizeEnabled) "summarize-button-enabled" else "summarize-button-disabled",
+                    ),
             ) {
                 Icon(
                     imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = if (summarizeEnabled) {
-                        "Summarize this video"
-                    } else {
-                        "Daily summary limit reached — try again after midnight UTC."
-                    },
+                    contentDescription =
+                        if (summarizeEnabled) {
+                            "Summarize this video"
+                        } else {
+                            "Daily summary limit reached — try again after midnight UTC."
+                        },
                 )
             }
         }

@@ -43,15 +43,17 @@ fun VideoDetailScreen(
     val video by viewModel.video.collectAsStateWithLifecycle()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .testTag("video-detail-screen"),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .testTag("video-detail-screen"),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -68,18 +70,20 @@ fun VideoDetailScreen(
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AsyncImage(
                 model = video?.thumbnailUrl?.takeIf { it.isNotBlank() },
                 contentDescription = "video thumbnail",
-                modifier = Modifier
-                    .size(width = 128.dp, height = 72.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                modifier =
+                    Modifier
+                        .size(width = 128.dp, height = 72.dp)
+                        .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
             )
 

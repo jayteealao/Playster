@@ -27,6 +27,8 @@ navigation-compose = "2.7.6"
 runtime-tracing = "1.0.0-beta01"
 kotlinx-coroutines-play-services = "1.7.3"
 compose-markdown = "0.7.2"
+ktlint = "12.1.1"
+detekt = "1.23.6"
 
 [libraries]
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-preferences" }
@@ -95,4 +97,6 @@ kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref  = "ksp" }
 hilt = {id = "com.google.dagger.hilt.android", version.ref = "hilt"}
 googleServices = { id = "com.google.gms.google-services", version.ref = "google-services" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 

@@ -40,22 +40,25 @@ fun PlaylistScreen(
     val displayItems by viewModel.playlists.collectAsStateWithLifecycle()
     val refreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = refreshing,
-        onRefresh = { viewModel.refresh() },
-    )
+    val pullRefreshState =
+        rememberPullRefreshState(
+            refreshing = refreshing,
+            onRefresh = { viewModel.refresh() },
+        )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .pullRefresh(pullRefreshState),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .pullRefresh(pullRefreshState),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -66,10 +69,11 @@ fun PlaylistScreen(
                 )
 
                 Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Cyan500),
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Cyan500),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -81,10 +85,11 @@ fun PlaylistScreen(
             }
 
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp, bottom = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp, bottom = 16.dp),
             ) {
                 Text(
                     text = "Your Playlists",
@@ -103,9 +108,10 @@ fun PlaylistScreen(
 
             if (displayItems.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
