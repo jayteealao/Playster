@@ -70,6 +70,16 @@ async function main() {
     browseId: "VLWL",
   });
   const firstData = first.data ?? first;
+
+  // Optional raw-page capture for the regression fixture. Set DUMP_PATH to
+  // write the raw /browse VLWL response to disk, then redact + trim it by hand
+  // before committing as tests/fixtures/innertube-browse-wl-lockup.json.
+  // See docs/operations/backfill-watch-later.md.
+  if (process.env.DUMP_PATH) {
+    await fs.writeFile(process.env.DUMP_PATH, JSON.stringify(firstData, null, 2));
+    console.log("  raw page 1 written to " + process.env.DUMP_PATH);
+  }
+
   const result1 = collect(firstData);
 
   // Dedupe — structural walk can revisit shared nodes.

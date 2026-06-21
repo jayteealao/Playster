@@ -23,7 +23,7 @@ const WALLCLOCK_BUDGET_MS = 480_000;
 // Save state every N pages so a timeout kill loses at most that much work.
 const CHECKPOINT_EVERY_PAGES = 20;
 
-interface ExtractedVideo {
+export interface ExtractedVideo {
   id: string;
   title: string;
   channelTitle: string;
@@ -41,72 +41,240 @@ function extractText(node: Json): string | undefined {
   if (typeof node !== "object") return undefined;
   if (typeof node.simpleText === "string") return node.simpleText;
   if (Array.isArray(node.runs) && node.runs[0]?.text) return node.runs[0].text;
+  // lockupViewModel / *ViewModel text nodes carry a flat `content` string.
+  if (typeof node.content === "string") return node.content;
   if (typeof node.text === "string") return node.text;
   return undefined;
 }
 
-function extractThumbnailUrl(node: Json): string | undefined {
-  if (!node || typeof node !== "object") return undefined;
-  const thumbs = node.thumbnails;
-  if (Array.isArray(thumbs) && thumbs.length) {
-    const best = thumbs.reduce((a, b) =>
-      (b?.width ?? 0) > (a?.width ?? 0) ? b : a,
-    );
-    if (typeof best?.url === "string") return best.url;
-  }
-  return undefined;
+/**
+ * Pick the highest-resolution URL from a YouTube image array. Legacy renderers
+ * expose `thumbnail.thumbnails[]`; viewModels expose `image.sources[]` — both
+ * are arrays of `{ url, width, height }`, so one helper serves both.
+ */
+function pickBestUrl(arr: Json): string | undefined {
+  if (!Array.isArray(arr) || !arr.length) return undefined;
+  const best = arr.reduce((a, b) => ((b?.width ?? 0) > (a?.width ?? 0) ? b : a));
+  return typeof best?.url === "string" ? best.url : undefined;
 }
 
-function walk(
+function extractThumbnailUrl(node: Json): string | undefined {
+  if (!node || typeof node !== "object") return undefined;
+  return pickBestUrl(node.thumbnails);
+}
+
+/**
+ * Extract a video from a "flat" node whose videoId is co-located with its
+ * title / byline / thumbnail. Covers the legacy playlist/grid/compact video
+ * renderers AND serves as the bare-node safety net: a node carrying only a
+ * `videoId` (e.g. a TV `watchEndpoint`) yields the id with empty metadata
+ * instead of being silently dropped, so the empty-title tripwire surfaces it.
+ */
+function extractFromLegacy(node: Json): ExtractedVideo | undefined {
+  if (typeof node.videoId !== "string") return undefined;
+
+  const title =
+    extractText(node.title) ??
+    extractText(node.headline) ??
+    extractText(node.metadata?.title) ??
+    extractText(node.metadata?.tileMetadataRenderer?.title) ??
+    "";
+
+  const channelTitle =
+    extractText(node.shortBylineText) ??
+    extractText(node.longBylineText) ??
+    extractText(node.metadata?.shortBylineText) ??
+    "";
+
+  let channelId = "";
+  const byline =
+    node.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint
+      ?.browseId;
+  if (typeof byline === "string") channelId = byline;
+
+  const duration =
+    extractText(node.lengthText) ??
+    extractText(
+      node.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text,
+    ) ??
+    "";
+
+  const thumbnailUrl = extractThumbnailUrl(node.thumbnail) ?? "";
+
+  return { id: node.videoId, title, channelTitle, channelId, duration, thumbnailUrl };
+}
+
+/**
+ * lockupViewModel videoId: prefer the flat `contentId`, fall back to the nested
+ * `watchEndpoint` carried by the renderer's tap command.
+ */
+function lockupVideoId(lockup: Json): string | undefined {
+  if (typeof lockup.contentId === "string") return lockup.contentId;
+  const we =
+    lockup.rendererContext?.commandContext?.onTap?.innertubeCommand
+      ?.watchEndpoint?.videoId ??
+    lockup.onTap?.innertubeCommand?.watchEndpoint?.videoId;
+  return typeof we === "string" ? we : undefined;
+}
+
+/**
+ * lockupViewModel channel: first non-empty text part across the metadata rows.
+ * Also recovers the channel browseId when the part carries a tap command.
+ */
+function lockupChannel(meta: Json): { title: string; id: string } {
+  const rows = meta?.metadata?.contentMetadataViewModel?.metadataRows;
+  if (Array.isArray(rows)) {
+    for (const row of rows) {
+      const parts = row?.metadataParts;
+      if (!Array.isArray(parts)) continue;
+      for (const part of parts) {
+        const title = extractText(part?.text);
+        if (!title) continue;
+        const id =
+          part?.text?.commandRuns?.[0]?.onTap?.innertubeCommand?.browseEndpoint
+            ?.browseId;
+        return { title, id: typeof id === "string" ? id : "" };
+      }
+    }
+  }
+  return { title: "", id: "" };
+}
+
+/**
+ * lockupViewModel duration: the badge overlay shipped in two shapes across the
+ * 2024-2025 rollout (`thumbnailOverlayBadgeViewModel` and the older
+ * `thumbnailBottomOverlayViewModel`) — try both, default empty.
+ */
+function lockupDuration(thumb: Json): string {
+  const overlays = thumb?.overlays;
+  if (!Array.isArray(overlays)) return "";
+  for (const ov of overlays) {
+    const badges = ov?.thumbnailOverlayBadgeViewModel?.thumbnailBadges;
+    if (Array.isArray(badges)) {
+      for (const b of badges) {
+        const t = extractText(b?.thumbnailBadgeViewModel?.text);
+        if (t) return t;
+      }
+    }
+    const bottom = extractText(
+      ov?.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel
+        ?.text,
+    );
+    if (bottom) return bottom;
+  }
+  return "";
+}
+
+/**
+ * Renderer-aware video extraction. In the InnerTube TV `/browse` VLWL response
+ * the dominant item is a `lockupViewModel`, whose videoId lives on a nested
+ * bare navigation node while title / byline / thumbnail live elsewhere in the
+ * renderer subtree — so reading metadata as siblings of the videoId (the old
+ * behaviour) always yielded empty rows. Pull videoId AND metadata from the one
+ * renderer subtree in a single pass; fall back to the legacy co-located shape
+ * for the A/B minority. `renderer` is the inner renderer object (the value of
+ * `node.lockupViewModel` / `node.playlistVideoRenderer` / …).
+ */
+export function extractVideoFromRenderer(
+  renderer: Json,
+): ExtractedVideo | undefined {
+  if (!renderer || typeof renderer !== "object") return undefined;
+
+  // lockupViewModel (primary). Distinctive: contentId / lockupMetadataViewModel
+  // / a contentImage carrying a (collection)thumbnailViewModel.
+  const isLockup =
+    typeof renderer.contentId === "string" ||
+    renderer.metadata?.lockupMetadataViewModel != null ||
+    renderer.contentImage?.thumbnailViewModel != null ||
+    renderer.contentImage?.collectionThumbnailViewModel != null;
+
+  if (isLockup) {
+    const id = lockupVideoId(renderer);
+    if (!id) return undefined;
+
+    const lmvm = renderer.metadata?.lockupMetadataViewModel;
+    const title = extractText(lmvm?.title) ?? "";
+    const channel = lockupChannel(lmvm);
+
+    // Video items use thumbnailViewModel; a playlist-in-WL item nests it under
+    // collectionThumbnailViewModel.primaryThumbnail.
+    const thumb =
+      renderer.contentImage?.thumbnailViewModel ??
+      renderer.contentImage?.collectionThumbnailViewModel?.primaryThumbnail
+        ?.thumbnailViewModel;
+    const thumbnailUrl = pickBestUrl(thumb?.image?.sources) ?? "";
+
+    return {
+      id,
+      title,
+      channelTitle: channel.title,
+      channelId: channel.id,
+      duration: lockupDuration(thumb),
+      thumbnailUrl,
+    };
+  }
+
+  // Legacy playlist/grid/compact video renderer — co-located fields.
+  return extractFromLegacy(renderer);
+}
+
+export interface WalkStats {
+  /** videoIds captured with an empty title — a renderer-drift tripwire. */
+  emptyTitleCount: number;
+}
+
+/**
+ * Insert an extracted video, relaxing first-seen-wins so a later, richer node
+ * backfills an empty prior capture. This is what stops a bare videoId node
+ * from locking out the renderer that actually carries the metadata.
+ */
+function capture(
+  items: Map<string, ExtractedVideo>,
+  stats: WalkStats,
+  v: ExtractedVideo,
+): void {
+  const prior = items.get(v.id);
+  if (!prior) {
+    items.set(v.id, v);
+    if (!v.title) stats.emptyTitleCount++;
+  } else if (!prior.title && v.title) {
+    items.set(v.id, v); // a richer node backfills an empty capture
+    stats.emptyTitleCount--;
+  }
+}
+
+export function walk(
   node: Json,
   items: Map<string, ExtractedVideo>,
   continuations: Set<string>,
+  stats: WalkStats,
 ): void {
   if (node == null) return;
   if (Array.isArray(node)) {
-    for (const v of node) walk(v, items, continuations);
+    for (const v of node) walk(v, items, continuations, stats);
     return;
   }
   if (typeof node !== "object") return;
 
-  if (typeof node.videoId === "string" && !items.has(node.videoId)) {
-    const title =
-      extractText(node.title) ??
-      extractText(node.headline) ??
-      extractText(node.metadata?.title) ??
-      extractText(node.metadata?.tileMetadataRenderer?.title) ??
-      extractText(node.metadata?.lockupMetadataViewModel?.title) ??
-      "";
-
-    const channelTitle =
-      extractText(node.shortBylineText) ??
-      extractText(node.longBylineText) ??
-      extractText(node.metadata?.shortBylineText) ??
-      "";
-
-    let channelId = "";
-    const byline =
-      node.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint
-        ?.browseId;
-    if (typeof byline === "string") channelId = byline;
-
-    const duration =
-      extractText(node.lengthText) ??
-      extractText(
-        node.thumbnailOverlays?.[0]?.thumbnailOverlayTimeStatusRenderer?.text,
-      ) ??
-      "";
-
-    const thumbnailUrl = extractThumbnailUrl(node.thumbnail) ?? "";
-
-    items.set(node.videoId, {
-      id: node.videoId,
-      title,
-      channelTitle,
-      channelId,
-      duration,
-      thumbnailUrl,
-    });
+  // Renderer boundary first: in the TV /browse VLWL response a video item is a
+  // lockupViewModel (videoId on a nested watchEndpoint, metadata in a separate
+  // subtree). Extract videoId + metadata from that one renderer in a single
+  // pass; legacy playlist/grid/compact renderers carry co-located fields.
+  const renderer =
+    node.lockupViewModel ??
+    node.playlistVideoRenderer ??
+    node.gridVideoRenderer ??
+    node.compactVideoRenderer;
+  if (renderer) {
+    const v = extractVideoFromRenderer(renderer);
+    if (v) capture(items, stats, v);
+  } else if (typeof node.videoId === "string") {
+    // Flat-field fallback / safety net: a videoId outside a recognised renderer
+    // (older co-located shapes, or a bare watchEndpoint on a drifted renderer).
+    // Co-located metadata is captured when present; a bare node yields an empty
+    // row so the tripwire surfaces it instead of dropping the videoId.
+    const v = extractFromLegacy(node);
+    if (v) capture(items, stats, v);
   }
 
   if (typeof node.continuationCommand?.token === "string") {
@@ -122,7 +290,9 @@ function walk(
     continuations.add(node.continuation);
   }
 
-  for (const k of Object.keys(node)) walk(node[k], items, continuations);
+  for (const k of Object.keys(node)) {
+    walk(node[k], items, continuations, stats);
+  }
 }
 
 async function readSyncState(): Promise<WatchLaterSyncState | null> {
@@ -153,6 +323,13 @@ export interface WatchLaterSyncResult {
   complete: boolean;
   rebuilds: number;
   videoIds: string[];
+  /**
+   * Count of videoIds captured this run with an empty title. Non-zero means a
+   * renderer the extractor doesn't fully understand (a lockupViewModel variant
+   * or a youtubei.js shape change) slipped through to a blank row — surfaced in
+   * Cloud logs so the next blank-card regression is caught early, not in the UI.
+   */
+  emptyTitleCount: number;
 }
 
 /**
@@ -252,6 +429,8 @@ export async function syncWatchLater(
 
   // Accumulator that gets flushed periodically. Tracks items NOT yet written.
   const pending = new Map<string, ExtractedVideo>();
+  // Run-level extraction tripwire, accumulated across every page's walk().
+  const walkStats: WalkStats = { emptyTitleCount: 0 };
   const visitedTokens = new Set<string>();
   let nextToken: string | undefined;
   let pageNum = 0;
@@ -275,7 +454,7 @@ export async function syncWatchLater(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       })) as any;
       const pageContinuations = new Set<string>();
-      walk(firstResp.data ?? firstResp, pending, pageContinuations);
+      walk(firstResp.data ?? firstResp, pending, pageContinuations, walkStats);
       nextToken = [...pageContinuations][0];
       pageNum = 1;
       pagesThisRun = 1;
@@ -313,7 +492,7 @@ export async function syncWatchLater(
           continuation: nextToken,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any;
-        walk(resp.data ?? resp, pending, nextContinuations);
+        walk(resp.data ?? resp, pending, nextContinuations, walkStats);
         success = true;
         break;
       } catch (err) {
@@ -408,6 +587,15 @@ export async function syncWatchLater(
     `[innertube-sync] this run: +${totalNewItemsThisRun} videos across ${pagesThisRun} page(s), rebuilds=${clientRebuilds}, complete=${complete}, total_known=${totalItemsKnown}`,
   );
 
+  // Tripwire: any video that reached Firestore with a blank title means a
+  // renderer slipped past the extractor. Surface the ratio so a silent
+  // re-break (renderer A/B flip, youtubei.js drift) shows up in Cloud logs.
+  if (walkStats.emptyTitleCount > 0) {
+    console.warn(
+      `[innertube-sync] ${walkStats.emptyTitleCount}/${totalNewItemsThisRun} videos captured with EMPTY title this run — possible renderer drift; check the committed fixture and extractor field paths`,
+    );
+  }
+
   return {
     videoCount: totalNewItemsThisRun,
     pagesThisRun,
@@ -415,5 +603,6 @@ export async function syncWatchLater(
     complete,
     rebuilds: clientRebuilds,
     videoIds: collectedIds,
+    emptyTitleCount: walkStats.emptyTitleCount,
   };
 }
