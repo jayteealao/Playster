@@ -5,8 +5,8 @@ import { dirname, join } from "node:path";
 import {
   walk,
   extractVideoFromRenderer,
+  WalkStats,
   type ExtractedVideo,
-  type WalkStats,
 } from "../src/youtube/innertube-sync.js";
 
 /**
@@ -44,7 +44,7 @@ function runWalk(
 } {
   const items = new Map<string, ExtractedVideo>();
   const conts = new Set<string>();
-  const stats: WalkStats = { emptyTitleCount: 0 };
+  const stats = new WalkStats();
   walk(page, items, conts, stats);
   return { items, stats, conts };
 }

@@ -181,12 +181,15 @@ export function extractVideoFromRenderer(
   if (!renderer || typeof renderer !== "object") return undefined;
 
   // lockupViewModel (primary). Distinctive: contentId / lockupMetadataViewModel
-  // / a contentImage carrying a (collection)thumbnailViewModel.
+  // / a contentImage carrying a (collection)thumbnailViewModel, OR the videoId
+  // is resolvable via the lockup paths (ensures future variants whose id lives
+  // on watchEndpoint always take the richer extraction path).
   const isLockup =
     typeof renderer.contentId === "string" ||
     renderer.metadata?.lockupMetadataViewModel != null ||
     renderer.contentImage?.thumbnailViewModel != null ||
-    renderer.contentImage?.collectionThumbnailViewModel != null;
+    renderer.contentImage?.collectionThumbnailViewModel != null ||
+    lockupVideoId(renderer) != null;
 
   if (isLockup) {
     const id = lockupVideoId(renderer);
@@ -218,9 +221,22 @@ export function extractVideoFromRenderer(
   return extractFromLegacy(renderer);
 }
 
-export interface WalkStats {
-  /** videoIds captured with an empty title — a renderer-drift tripwire. */
-  emptyTitleCount: number;
+/**
+ * Run-level walk statistics. Uses two Sets (never cleared with `pending`) so
+ * that `emptyTitleCount` remains accurate across periodic checkpoint flushes:
+ * a videoId that was first captured empty and then backfilled with a title on
+ * a later page (after a flush) is correctly counted as titled, not empty.
+ */
+export class WalkStats {
+  /** Every videoId ever captured this run. */
+  readonly seenIds = new Set<string>();
+  /** Every videoId seen with a non-empty title at least once this run. */
+  readonly titledIds = new Set<string>();
+
+  /** True run-level count of videoIds never seen with a title. */
+  get emptyTitleCount(): number {
+    return this.seenIds.size - this.titledIds.size;
+  }
 }
 
 /**
@@ -234,12 +250,14 @@ function capture(
   v: ExtractedVideo,
 ): void {
   const prior = items.get(v.id);
+  // Always track at the run level (survives checkpoint flushes).
+  stats.seenIds.add(v.id);
+  if (v.title) stats.titledIds.add(v.id);
+
   if (!prior) {
     items.set(v.id, v);
-    if (!v.title) stats.emptyTitleCount++;
   } else if (!prior.title && v.title) {
     items.set(v.id, v); // a richer node backfills an empty capture
-    stats.emptyTitleCount--;
   }
 }
 
@@ -376,18 +394,19 @@ async function flushCheckpoint(
 
   for (let i = 0; i < items.length; i++) {
     const video = items[i];
-    const videoDoc: VideoDocument = {
+    // Build a partial payload: always write the fields the InnerTube path
+    // populates; omit publishedAt/addedAt/viewCount (InnerTube never has them)
+    // and omit channelId/duration when empty so a future populated value from
+    // another writer is never clobbered by an empty re-sync merge:true write.
+    const videoDoc: Partial<VideoDocument> & { videoId: string; position: number } = {
       videoId: video.id,
       title: video.title,
       channelTitle: video.channelTitle,
-      channelId: video.channelId,
-      duration: video.duration,
       thumbnailUrl: video.thumbnailUrl,
-      publishedAt: "",
-      viewCount: 0,
       position: positionStart + i,
-      addedAt: "",
     };
+    if (video.channelId) videoDoc.channelId = video.channelId;
+    if (video.duration) videoDoc.duration = video.duration;
 
     const videoRef = playlistRef.collection("videos").doc(video.id);
     batch.set(videoRef, videoDoc, { merge: true });
@@ -430,7 +449,9 @@ export async function syncWatchLater(
   // Accumulator that gets flushed periodically. Tracks items NOT yet written.
   const pending = new Map<string, ExtractedVideo>();
   // Run-level extraction tripwire, accumulated across every page's walk().
-  const walkStats: WalkStats = { emptyTitleCount: 0 };
+  // seenIds/titledIds are never cleared with pending, so emptyTitleCount
+  // remains accurate across checkpoint flushes.
+  const walkStats = new WalkStats();
   const visitedTokens = new Set<string>();
   let nextToken: string | undefined;
   let pageNum = 0;
