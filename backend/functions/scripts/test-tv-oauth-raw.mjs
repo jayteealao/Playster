@@ -76,7 +76,10 @@ async function main() {
   // before committing as tests/fixtures/innertube-browse-wl-lockup.json.
   // See docs/operations/backfill-watch-later.md.
   if (process.env.DUMP_PATH) {
-    await fs.writeFile(process.env.DUMP_PATH, JSON.stringify(firstData, null, 2));
+    await fs.writeFile(
+      process.env.DUMP_PATH,
+      JSON.stringify(firstData, null, 2),
+    );
     console.log("  raw page 1 written to " + process.env.DUMP_PATH);
   }
 

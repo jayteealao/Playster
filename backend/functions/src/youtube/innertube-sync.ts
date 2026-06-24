@@ -54,7 +54,9 @@ function extractText(node: Json): string | undefined {
  */
 function pickBestUrl(arr: Json): string | undefined {
   if (!Array.isArray(arr) || !arr.length) return undefined;
-  const best = arr.reduce((a, b) => ((b?.width ?? 0) > (a?.width ?? 0) ? b : a));
+  const best = arr.reduce((a, b) =>
+    (b?.width ?? 0) > (a?.width ?? 0) ? b : a,
+  );
   return typeof best?.url === "string" ? best.url : undefined;
 }
 
@@ -101,7 +103,14 @@ function extractFromLegacy(node: Json): ExtractedVideo | undefined {
 
   const thumbnailUrl = extractThumbnailUrl(node.thumbnail) ?? "";
 
-  return { id: node.videoId, title, channelTitle, channelId, duration, thumbnailUrl };
+  return {
+    id: node.videoId,
+    title,
+    channelTitle,
+    channelId,
+    duration,
+    thumbnailUrl,
+  };
 }
 
 /**
@@ -398,7 +407,10 @@ async function flushCheckpoint(
     // populates; omit publishedAt/addedAt/viewCount (InnerTube never has them)
     // and omit channelId/duration when empty so a future populated value from
     // another writer is never clobbered by an empty re-sync merge:true write.
-    const videoDoc: Partial<VideoDocument> & { videoId: string; position: number } = {
+    const videoDoc: Partial<VideoDocument> & {
+      videoId: string;
+      position: number;
+    } = {
       videoId: video.id,
       title: video.title,
       channelTitle: video.channelTitle,

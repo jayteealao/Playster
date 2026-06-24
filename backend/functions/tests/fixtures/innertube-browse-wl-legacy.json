@@ -12,13 +12,17 @@
                     {
                       "playlistVideoRenderer": {
                         "videoId": "LEGACYvid001",
-                        "title": { "runs": [{ "text": "Legacy Sample Video One" }] },
+                        "title": {
+                          "runs": [{ "text": "Legacy Sample Video One" }]
+                        },
                         "shortBylineText": {
                           "runs": [
                             {
                               "text": "Legacy Sample Channel",
                               "navigationEndpoint": {
-                                "browseEndpoint": { "browseId": "UCLEGACYchannel00000001" }
+                                "browseEndpoint": {
+                                  "browseId": "UCLEGACYchannel00000001"
+                                }
                               }
                             }
                           ]

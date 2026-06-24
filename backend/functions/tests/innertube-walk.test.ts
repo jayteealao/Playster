@@ -109,7 +109,9 @@ describe("extractVideoFromRenderer", () => {
           overlays: [
             {
               thumbnailOverlayBadgeViewModel: {
-                thumbnailBadges: [{ thumbnailBadgeViewModel: { text: "10:30" } }],
+                thumbnailBadges: [
+                  { thumbnailBadgeViewModel: { text: "10:30" } },
+                ],
               },
             },
           ],
@@ -152,7 +154,9 @@ describe("extractVideoFromRenderer", () => {
   it("branches the thumbnail to collectionThumbnailViewModel for a playlist lockup", () => {
     const lockup = {
       contentId: "PLAYLISTcol",
-      metadata: { lockupMetadataViewModel: { title: { content: "A Playlist" } } },
+      metadata: {
+        lockupMetadataViewModel: { title: { content: "A Playlist" } },
+      },
       contentImage: {
         collectionThumbnailViewModel: {
           primaryThumbnail: {
