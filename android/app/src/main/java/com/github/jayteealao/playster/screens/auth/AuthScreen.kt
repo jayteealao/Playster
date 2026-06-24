@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "AuthScreen"
 private const val SERVER_CLIENT_ID =
-    "510333739373-ust5kheckkg2oiuoghp08l5ghm1fsmat.apps.googleusercontent.com"
+    "510333739373-ust5kheckkg2oiuoghp08l5ghm1fsmat.apps.googleusercontent.com" // gitleaks:allow
 
 @Composable
 fun AuthScreen(
