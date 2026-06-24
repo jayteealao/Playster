@@ -21,7 +21,8 @@ export async function getTestEnv(): Promise<RulesTestEnvironment> {
   const rulesPath = path.resolve(__dirname, "..", "..", "firestore.rules");
   const rules = fs
     .readFileSync(rulesPath, "utf8")
-    .replaceAll("__BOOTSTRAP_UID__", ALLOWLISTED_UID);
+    .replaceAll("__BOOTSTRAP_UID__", ALLOWLISTED_UID)
+    .replaceAll("XLGNnIxqCwSckmrErKIdWftK9Vg2", ALLOWLISTED_UID);
 
   testEnv = await initializeTestEnvironment({
     projectId: "playster-rules-test",
