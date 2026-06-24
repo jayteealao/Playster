@@ -4,7 +4,11 @@ title = "Playster gitleaks configuration"
 useDefault = true
 
 [allowlist]
-description = "Documentation, tests/fixtures, example env files, and the vendored summarize-daemon subtree carry illustrative (non-real) tokens, not first-party secrets. Real secrets live in GCP Secret Manager and GitHub Actions secrets."
+description = "Documentation, tests/fixtures, example env files, and the vendored summarize-daemon subtree carry illustrative (non-real) tokens, not first-party secrets. Real secrets live in GCP Secret Manager and GitHub Actions secrets. The Google OAuth web client id is a public identifier that ships in every APK and google-services.json — not a credential. The operator UID in firestore.rules is an access-control identity, not a secret."
+regexes = [
+  '''510333739373-ust5kheckkg2oiuoghp08l5ghm1fsmat\.apps\.googleusercontent\.com''',
+  '''XLGNnIxqCwSckmrErKIdWftK9Vg2''',
+]
 paths = [
   '''.*\.md$''',
   '''.*/tests?/.*''',
