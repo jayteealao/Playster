@@ -131,6 +131,96 @@ describe("extractVideoFromRenderer", () => {
     );
   });
 
+  it("extracts a tileRenderer (TVHTML5 production shape) from the documented field paths", () => {
+    const tile = {
+      contentId: "TILEvid001",
+      contentType: "TILE_CONTENT_TYPE_VIDEO",
+      onSelectCommand: { watchEndpoint: { videoId: "TILEvid001" } },
+      metadata: {
+        tileMetadataRenderer: {
+          title: { simpleText: "Tile Sample Video" },
+          lines: [
+            {
+              lineRenderer: {
+                items: [
+                  {
+                    lineItemRenderer: {
+                      text: { runs: [{ text: "Tile Sample Channel" }] },
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              lineRenderer: {
+                items: [
+                  { lineItemRenderer: { text: { runs: [{ text: "1.2M views" }] } } },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      header: {
+        tileHeaderRenderer: {
+          thumbnail: {
+            thumbnails: [
+              {
+                url: "https://i.ytimg.com/vi/TILEvid001/hqdefault.jpg",
+                width: 480,
+                height: 360,
+              },
+            ],
+          },
+          thumbnailOverlays: [
+            { thumbnailOverlayTimeStatusRenderer: { text: { simpleText: "10:01" } } },
+          ],
+        },
+      },
+    };
+
+    const v = extractVideoFromRenderer(tile);
+    expect(v).toBeDefined();
+    expect(v?.id).toBe("TILEvid001");
+    expect(v?.title).toBe("Tile Sample Video");
+    expect(v?.channelTitle).toBe("Tile Sample Channel");
+    expect(v?.duration).toBe("10:01");
+    expect(v?.thumbnailUrl).toBe(
+      "https://i.ytimg.com/vi/TILEvid001/hqdefault.jpg",
+    );
+  });
+
+  it("captures a tileRenderer via walk without a duplicate empty bare-videoId row", () => {
+    const page = {
+      items: [{ tileRenderer: {
+        contentId: "TILEwalk01",
+        onSelectCommand: { watchEndpoint: { videoId: "TILEwalk01" } },
+        metadata: {
+          tileMetadataRenderer: {
+            title: { simpleText: "Walked Tile" },
+            lines: [
+              { lineRenderer: { items: [{ lineItemRenderer: {
+                text: { runs: [{ text: "Walked Channel" }] },
+              } }] } },
+            ],
+          },
+        },
+        header: { tileHeaderRenderer: { thumbnail: { thumbnails: [
+          { url: "https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg", width: 480 },
+        ] } } },
+      } }],
+    };
+
+    const { items, stats } = runWalk(page);
+    expect(items.size).toBe(1);
+    const v = items.get("TILEwalk01");
+    expect(v?.title).toBe("Walked Tile");
+    expect(v?.channelTitle).toBe("Walked Channel");
+    expect(v?.thumbnailUrl).toBe("https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg");
+    // The nested watchEndpoint videoId must NOT register as an empty row.
+    expect(stats.emptyTitleCount).toBe(0);
+  });
+
   it("recovers a lockup videoId from the nested watchEndpoint when contentId is absent", () => {
     const lockup = {
       metadata: {

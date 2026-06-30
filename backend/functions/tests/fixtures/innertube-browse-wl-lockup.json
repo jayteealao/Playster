@@ -1,0 +1,199 @@
+{
+  "_comment": "Redacted real /browse VLWL page (TVHTML5 client). Structural keys are verbatim from a live capture; titles, channel names, videoIds and thumbnail URLs are replaced with synthetic placeholders. The real page uses tileRenderer items (not lockupViewModel). See docs/operations/backfill-watch-later.md.",
+  "contents": {
+    "tvBrowseRenderer": {
+      "content": {
+        "tvSurfaceContentRenderer": {
+          "content": {
+            "sectionListRenderer": {
+              "contents": [
+                {
+                  "shelfRenderer": {
+                    "content": {
+                      "horizontalListRenderer": {
+                        "items": [
+                          {
+                            "tileRenderer": {
+                              "style": "TILE_STYLE_YTLR_DEFAULT",
+                              "contentId": "TILEvideo0001",
+                              "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                              "onSelectCommand": {
+                                "watchEndpoint": { "videoId": "TILEvideo0001" }
+                              },
+                              "metadata": {
+                                "tileMetadataRenderer": {
+                                  "title": { "simpleText": "Sample Tile Video One" },
+                                  "lines": [
+                                    {
+                                      "lineRenderer": {
+                                        "items": [
+                                          {
+                                            "lineItemRenderer": {
+                                              "text": {
+                                                "runs": [{ "text": "Sample Tile Channel" }]
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "lineRenderer": {
+                                        "items": [
+                                          {
+                                            "lineItemRenderer": {
+                                              "badge": {
+                                                "metadataBadgeRenderer": {
+                                                  "style": "BADGE_STYLE_TYPE_SIMPLE",
+                                                  "label": "4K"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "lineItemRenderer": {
+                                              "text": { "runs": [{ "text": "1.2M views" }] }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "header": {
+                                "tileHeaderRenderer": {
+                                  "thumbnail": {
+                                    "thumbnails": [
+                                      {
+                                        "url": "https://i.ytimg.com/vi/TILEvideo0001/hqdefault.jpg",
+                                        "width": 480,
+                                        "height": 360
+                                      }
+                                    ]
+                                  },
+                                  "thumbnailOverlays": [
+                                    {
+                                      "thumbnailOverlayTimeStatusRenderer": {
+                                        "text": { "simpleText": "10:01" },
+                                        "style": "DEFAULT"
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "tileRenderer": {
+                              "style": "TILE_STYLE_YTLR_DEFAULT",
+                              "contentId": "TILEvideo0002",
+                              "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                              "onSelectCommand": {
+                                "watchEndpoint": { "videoId": "TILEvideo0002" }
+                              },
+                              "metadata": {
+                                "tileMetadataRenderer": {
+                                  "title": { "simpleText": "Sample Tile Video Two" },
+                                  "lines": [
+                                    {
+                                      "lineRenderer": {
+                                        "items": [
+                                          {
+                                            "lineItemRenderer": {
+                                              "text": {
+                                                "runs": [{ "text": "Another Tile Channel" }]
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "header": {
+                                "tileHeaderRenderer": {
+                                  "thumbnail": {
+                                    "thumbnails": [
+                                      {
+                                        "url": "https://i.ytimg.com/vi/TILEvideo0002/hqdefault.jpg",
+                                        "width": 480,
+                                        "height": 360
+                                      }
+                                    ]
+                                  },
+                                  "thumbnailOverlays": [
+                                    {
+                                      "thumbnailOverlayTimeStatusRenderer": {
+                                        "text": { "simpleText": "7:42" }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "tileRenderer": {
+                              "style": "TILE_STYLE_YTLR_DEFAULT",
+                              "contentId": "TILEvideo0003",
+                              "contentType": "TILE_CONTENT_TYPE_VIDEO",
+                              "onSelectCommand": {
+                                "watchEndpoint": { "videoId": "TILEvideo0003" }
+                              },
+                              "metadata": {
+                                "tileMetadataRenderer": {
+                                  "title": { "simpleText": "Sample Tile Video Three" },
+                                  "lines": [
+                                    {
+                                      "lineRenderer": {
+                                        "items": [
+                                          {
+                                            "lineItemRenderer": {
+                                              "text": {
+                                                "runs": [{ "text": "Third Tile Channel" }]
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "header": {
+                                "tileHeaderRenderer": {
+                                  "thumbnail": {
+                                    "thumbnails": [
+                                      {
+                                        "url": "https://i.ytimg.com/vi/TILEvideo0003/hqdefault.jpg",
+                                        "width": 480,
+                                        "height": 360
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "continuations": [
+                          {
+                            "nextContinuationData": {
+                              "continuation": "TILE_CONTINUATION_TOKEN_PLACEHOLDER"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

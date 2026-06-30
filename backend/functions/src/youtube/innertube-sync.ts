@@ -175,19 +175,97 @@ function lockupDuration(thumb: Json): string {
 }
 
 /**
+ * tileRenderer videoId: the flat `contentId`, falling back to the nested
+ * `onSelectCommand` watchEndpoint.
+ */
+function tileVideoId(tile: Json): string | undefined {
+  if (typeof tile.contentId === "string") return tile.contentId;
+  const we = tile.onSelectCommand?.watchEndpoint?.videoId;
+  return typeof we === "string" ? we : undefined;
+}
+
+/**
+ * tileRenderer channel: first non-empty text part across the metadata lines.
+ * The byline is the first line; later lines carry views / age.
+ */
+function tileChannel(meta: Json): string {
+  const lines = meta?.lines;
+  if (Array.isArray(lines)) {
+    for (const line of lines) {
+      const parts = line?.lineRenderer?.items;
+      if (!Array.isArray(parts)) continue;
+      for (const part of parts) {
+        const t = extractText(part?.lineItemRenderer?.text);
+        if (t) return t;
+      }
+    }
+  }
+  return "";
+}
+
+/**
+ * tileRenderer duration: the time-status overlay carried by the tile header.
+ */
+function tileDuration(header: Json): string {
+  const overlays = header?.thumbnailOverlays;
+  if (Array.isArray(overlays)) {
+    for (const ov of overlays) {
+      const t = extractText(ov?.thumbnailOverlayTimeStatusRenderer?.text);
+      if (t) return t;
+    }
+  }
+  return "";
+}
+
+/**
+ * tileRenderer (the dominant item in the TVHTML5 `/browse` VLWL response). The
+ * videoId is the flat `contentId`; title and byline live under
+ * `metadata.tileMetadataRenderer` and the thumbnail under
+ * `header.tileHeaderRenderer` — none are siblings of the videoId, so the old
+ * sibling-read yielded empty rows.
+ */
+function extractFromTile(tile: Json): ExtractedVideo | undefined {
+  const id = tileVideoId(tile);
+  if (!id) return undefined;
+
+  const meta = tile.metadata?.tileMetadataRenderer;
+  const header = tile.header?.tileHeaderRenderer;
+
+  return {
+    id,
+    title: extractText(meta?.title) ?? "",
+    channelTitle: tileChannel(meta),
+    channelId: "",
+    duration: tileDuration(header),
+    thumbnailUrl: extractThumbnailUrl(header?.thumbnail) ?? "",
+  };
+}
+
+/**
  * Renderer-aware video extraction. In the InnerTube TV `/browse` VLWL response
- * the dominant item is a `lockupViewModel`, whose videoId lives on a nested
- * bare navigation node while title / byline / thumbnail live elsewhere in the
- * renderer subtree — so reading metadata as siblings of the videoId (the old
- * behaviour) always yielded empty rows. Pull videoId AND metadata from the one
- * renderer subtree in a single pass; fall back to the legacy co-located shape
- * for the A/B minority. `renderer` is the inner renderer object (the value of
- * `node.lockupViewModel` / `node.playlistVideoRenderer` / …).
+ * the dominant item is a `tileRenderer` (TVHTML5 client) or a `lockupViewModel`,
+ * whose videoId lives on a nested node while title / byline / thumbnail live
+ * elsewhere in the renderer subtree — so reading metadata as siblings of the
+ * videoId (the old behaviour) always yielded empty rows. Pull videoId AND
+ * metadata from the one renderer subtree in a single pass; fall back to the
+ * legacy co-located shape for the minority. `renderer` is the inner renderer
+ * object (the value of `node.tileRenderer` / `node.lockupViewModel` / …).
  */
 export function extractVideoFromRenderer(
   renderer: Json,
 ): ExtractedVideo | undefined {
   if (!renderer || typeof renderer !== "object") return undefined;
+
+  // tileRenderer (TVHTML5 primary). Distinctive: a tileMetadataRenderer under
+  // metadata and/or a tileHeaderRenderer under header. Checked BEFORE lockup:
+  // tileRenderer also carries a flat `contentId`, which would otherwise misroute
+  // it into the lockup branch and yield an empty title.
+  const isTile =
+    renderer.metadata?.tileMetadataRenderer != null ||
+    renderer.header?.tileHeaderRenderer != null;
+  if (isTile) {
+    return extractFromTile(renderer);
+  }
 
   // lockupViewModel (primary). Distinctive: contentId / lockupMetadataViewModel
   // / a contentImage carrying a (collection)thumbnailViewModel, OR the videoId
@@ -284,10 +362,12 @@ export function walk(
   if (typeof node !== "object") return;
 
   // Renderer boundary first: in the TV /browse VLWL response a video item is a
-  // lockupViewModel (videoId on a nested watchEndpoint, metadata in a separate
-  // subtree). Extract videoId + metadata from that one renderer in a single
-  // pass; legacy playlist/grid/compact renderers carry co-located fields.
+  // tileRenderer (TVHTML5) or a lockupViewModel — in both, the videoId and its
+  // metadata live in separate subtrees. Extract videoId + metadata from that one
+  // renderer in a single pass; legacy playlist/grid/compact renderers carry
+  // co-located fields.
   const renderer =
+    node.tileRenderer ??
     node.lockupViewModel ??
     node.playlistVideoRenderer ??
     node.gridVideoRenderer ??
@@ -442,6 +522,35 @@ async function flushCheckpoint(
   });
 
   return { wrote: items.length, ids: items.map((v) => v.id) };
+}
+
+/**
+ * After a full walk completes cleanly, the extractor has written a non-empty
+ * title for every video currently in Watch Later. Any doc that still has an
+ * empty title is therefore stale — an orphan left by an earlier (broken) sync,
+ * or a video since removed from the list — and would otherwise show as a blank
+ * row and collide on `position` with a current video. Delete them in bounded
+ * batches. The caller gates this on a clean run (`emptyTitleCount === 0`), so a
+ * renderer-drift run that legitimately produced blanks never deletes a real
+ * current video; the empty-title tripwire surfaces that case instead.
+ */
+async function pruneEmptyTitleVideos(): Promise<number> {
+  const db = admin.firestore();
+  const videosRef = db
+    .collection("playlists")
+    .doc(WATCH_LATER_ID)
+    .collection("videos");
+  let deleted = 0;
+  for (;;) {
+    const snap = await videosRef.where("title", "==", "").limit(MAX_BATCH_SIZE).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    for (const doc of snap.docs) batch.delete(doc.ref);
+    await batch.commit();
+    deleted += snap.size;
+    if (snap.size < MAX_BATCH_SIZE) break;
+  }
+  return deleted;
 }
 
 export async function syncWatchLater(
@@ -627,6 +736,18 @@ export async function syncWatchLater(
     console.warn(
       `[innertube-sync] ${walkStats.emptyTitleCount}/${totalNewItemsThisRun} videos captured with EMPTY title this run — possible renderer drift; check the committed fixture and extractor field paths`,
     );
+  }
+
+  // On a clean, completed walk, sweep stale blank orphans left by earlier syncs
+  // so they stop colliding on `position` with current videos. Skipped when this
+  // run produced any blank (possible drift) — see pruneEmptyTitleVideos.
+  if (complete && walkStats.emptyTitleCount === 0) {
+    const pruned = await pruneEmptyTitleVideos();
+    if (pruned > 0) {
+      console.log(
+        `[innertube-sync] pruned ${pruned} stale empty-title video doc(s) after full walk`,
+      );
+    }
   }
 
   return {
