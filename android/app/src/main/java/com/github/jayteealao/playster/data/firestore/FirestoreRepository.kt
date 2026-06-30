@@ -59,10 +59,23 @@ class FirestoreRepository
             firestore.collection("playlists")
                 .document(playlistId)
                 .collection("videos")
+                // Order by the playlist position the sync records (0 = top of the
+                // list). Without this the snapshot comes back ordered by document
+                // id (the videoId), which is meaningless to the user. Every video
+                // doc carries `position` (both the Data-API and InnerTube write
+                // paths set it), so ordering drops no rows.
+                .orderBy("position")
                 .asCollectionFlow(
                     tag = TAG,
                     logLabel = "videosFlow[$playlistId]",
-                ) { snap -> snap.documents.mapNotNull { it.toObject(VideoDoc::class.java) } }
+                ) { snap ->
+                    snap.documents
+                        .mapNotNull { it.toObject(VideoDoc::class.java) }
+                        // Hide stale blank rows (orphans left by an earlier sync
+                        // that shared a position with a current video); a video
+                        // with no title is not useful to show.
+                        .filter { it.title.isNotBlank() }
+                }
 
         fun videoFlow(videoId: String): Flow<VideoDoc?> =
             callbackFlow {
