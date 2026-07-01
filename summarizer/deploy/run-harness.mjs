@@ -77,6 +77,10 @@ function harnessEnv() {
     // provider. Without GROQ_API_KEY (or another supported provider) the
     // daemon emits an SSE `error` for no-caption URLs.
     GROQ_API_KEY: process.env.GROQ_API_KEY ?? "",
+    // Harness delivers the webhook to the mock backend on a private Docker-network
+    // IP, which the summarize-api SSRF guard blocks by default. Permit private
+    // webhook targets for this stack only (production leaves this unset/false).
+    SSRF_ALLOW_PRIVATE_WEBHOOK: process.env.SSRF_ALLOW_PRIVATE_WEBHOOK ?? "1",
   };
   return cachedEnv;
 }

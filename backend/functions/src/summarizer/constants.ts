@@ -22,6 +22,21 @@ export const OPENROUTER_WINDOW_MS = 60_000;
 /** Maximum age of an inbound webhook signature timestamp before it is rejected (seconds). */
 export const WEBHOOK_REPLAY_WINDOW_SECONDS = 300;
 
+/**
+ * Minimum trimmed length (characters) for a "completed" summary to be accepted
+ * as final. A completed webhook whose body is shorter than this is treated as a
+ * transient failure (status → failed-transient) rather than stored, so the
+ * retry cron re-dispatches. This guards against degraded upstream extraction
+ * (e.g. a caption scrape returning page chrome) silently landing as the summary.
+ *
+ * Server-only — not mirrored on Android. Deliberately conservative: real
+ * summaries of even very short videos run well past this (observed floor ~200+),
+ * so a legitimate summary is not downgraded. This is a length heuristic, not a
+ * content classifier — the authoritative extraction fix belongs upstream in the
+ * summarizer daemon.
+ */
+export const MIN_SUMMARY_CONTENT_CHARS = 120;
+
 /** Firestore doc path for the dispatcher cron's distributed lock. */
 export const DISPATCHER_LOCK_DOC_PATH = "locks/summaryDispatcher";
 

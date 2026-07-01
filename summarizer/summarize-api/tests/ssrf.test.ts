@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import dns from "node:dns";
 import { isPrivateIp, validateUrl } from "../src/security/ssrf.js";
 
 describe("SSRF protection", () => {
@@ -108,6 +109,43 @@ describe("SSRF protection", () => {
       const result = await validateUrl("not a url");
       expect(result.safe).toBe(false);
       expect(result.error).toContain("Invalid URL");
+    });
+  });
+
+  describe("validateUrl allowPrivate (test-only webhook relaxation)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // Mirrors the harness case: a hostname (like the docker-network `mock-backend`)
+    // that resolves via DNS to a private IP. Mock the resolver so the test is
+    // deterministic and does not depend on real network state.
+    function mockResolvesToPrivate() {
+      vi.spyOn(dns.promises, "resolve4").mockResolvedValue(["172.18.0.3"]);
+      vi.spyOn(dns.promises, "resolve6").mockRejectedValue(new Error("no-aaaa"));
+    }
+
+    it("blocks a hostname resolving to a private IP when allowPrivate is unset (default)", async () => {
+      mockResolvesToPrivate();
+      const result = await validateUrl("http://mock-backend:9000/webhook");
+      expect(result.safe).toBe(false);
+      expect(result.error).toContain("blocked IP");
+    });
+
+    it("permits a hostname resolving to a private IP when allowPrivate is true", async () => {
+      mockResolvesToPrivate();
+      const result = await validateUrl("http://mock-backend:9000/webhook", {
+        allowPrivate: true,
+      });
+      expect(result.safe).toBe(true);
+    });
+
+    it("still enforces scheme even when allowPrivate is true", async () => {
+      const result = await validateUrl("file:///etc/passwd", {
+        allowPrivate: true,
+      });
+      expect(result.safe).toBe(false);
+      expect(result.error).toContain("Blocked URL scheme");
     });
   });
 });

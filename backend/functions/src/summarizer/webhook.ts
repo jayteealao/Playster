@@ -9,6 +9,7 @@ import type {
 import {
   WEBHOOK_REPLAY_WINDOW_SECONDS,
   TERMINAL_STATUSES,
+  MIN_SUMMARY_CONTENT_CHARS,
 } from "./constants.js";
 
 interface ParsedSignature {
@@ -161,14 +162,26 @@ export async function processSummaryWebhook(
   }
 
   const incomingStatus = typeof parsed.status === "string" ? parsed.status : "";
+  const summaryText =
+    typeof parsed.result?.summary === "string" ? parsed.result.summary : "";
+  // Guard: a "completed" summary shorter than the floor is almost certainly a
+  // degraded extraction (e.g. a caption scrape that captured page chrome). Treat
+  // it as a transient failure so summaryRetryCron re-dispatches instead of
+  // storing the chrome as the final summary. A genuinely completed, plausible
+  // summary passes untouched.
+  const degradedSummary =
+    incomingStatus === "completed" &&
+    summaryText.trim().length < MIN_SUMMARY_CONTENT_CHARS;
   const inboundTerminal: SummaryDocument["status"] =
-    incomingStatus === "completed"
+    incomingStatus === "completed" && !degradedSummary
       ? "completed"
-      : classifyFailure(
-          typeof parsed.error?.code === "string"
-            ? parsed.error.code
-            : undefined,
-        );
+      : degradedSummary
+        ? "failed-transient"
+        : classifyFailure(
+            typeof parsed.error?.code === "string"
+              ? parsed.error.code
+              : undefined,
+          );
 
   // Wrap terminal-status guard + status update in a transaction so that two
   // concurrent identical deliveries cannot both pass the guard and both write.
@@ -208,9 +221,10 @@ export async function processSummaryWebhook(
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (inboundTerminal === "completed") {
-      const summaryText =
-        typeof parsed.result?.summary === "string" ? parsed.result.summary : "";
       updates.content = summaryText;
+    } else if (degradedSummary) {
+      updates.errorCode = "summary_too_short";
+      updates.errorMessage = `Summary length ${summaryText.trim().length} < ${MIN_SUMMARY_CONTENT_CHARS} chars; likely degraded extraction — re-dispatching.`;
     } else {
       updates.errorCode =
         typeof parsed.error?.code === "string" ? parsed.error.code : "unknown";

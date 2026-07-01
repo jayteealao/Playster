@@ -129,7 +129,11 @@ export async function jobRoutes(
         }
 
         if (parsed.data.webhook_url) {
-          const webhookSsrfResult = await validateUrl(parsed.data.webhook_url);
+          // The video-fetch URL check above is always strict. Only webhook_url
+          // honors the test-only allowPrivate relaxation (default false).
+          const webhookSsrfResult = await validateUrl(parsed.data.webhook_url, {
+            allowPrivate: config.allowPrivateWebhook,
+          });
           if (!webhookSsrfResult.safe) {
             return reply.code(403).send({
               error:

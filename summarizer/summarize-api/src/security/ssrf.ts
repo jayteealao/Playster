@@ -52,7 +52,13 @@ function isPrivateIpv4(ip: string): boolean {
 
 export async function validateUrl(
   url: string,
+  opts: { allowPrivate?: boolean } = {},
 ): Promise<{ safe: boolean; error?: string }> {
+  // `allowPrivate` is a test-only relaxation (see Config.allowPrivateWebhook).
+  // It is passed ONLY for webhook_url validation in the local harness; the
+  // video-fetch URL call site never sets it, so production and the video path
+  // keep the strict private-IP block.
+  const { allowPrivate = false } = opts;
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -70,7 +76,7 @@ export async function validateUrl(
   const hostname = parsed.hostname;
 
   // Check if hostname is an IP literal
-  if (isPrivateIp(hostname)) {
+  if (!allowPrivate && isPrivateIp(hostname)) {
     return { safe: false, error: `Blocked private/reserved IP: ${hostname}` };
   }
 
@@ -99,7 +105,7 @@ export async function validateUrl(
   }
 
   for (const ip of ips) {
-    if (isPrivateIp(ip)) {
+    if (!allowPrivate && isPrivateIp(ip)) {
       return {
         safe: false,
         error: `Hostname "${hostname}" resolves to blocked IP: ${ip}`,

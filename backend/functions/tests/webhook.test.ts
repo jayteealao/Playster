@@ -5,6 +5,11 @@ import { signWebhook } from "./helpers/signWebhook";
 
 const VIDEO_ID = "abc123";
 const SECRET = "test-webhook-secret-with-many-bytes";
+// A plausible completed summary clears the MIN_SUMMARY_CONTENT_CHARS (120) floor.
+// Real summaries always do; the too-short guard is exercised separately below.
+const LONG_SUMMARY =
+  "This video walks through the setup, the core demonstration, and a short wrap-up. " +
+  "It covers the main points clearly and ends with a concise recap of what was shown.";
 
 async function seedRunningSummary(secret = SECRET): Promise<void> {
   await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
@@ -35,7 +40,7 @@ describe("processSummaryWebhook — emulator-backed", () => {
     const payload = {
       client_job_id: VIDEO_ID,
       status: "completed",
-      result: { summary: "hello", title: "t", model: "free" },
+      result: { summary: LONG_SUMMARY, title: "t", model: "free" },
     };
     const { header, rawBody } = signWebhook(payload, SECRET);
     const result = await processSummaryWebhook({
@@ -45,7 +50,31 @@ describe("processSummaryWebhook — emulator-backed", () => {
     expect(result.status).toBe(204);
     const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
     expect(doc.data()?.status).toBe("completed");
-    expect(doc.data()?.content).toBe("hello");
+    expect(doc.data()?.content).toBe(LONG_SUMMARY);
+  });
+
+  it("F5: completed webhook with too-short summary → failed-transient (re-dispatchable)", async () => {
+    // Degraded upstream extraction (e.g. a caption scrape returning page chrome)
+    // must not land as the final summary. A "completed" body below the floor is
+    // downgraded to failed-transient so summaryRetryCron re-dispatches it.
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    await seedRunningSummary();
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: "Enjoy videos and music. Upload original content." },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("failed-transient");
+    expect(doc.data()?.errorCode).toBe("summary_too_short");
+    expect(doc.data()?.content).toBeUndefined();
   });
 
   it("AC-8: unknown client_job_id → 401, no write", async () => {
@@ -165,7 +194,7 @@ describe("processSummaryWebhook — emulator-backed", () => {
     const payload = {
       client_job_id: VIDEO_ID,
       status: "completed",
-      result: { summary: "second" },
+      result: { summary: LONG_SUMMARY },
     };
     const { header, rawBody } = signWebhook(payload, SECRET);
     const result = await processSummaryWebhook({

@@ -1,7 +1,7 @@
 {
-  "$comment": "Captioned YouTube fixture for the docker-compose harness. AC-6 evidence.",
-  "url": "https://www.youtube.com/watch?v=h7zV9Bzklv8",
-  "title": "Google I/O 2024 keynote excerpt (Creative Commons, captioned)",
+  "$comment": "Captioned YouTube fixture for the docker-compose harness. AC-6 evidence. Replaced 2026-07-01: the prior video (h7zV9Bzklv8) returned a page-chrome interstitial instead of a transcript (probe finding F5). This is the Blender Foundation 'Big Buck Bunny' Creative-Commons short — a long-lived, stably-available CC video with a real transcript. The verify step MUST confirm the produced summary is transcript-derived and above the floor; swap the URL if this video ever stops resolving.",
+  "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+  "title": "Big Buck Bunny (Blender Foundation, Creative Commons)",
   "client_job_id": "fixture-captioned",
   "expect": {
     "status": "completed",

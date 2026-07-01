@@ -10,6 +10,14 @@ export interface Config {
   rateLimitMax: number;
   rateLimitWindow: string;
   dbPath: string;
+  /**
+   * Test-only escape hatch: when true, `webhook_url` SSRF validation permits
+   * private/reserved IPs. Default false — production always rejects them. Set
+   * to "1" only in the local docker-compose harness, where the mock backend
+   * lives on a private Docker-network IP. The video-fetch URL check is never
+   * affected by this flag.
+   */
+  allowPrivateWebhook: boolean;
 }
 
 export function loadConfig(): Config {
@@ -44,5 +52,6 @@ export function loadConfig(): Config {
     rateLimitMax: Number(process.env["RATE_LIMIT_MAX"] ?? 30),
     rateLimitWindow: process.env["RATE_LIMIT_WINDOW"] ?? "1 minute",
     dbPath: process.env["DB_PATH"] ?? "./data/jobs.db",
+    allowPrivateWebhook: process.env["SSRF_ALLOW_PRIVATE_WEBHOOK"] === "1",
   };
 }
