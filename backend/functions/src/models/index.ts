@@ -55,6 +55,14 @@ export interface SummaryDocument {
   content?: string;
   errorCode?: string;
   errorMessage?: string;
+  /**
+   * Number of times this doc has been downgraded to failed-transient due to a
+   * too-short summary (errorCode "summary_too_short"). Incremented on each
+   * degraded-extraction webhook before the status write. When this reaches
+   * MAX_DEGRADED_ATTEMPTS the status is promoted to failed-permanent instead,
+   * removing the video from the retry queue permanently.
+   */
+  degradedAttempts?: number;
   requestedAt: FieldValue | Date;
   dispatchedAt?: FieldValue | Date;
   completedAt?: FieldValue | Date;

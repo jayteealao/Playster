@@ -10,6 +10,7 @@ import {
   WEBHOOK_REPLAY_WINDOW_SECONDS,
   TERMINAL_STATUSES,
   MIN_SUMMARY_CONTENT_CHARS,
+  MAX_DEGRADED_ATTEMPTS,
 } from "./constants.js";
 
 interface ParsedSignature {
@@ -216,15 +217,37 @@ export async function processSummaryWebhook(
       return { httpStatus: 200, httpBody: "already-terminal" };
     }
 
+    let resolvedStatus = inboundTerminal;
+    let newDegradedAttempts: number | undefined;
+
+    if (degradedSummary) {
+      // Increment the per-video degraded-attempt counter and cap it. The
+      // counter lives on the doc itself so it survives across daily cron runs.
+      const prevAttempts = (summary?.degradedAttempts ?? 0) as number;
+      newDegradedAttempts = prevAttempts + 1;
+      if (newDegradedAttempts >= MAX_DEGRADED_ATTEMPTS) {
+        // Promote to permanent failure — summaryRetryCron's
+        // `status == "failed-transient"` query will never pick this up again.
+        resolvedStatus = "failed-permanent";
+      }
+    }
+
     const updates: Partial<SummaryDocument> = {
-      status: inboundTerminal,
+      status: resolvedStatus,
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    if (inboundTerminal === "completed") {
+    if (resolvedStatus === "completed") {
       updates.content = summaryText;
     } else if (degradedSummary) {
+      const trimmedLen = summaryText.trim().length;
       updates.errorCode = "summary_too_short";
-      updates.errorMessage = `Summary length ${summaryText.trim().length} < ${MIN_SUMMARY_CONTENT_CHARS} chars; likely degraded extraction — re-dispatching.`;
+      updates.errorMessage =
+        resolvedStatus === "failed-permanent"
+          ? `Summary length ${trimmedLen} < ${MIN_SUMMARY_CONTENT_CHARS} chars;` +
+            ` degraded extraction capped after ${newDegradedAttempts} attempts — marked permanent.`
+          : `Summary length ${trimmedLen} < ${MIN_SUMMARY_CONTENT_CHARS} chars;` +
+            " likely degraded extraction — re-dispatching.";
+      updates.degradedAttempts = newDegradedAttempts;
     } else {
       updates.errorCode =
         typeof parsed.error?.code === "string" ? parsed.error.code : "unknown";

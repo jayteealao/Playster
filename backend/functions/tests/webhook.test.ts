@@ -219,6 +219,92 @@ describe("processSummaryWebhook — emulator-backed", () => {
   // M-11: terminal-state mismatch — doc is "completed", webhook delivers
   // "failure". Must return 200 (idempotent short-circuit) and leave the
   // existing "completed" doc untouched.
+  it("REL-11 cap: too-short summary at MAX_DEGRADED_ATTEMPTS → failed-permanent (non-redispatchable)", async () => {
+    // A video that persistently extracts to <MIN_SUMMARY_CONTENT_CHARS must not
+    // be re-dispatched indefinitely. After MAX_DEGRADED_ATTEMPTS the status is
+    // promoted to failed-permanent so summaryRetryCron stops picking it up.
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    const { MAX_DEGRADED_ATTEMPTS } = await import(
+      "../src/summarizer/constants.js"
+    );
+    const SHORT_SUMMARY = "Enjoy videos and music. Upload original content.";
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: SHORT_SUMMARY },
+    };
+
+    // Seed doc with degradedAttempts already at MAX_DEGRADED_ATTEMPTS - 1 to
+    // simulate prior failed-transient downgrades. Status is set to "running" so
+    // the webhook idempotency guard lets the write through.
+    await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "running",
+      model: "free",
+      degradedAttempts: MAX_DEGRADED_ATTEMPTS - 1,
+      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
+      secret: SECRET,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("failed-permanent");
+    expect(doc.data()?.errorCode).toBe("summary_too_short");
+    expect(doc.data()?.degradedAttempts).toBe(MAX_DEGRADED_ATTEMPTS);
+    expect(doc.data()?.content).toBeUndefined();
+  });
+
+  it("REL-11 below-cap: too-short summary below MAX_DEGRADED_ATTEMPTS → failed-transient (re-dispatchable)", async () => {
+    // Below the cap the existing failed-transient behaviour is preserved.
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    const { MAX_DEGRADED_ATTEMPTS } = await import(
+      "../src/summarizer/constants.js"
+    );
+    const SHORT_SUMMARY = "Enjoy videos and music. Upload original content.";
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: SHORT_SUMMARY },
+    };
+
+    // Seed doc with zero prior degraded attempts.
+    await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "running",
+      model: "free",
+      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
+      secret: SECRET,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("failed-transient");
+    expect(doc.data()?.errorCode).toBe("summary_too_short");
+    expect(doc.data()?.degradedAttempts).toBe(1);
+    // Verify below cap (sanity check that this test used a value below the cap)
+    expect(1).toBeLessThan(MAX_DEGRADED_ATTEMPTS);
+  });
+
   it("M-11: completed doc + failure webhook → 200 short-circuit, doc unchanged", async () => {
     const { processSummaryWebhook } =
       await import("../src/summarizer/webhook.js");

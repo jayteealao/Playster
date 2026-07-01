@@ -37,6 +37,22 @@ export const WEBHOOK_REPLAY_WINDOW_SECONDS = 300;
  */
 export const MIN_SUMMARY_CONTENT_CHARS = 120;
 
+/**
+ * Maximum number of times a `summary_too_short` downgrade is treated as
+ * transient (status → failed-transient) before the video is promoted to
+ * failed-permanent and removed from the retry queue permanently.
+ *
+ * Without this cap a video whose caption track is genuinely near-empty would
+ * consume one OpenRouter quota slot per day indefinitely. After
+ * MAX_DEGRADED_ATTEMPTS the webhook sets status="failed-permanent" (keeping
+ * errorCode="summary_too_short") so summaryRetryCron's
+ * `status == "failed-transient"` query never picks it up again.
+ *
+ * Server-only — not mirrored on Android (Android already handles
+ * "failed-permanent" as a non-redispatchable terminal state).
+ */
+export const MAX_DEGRADED_ATTEMPTS = 3;
+
 /** Firestore doc path for the dispatcher cron's distributed lock. */
 export const DISPATCHER_LOCK_DOC_PATH = "locks/summaryDispatcher";
 
