@@ -86,3 +86,25 @@ export interface QuotaDocument {
   recentTimestamps: number[];
   updatedAt: FieldValue | Date;
 }
+
+export type TranscriptStatus = "pending" | "available" | "transient" | "unavailable";
+
+export interface TranscriptSegment {
+  /** Segment start time in seconds (float). */
+  start: number;
+  text: string;
+}
+
+export interface TranscriptDocument {
+  videoId: string;
+  status: TranscriptStatus;
+  source?: "youtubei" | "shortDescription";
+  language?: string;
+  segments?: TranscriptSegment[];
+  gcsPath?: string;
+  signedUrl?: string;
+  signedUrlExpiresAt?: FieldValue | Date;
+  errorCode?: string;
+  createdAt: FieldValue | Date;
+  updatedAt: FieldValue | Date;
+}

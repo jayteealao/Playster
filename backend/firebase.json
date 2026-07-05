@@ -21,6 +21,9 @@
     "indexes": "firestore.indexes.json",
     "predeploy": "bash scripts/check-allowlist-uid.sh"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "emulators": {
     "auth": { "host": "127.0.0.1", "port": 9099 },
     "firestore": { "host": "127.0.0.1", "port": 8080 },

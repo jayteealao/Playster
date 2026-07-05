@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // Transcript blobs are read exclusively via server-generated signed URLs.
+      // Signed-URL access bypasses Firebase Storage security rules entirely —
+      // this deny-all makes the intent explicit and prevents any future
+      // accidental open rule from exposing raw blobs to unauthenticated clients.
+      allow read, write: if false;
+    }
+  }
+}
