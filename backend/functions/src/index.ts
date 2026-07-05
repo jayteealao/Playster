@@ -30,6 +30,7 @@ export { summaryWebhook } from "./summarizer/webhook";
 export { summaryDispatcher } from "./summarizer/dispatcher-cron";
 export { summarySweeper } from "./summarizer/sweeper";
 export { summaryRetryCron } from "./summarizer/retry";
+export { resummarizeVideoSummary } from "./summarizer/resummarize";
 
 // --- Transcript fetch + backfill cron ---
 export { invokeTranscriptFetch, transcriptBackfillCron } from "./transcript/index";
