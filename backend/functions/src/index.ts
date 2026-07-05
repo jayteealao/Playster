@@ -30,6 +30,9 @@ export { summaryDispatcher } from "./summarizer/dispatcher-cron";
 export { summarySweeper } from "./summarizer/sweeper";
 export { summaryRetryCron } from "./summarizer/retry";
 
+// --- Transcript fetch (slice C2) ---
+export { invokeTranscriptFetch } from "./transcript/index";
+
 async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   if (!videoIds || !videoIds.length) return;
   try {
