@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.jayteealao.playster.data.firestore.SummaryDoc
 import com.github.jayteealao.playster.data.firestore.SummaryRepository
+import com.github.jayteealao.playster.data.firestore.TranscriptDoc
+import com.github.jayteealao.playster.data.firestore.TranscriptRepository
 import com.github.jayteealao.playster.functions.SummaryFunctions
 import com.github.jayteealao.playster.screens.common.state.SummaryStatus
 import com.google.firebase.functions.FirebaseFunctionsException
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,6 +30,7 @@ class SummaryViewModel
     constructor(
         savedStateHandle: SavedStateHandle,
         private val summaryRepository: SummaryRepository,
+        private val transcriptRepository: TranscriptRepository,
         private val summaryFunctions: SummaryFunctions,
     ) : ViewModel() {
         val videoId: String = savedStateHandle["videoId"] ?: ""
@@ -55,6 +59,17 @@ class SummaryViewModel
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5_000),
                     initialValue = SummaryUiState.NoSummary,
+                )
+
+        val transcriptUiState: StateFlow<TranscriptUiState> =
+            transcriptRepository
+                .observe(videoId)
+                .map { doc -> mapDocToTranscriptState(doc) }
+                .catch { emit(TranscriptUiState.Error("Couldn't load transcript.")) }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = TranscriptUiState.Loading,
                 )
 
         init {
@@ -104,6 +119,28 @@ class SummaryViewModel
                     SummaryUiState.FailedPermanent(
                         message = doc?.errorMessage ?: "This video can't be summarized.",
                     )
+            }
+        }
+
+        private fun mapDocToTranscriptState(doc: TranscriptDoc?): TranscriptUiState {
+            if (doc == null) return TranscriptUiState.Loading
+            return when (doc.statusWire) {
+                "pending" -> TranscriptUiState.Loading
+                "available" -> {
+                    val segments = doc.segments.map { seg ->
+                        TranscriptSegmentUi(startSeconds = seg.start, text = seg.text)
+                    }
+                    TranscriptUiState.Available(
+                        segments = segments,
+                        language = doc.language,
+                        signedUrl = doc.signedUrl,
+                    )
+                }
+                "unavailable" -> TranscriptUiState.Unavailable
+                // transient, error, too-large, or any unknown status → non-blocking error
+                else -> TranscriptUiState.Error(
+                    "Transcript unavailable" + (doc.errorCode?.let { " ($it)" } ?: "."),
+                )
             }
         }
 

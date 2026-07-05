@@ -165,3 +165,38 @@ class QuotaRepository
                 }
             }
     }
+
+private const val TRANSCRIPT_TAG = "playster.transcript"
+
+/**
+ * Firestore listener over `transcripts/{videoId}`. Emits null when the doc
+ * doesn't exist yet (video not yet processed), the mapped [TranscriptDoc]
+ * otherwise. Listener errors close the flow so the ViewModel can surface
+ * a terminal error instead of freezing in a loading state.
+ */
+@Singleton
+class TranscriptRepository
+    @Inject
+    constructor(
+        private val firestore: FirebaseFirestore,
+    ) {
+        fun observe(videoId: String): Flow<TranscriptDoc?> =
+            callbackFlow {
+                Log.d(TRANSCRIPT_TAG, "listen{videoId=$videoId,attach=true}")
+                val listener =
+                    firestore.collection("transcripts")
+                        .document(videoId)
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null) {
+                                Log.w(TRANSCRIPT_TAG, "transcript listen error for $videoId", error)
+                                close(error)
+                                return@addSnapshotListener
+                            }
+                            trySend(snapshot?.toTranscriptDoc())
+                        }
+                awaitClose {
+                    Log.d(TRANSCRIPT_TAG, "listen{videoId=$videoId,attach=false}")
+                    listener.remove()
+                }
+            }
+    }

@@ -24,8 +24,10 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 @Composable
 fun SummaryScreen(viewModel: SummaryViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val transcriptState by viewModel.transcriptUiState.collectAsStateWithLifecycle()
     SummaryScreenContent(
         state = state,
+        transcriptState = transcriptState,
         onRetry = viewModel::retry,
         onSummarize = viewModel::retry,
     )
@@ -36,6 +38,7 @@ private fun stateTag(state: SummaryUiState): String = "SummaryScreen-${state::cl
 @Composable
 fun SummaryScreenContent(
     state: SummaryUiState,
+    transcriptState: TranscriptUiState = TranscriptUiState.Loading,
     onRetry: () -> Unit,
     onSummarize: () -> Unit,
     modifier: Modifier = Modifier,
@@ -69,6 +72,7 @@ fun SummaryScreenContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 16.dp),
                     )
+                    TranscriptSection(state = transcriptState)
                 }
             }
 

@@ -24,6 +24,7 @@ class SummaryScreenComposeTest {
         composeTestRule.setContent {
             SummaryScreenContent(
                 state = SummaryUiState.InProgress,
+                transcriptState = TranscriptUiState.Loading,
                 onRetry = {},
                 onSummarize = {},
             )
@@ -41,6 +42,7 @@ class SummaryScreenComposeTest {
                         content = "# Hello\n\nBody",
                         model = "free",
                     ),
+                transcriptState = TranscriptUiState.Loading,
                 onRetry = {},
                 onSummarize = {},
             )
@@ -53,6 +55,7 @@ class SummaryScreenComposeTest {
         composeTestRule.setContent {
             SummaryScreenContent(
                 state = SummaryUiState.FailedTransient(message = "boom"),
+                transcriptState = TranscriptUiState.Loading,
                 onRetry = {},
                 onSummarize = {},
             )
@@ -66,6 +69,7 @@ class SummaryScreenComposeTest {
         composeTestRule.setContent {
             SummaryScreenContent(
                 state = SummaryUiState.FailedPermanent(message = "no can do"),
+                transcriptState = TranscriptUiState.Loading,
                 onRetry = {},
                 onSummarize = {},
             )
@@ -85,6 +89,7 @@ class SummaryScreenComposeTest {
         composeTestRule.setContent {
             SummaryScreenContent(
                 state = SummaryUiState.NoSummary,
+                transcriptState = TranscriptUiState.Loading,
                 onRetry = {},
                 onSummarize = { callbackInvoked = true },
             )
