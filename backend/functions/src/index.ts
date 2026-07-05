@@ -5,6 +5,7 @@ import { oauthSecrets } from "./auth/oauth";
 import { allowlistedCall } from "./auth/verify";
 import { enqueueAutoSummary } from "./summarizer/autoEnqueue";
 import { reconcileAll } from "./summarizer/reconcile";
+import { fetchTranscript } from "./transcript/index";
 
 // --- Auth functions ---
 export {
@@ -30,8 +31,8 @@ export { summaryDispatcher } from "./summarizer/dispatcher-cron";
 export { summarySweeper } from "./summarizer/sweeper";
 export { summaryRetryCron } from "./summarizer/retry";
 
-// --- Transcript fetch (slice C2) ---
-export { invokeTranscriptFetch } from "./transcript/index";
+// --- Transcript fetch + backfill cron ---
+export { invokeTranscriptFetch, transcriptBackfillCron } from "./transcript/index";
 
 async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   if (!videoIds || !videoIds.length) return;
@@ -40,6 +41,30 @@ async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   } catch (err) {
     // Never fail the sync because of auto-enqueue.
     logger.warn("autoEnqueueSafe failed (non-fatal)", {
+      count: videoIds.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * Fetch transcripts for newly synced videos after a sync completes.
+ * Non-fatal — a transcript fetch failure must never fail the sync.
+ * Uses Promise.allSettled (parallel) because new-video counts per sync
+ * are small (1–10) and latency within a sync is user-visible.
+ *
+ * Exported so the AC1 fetch-after-sync test can drive it directly without
+ * going through a full sync callable invocation.
+ */
+export async function fetchTranscriptsSafe(
+  videoIds: string[] | undefined,
+): Promise<void> {
+  if (!videoIds || !videoIds.length) return;
+  try {
+    await Promise.allSettled(videoIds.map((id) => fetchTranscript(id)));
+  } catch (err) {
+    // Promise.allSettled itself should never throw, but guard anyway.
+    logger.warn("fetchTranscriptsSafe failed (non-fatal)", {
       count: videoIds.length,
       error: err instanceof Error ? err.message : String(err),
     });
@@ -64,6 +89,7 @@ export const syncAllPlaylists = allowlistedCall<
     const { videoIds, ...result } = await syncAll();
     logger.info("syncAllPlaylists: completed", result);
     await autoEnqueueSafe(videoIds);
+    await fetchTranscriptsSafe(videoIds);
     return result;
   },
 );
@@ -85,6 +111,7 @@ export const syncPlaylist = allowlistedCall<
     const { videoIds, ...result } = await syncPlaylistById(playlistId);
     logger.info("syncPlaylist: completed", result);
     await autoEnqueueSafe(videoIds);
+    await fetchTranscriptsSafe(videoIds);
     return result;
   },
 );
@@ -103,6 +130,7 @@ export const syncWatchLater = allowlistedCall<
     const { videoIds, ...result } = await runSyncWatchLater({ reset });
     logger.info("syncWatchLater: completed", result);
     await autoEnqueueSafe(videoIds);
+    await fetchTranscriptsSafe(videoIds);
     return result;
   },
 );
@@ -141,6 +169,7 @@ export const scheduledSync = onSchedule(
       const { videoIds, ...result } = await syncAll();
       logger.info("scheduledSync: completed", result);
       await autoEnqueueSafe(videoIds);
+      await fetchTranscriptsSafe(videoIds);
     } catch (error) {
       logger.error("scheduledSync failed", error);
     }

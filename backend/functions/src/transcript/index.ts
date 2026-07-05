@@ -5,6 +5,7 @@ import { allowlistedCall } from "../auth/verify.js";
 import { fetchTranscript } from "./fetch.js";
 
 export { fetchTranscript } from "./fetch.js";
+export { transcriptBackfillCron } from "./backfill.js";
 
 /**
  * Manual operator trigger: fetch and store one video's transcript.
