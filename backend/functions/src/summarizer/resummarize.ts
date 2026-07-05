@@ -13,14 +13,15 @@ import { MIN_SUMMARY_CONTENT_CHARS } from "./constants.js";
 const FREE_TIER_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
 
 /**
- * Statuses that indicate a summary job is currently in-flight or terminal-done.
+ * Statuses that indicate a summary job is currently in-flight.
  * Re-summarization skips these to avoid racing a concurrent daemon job.
- * Mirrors NON_REDISPATCHABLE_STATUSES from dispatch.ts.
+ * Unlike dispatch.ts's NON_REDISPATCHABLE_STATUSES, `completed` is intentionally
+ * NOT included here — the primary purpose of this callable is to replace an
+ * already-completed summary with a fresh one sourced from the stored transcript.
  */
 const NON_RESUMMARISABLE_STATUSES: ReadonlyArray<SummaryDocument["status"]> = [
   "pending",
   "running",
-  "completed",
 ];
 
 interface ResumarizeOptions {
@@ -119,6 +120,24 @@ export async function resummarizeFromTranscript(
       return;
     }
     transcriptText = segmentsToText(pointerData.segments);
+  }
+
+  // --- Guard: truncate oversized transcripts to protect the LLM context window ---
+  // `meta-llama/llama-3.1-8b-instruct:free` has an 8k-token context window.
+  // 80 000 chars ≈ 20 000 tokens — a generous cap that still fits comfortably.
+  // Transcripts beyond this threshold would always fail with a 400 from OpenRouter
+  // and write failed-transient, burning a quota slot on every retry. We truncate
+  // rather than reject so partial summaries are still attempted.
+  // sdlc-debt: cap is a rough char-count proxy; upgrade path = use a real tokeniser
+  //   (e.g. tiktoken) for a precise context-window budget.
+  const MAX_TRANSCRIPT_CHARS = 80_000;
+  if (transcriptText.length > MAX_TRANSCRIPT_CHARS) {
+    logger.warn("resummarizeFromTranscript: transcript truncated to context window", {
+      videoId,
+      originalLength: transcriptText.length,
+      truncatedLength: MAX_TRANSCRIPT_CHARS,
+    });
+    transcriptText = transcriptText.slice(0, MAX_TRANSCRIPT_CHARS);
   }
 
   // --- Call OpenRouter chat-completions API directly ---
