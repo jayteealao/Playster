@@ -4,6 +4,7 @@ import * as logger from "firebase-functions/logger";
 import { oauthSecrets } from "./auth/oauth";
 import { allowlistedCall } from "./auth/verify";
 import { enqueueAutoSummary } from "./summarizer/autoEnqueue";
+import { reconcileAll } from "./summarizer/reconcile";
 
 // --- Auth functions ---
 export {
@@ -99,6 +100,24 @@ export const syncWatchLater = allowlistedCall<
     const { videoIds, ...result } = await runSyncWatchLater({ reset });
     logger.info("syncWatchLater: completed", result);
     await autoEnqueueSafe(videoIds);
+    return result;
+  },
+);
+
+/**
+ * One-time idempotent backfill: enqueues every video that has no summary doc.
+ * Safe to run multiple times — videos with an existing summary doc (any status)
+ * are skipped. Allowlisted operator only.
+ */
+export const reconcileVideoSummaries = allowlistedCall<
+  Record<string, never>,
+  { total: number; enqueued: number; skipped: number }
+>(
+  { memory: "512MiB", timeoutSeconds: 540 },
+  async () => {
+    logger.info("reconcileVideoSummaries: starting");
+    const result = await reconcileAll();
+    logger.info("reconcileVideoSummaries: complete", result);
     return result;
   },
 );
