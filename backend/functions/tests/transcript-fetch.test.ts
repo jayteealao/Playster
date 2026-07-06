@@ -57,10 +57,7 @@ function seg(start_ms: string, text: string) {
  * Builds a mock TranscriptInfo-like object with real segments.
  * Sets `initial_segments` to an array of duck-typed segment objects.
  */
-function transcriptWith(
-  segments: ReturnType<typeof seg>[],
-  language = "en",
-) {
+function transcriptWith(segments: ReturnType<typeof seg>[], language = "en") {
   return {
     selectedLanguage: language,
     transcript: {
@@ -102,7 +99,10 @@ function mockGcs({
 
 /** Wires getInnertubeClient to return a client whose getInfo() returns the given transcript */
 function mockInnertube(
-  transcriptResult: ReturnType<typeof transcriptWith> | ReturnType<typeof transcriptEmpty> | null,
+  transcriptResult:
+    | ReturnType<typeof transcriptWith>
+    | ReturnType<typeof transcriptEmpty>
+    | null,
   getInfoThrows?: string,
 ) {
   (getInnertubeClient as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -140,7 +140,9 @@ describe("fetchTranscript — emulator-backed", () => {
   it("available path: writes GCS blob and pointer doc at status=available", async () => {
     const segments = [seg("0", "Hello world"), seg("2500", "Next sentence.")];
     mockInnertube(transcriptWith(segments, "fr"));
-    const { mockFile } = mockGcs({ signedUrl: "https://storage.goog/t/signed" });
+    const { mockFile } = mockGcs({
+      signedUrl: "https://storage.goog/t/signed",
+    });
 
     await fetchTranscript(VIDEO_ID);
 
@@ -162,7 +164,10 @@ describe("fetchTranscript — emulator-backed", () => {
     expect(data.segments).toHaveLength(2);
     // start in seconds: 0ms → 0.00s, 2500ms → 2.50s
     expect(data.segments[0]).toMatchObject({ start: 0, text: "Hello world" });
-    expect(data.segments[1]).toMatchObject({ start: 2.5, text: "Next sentence." });
+    expect(data.segments[1]).toMatchObject({
+      start: 2.5,
+      text: "Next sentence.",
+    });
   });
 
   // ---
@@ -219,14 +224,17 @@ describe("fetchTranscript — emulator-backed", () => {
   // Idempotency: re-run on already-available doc is a no-op
   // ---
   it("idempotency: skips Innertube and GCS when pointer is already available", async () => {
-    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "available",
-      gcsPath: `transcripts/${VIDEO_ID}.txt`,
-      signedUrl: "https://existing.signed.url",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "available",
+        gcsPath: `transcripts/${VIDEO_ID}.txt`,
+        signedUrl: "https://existing.signed.url",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     const getInfoMock = vi.fn();
     (getInnertubeClient as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

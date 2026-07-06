@@ -63,7 +63,7 @@ describe("firestore.rules — transcripts (transcript-infra)", () => {
         status: "available",
         createdAt: new Date(),
         updatedAt: new Date(),
-      })
+      }),
     );
   });
 });

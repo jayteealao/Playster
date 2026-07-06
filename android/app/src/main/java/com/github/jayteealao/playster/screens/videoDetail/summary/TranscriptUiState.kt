@@ -39,10 +39,12 @@ data class TranscriptSegmentUi(
     val text: String,
 )
 
+private const val SECONDS_PER_MINUTE = 60L
+
 /** Formats an offset in seconds as M:SS (e.g. 83.0 → "1:23"). */
 internal fun formatTimestamp(seconds: Double): String {
     val total = seconds.toLong().coerceAtLeast(0L)
-    val minutes = total / 60
-    val secs = total % 60
+    val minutes = total / SECONDS_PER_MINUTE
+    val secs = total % SECONDS_PER_MINUTE
     return "%d:%02d".format(minutes, secs)
 }

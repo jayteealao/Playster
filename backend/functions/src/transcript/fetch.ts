@@ -33,9 +33,7 @@ function getBucketName(): string {
  * slice (plain text, no escaping overhead vs. JSON).
  */
 function segmentsToText(segments: TranscriptSegment[]): string {
-  return segments
-    .map((s) => `${s.start.toFixed(2)} ${s.text}`)
-    .join("\n");
+  return segments.map((s) => `${s.start.toFixed(2)} ${s.text}`).join("\n");
 }
 
 /**
@@ -66,9 +64,7 @@ export async function fetchTranscript(videoId: string): Promise<void> {
 
   logger.info("fetchTranscript: starting", { videoId });
 
-  const createdAt = existing.exists
-    ? (existing.data()?.createdAt ?? now)
-    : now;
+  const createdAt = existing.exists ? (existing.data()?.createdAt ?? now) : now;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let transcriptInfoRaw: any;

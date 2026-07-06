@@ -154,7 +154,11 @@ describe("extractVideoFromRenderer", () => {
             {
               lineRenderer: {
                 items: [
-                  { lineItemRenderer: { text: { runs: [{ text: "1.2M views" }] } } },
+                  {
+                    lineItemRenderer: {
+                      text: { runs: [{ text: "1.2M views" }] },
+                    },
+                  },
                 ],
               },
             },
@@ -173,7 +177,11 @@ describe("extractVideoFromRenderer", () => {
             ],
           },
           thumbnailOverlays: [
-            { thumbnailOverlayTimeStatusRenderer: { text: { simpleText: "10:01" } } },
+            {
+              thumbnailOverlayTimeStatusRenderer: {
+                text: { simpleText: "10:01" },
+              },
+            },
           ],
         },
       },
@@ -192,23 +200,44 @@ describe("extractVideoFromRenderer", () => {
 
   it("captures a tileRenderer via walk without a duplicate empty bare-videoId row", () => {
     const page = {
-      items: [{ tileRenderer: {
-        contentId: "TILEwalk01",
-        onSelectCommand: { watchEndpoint: { videoId: "TILEwalk01" } },
-        metadata: {
-          tileMetadataRenderer: {
-            title: { simpleText: "Walked Tile" },
-            lines: [
-              { lineRenderer: { items: [{ lineItemRenderer: {
-                text: { runs: [{ text: "Walked Channel" }] },
-              } }] } },
-            ],
+      items: [
+        {
+          tileRenderer: {
+            contentId: "TILEwalk01",
+            onSelectCommand: { watchEndpoint: { videoId: "TILEwalk01" } },
+            metadata: {
+              tileMetadataRenderer: {
+                title: { simpleText: "Walked Tile" },
+                lines: [
+                  {
+                    lineRenderer: {
+                      items: [
+                        {
+                          lineItemRenderer: {
+                            text: { runs: [{ text: "Walked Channel" }] },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+            header: {
+              tileHeaderRenderer: {
+                thumbnail: {
+                  thumbnails: [
+                    {
+                      url: "https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg",
+                      width: 480,
+                    },
+                  ],
+                },
+              },
+            },
           },
         },
-        header: { tileHeaderRenderer: { thumbnail: { thumbnails: [
-          { url: "https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg", width: 480 },
-        ] } } },
-      } }],
+      ],
     };
 
     const { items, stats } = runWalk(page);
@@ -216,7 +245,9 @@ describe("extractVideoFromRenderer", () => {
     const v = items.get("TILEwalk01");
     expect(v?.title).toBe("Walked Tile");
     expect(v?.channelTitle).toBe("Walked Channel");
-    expect(v?.thumbnailUrl).toBe("https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg");
+    expect(v?.thumbnailUrl).toBe(
+      "https://i.ytimg.com/vi/TILEwalk01/hqdefault.jpg",
+    );
     // The nested watchEndpoint videoId must NOT register as an empty row.
     expect(stats.emptyTitleCount).toBe(0);
   });

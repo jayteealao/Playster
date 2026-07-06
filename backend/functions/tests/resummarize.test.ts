@@ -103,23 +103,26 @@ describe("resummarizeFromTranscript — emulator-backed", () => {
   // -------------------------------------------------------------------------
   it("available path: reads transcript from GCS, calls OpenRouter, writes summary at status=completed", async () => {
     // Seed pointer doc at status=available.
-    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "available",
-      gcsPath: `transcripts/${VIDEO_ID}.txt`,
-      signedUrl: "https://signed.url/transcript",
-      segments: [
-        { start: 0, text: "Hello world" },
-        { start: 2.5, text: "This is a test transcript." },
-      ],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "available",
+        gcsPath: `transcripts/${VIDEO_ID}.txt`,
+        signedUrl: "https://signed.url/transcript",
+        segments: [
+          { start: 0, text: "Hello world" },
+          { start: 2.5, text: "This is a test transcript." },
+        ],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    const transcriptContent = "0.00 Hello world\n2.50 This is a test transcript.";
+    const transcriptContent =
+      "0.00 Hello world\n2.50 This is a test transcript.";
     const { mockFile } = mockGcs(transcriptContent);
-    const summaryContent = "A"
-      .repeat(150); // well above MIN_SUMMARY_CONTENT_CHARS=120
+    const summaryContent = "A".repeat(150); // well above MIN_SUMMARY_CONTENT_CHARS=120
 
     await resummarizeFromTranscript(VIDEO_ID, {
       fetchImpl: stubbedOpenRouterFetch(summaryContent),
@@ -186,14 +189,17 @@ describe("resummarizeFromTranscript — emulator-backed", () => {
   // -------------------------------------------------------------------------
   it("in-flight guard: summary at status=running → returns without overwriting doc or calling GCS/fetch", async () => {
     // Seed pointer doc at status=available.
-    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "available",
-      gcsPath: `transcripts/${VIDEO_ID}.txt`,
-      segments: [],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "available",
+        gcsPath: `transcripts/${VIDEO_ID}.txt`,
+        segments: [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     // Seed an existing in-flight summary doc.
     await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
@@ -222,14 +228,17 @@ describe("resummarizeFromTranscript — emulator-backed", () => {
   // Error path: OpenRouter returns non-2xx → summary at failed-transient
   // -------------------------------------------------------------------------
   it("OpenRouter HTTP error → summary doc written at status=failed-transient", async () => {
-    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "available",
-      gcsPath: `transcripts/${VIDEO_ID}.txt`,
-      segments: [{ start: 0, text: "test" }],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "available",
+        gcsPath: `transcripts/${VIDEO_ID}.txt`,
+        segments: [{ start: 0, text: "test" }],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     mockGcs("0.00 test");
 

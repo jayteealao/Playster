@@ -542,7 +542,10 @@ async function pruneEmptyTitleVideos(): Promise<number> {
     .collection("videos");
   let deleted = 0;
   for (;;) {
-    const snap = await videosRef.where("title", "==", "").limit(MAX_BATCH_SIZE).get();
+    const snap = await videosRef
+      .where("title", "==", "")
+      .limit(MAX_BATCH_SIZE)
+      .get();
     if (snap.empty) break;
     const batch = db.batch();
     for (const doc of snap.docs) batch.delete(doc.ref);

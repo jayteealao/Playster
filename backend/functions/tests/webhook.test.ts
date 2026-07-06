@@ -225,9 +225,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
     // promoted to failed-permanent so summaryRetryCron stops picking it up.
     const { processSummaryWebhook } =
       await import("../src/summarizer/webhook.js");
-    const { MAX_DEGRADED_ATTEMPTS } = await import(
-      "../src/summarizer/constants.js"
-    );
+    const { MAX_DEGRADED_ATTEMPTS } =
+      await import("../src/summarizer/constants.js");
     const SHORT_SUMMARY = "Enjoy videos and music. Upload original content.";
     const payload = {
       client_job_id: VIDEO_ID,
@@ -238,13 +237,16 @@ describe("processSummaryWebhook — emulator-backed", () => {
     // Seed doc with degradedAttempts already at MAX_DEGRADED_ATTEMPTS - 1 to
     // simulate prior failed-transient downgrades. Status is set to "running" so
     // the webhook idempotency guard lets the write through.
-    await admin.firestore().doc(`summaries/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "running",
-      model: "free",
-      degradedAttempts: MAX_DEGRADED_ATTEMPTS - 1,
-      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`summaries/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "running",
+        model: "free",
+        degradedAttempts: MAX_DEGRADED_ATTEMPTS - 1,
+        requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     await admin.firestore().doc(`webhook_secrets/${VIDEO_ID}`).set({
       secret: SECRET,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -268,9 +270,8 @@ describe("processSummaryWebhook — emulator-backed", () => {
     // Below the cap the existing failed-transient behaviour is preserved.
     const { processSummaryWebhook } =
       await import("../src/summarizer/webhook.js");
-    const { MAX_DEGRADED_ATTEMPTS } = await import(
-      "../src/summarizer/constants.js"
-    );
+    const { MAX_DEGRADED_ATTEMPTS } =
+      await import("../src/summarizer/constants.js");
     const SHORT_SUMMARY = "Enjoy videos and music. Upload original content.";
     const payload = {
       client_job_id: VIDEO_ID,

@@ -133,7 +133,9 @@ describe("transcript automation — emulator-backed", () => {
 
     // Exactly the cap number should have been attempted.
     expect(result.attempted).toBe(TRANSCRIPT_BACKFILL_BATCH_SIZE);
-    expect(fetchTranscript).toHaveBeenCalledTimes(TRANSCRIPT_BACKFILL_BATCH_SIZE);
+    expect(fetchTranscript).toHaveBeenCalledTimes(
+      TRANSCRIPT_BACKFILL_BATCH_SIZE,
+    );
   });
 
   // ---

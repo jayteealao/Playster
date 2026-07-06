@@ -10,7 +10,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "vitest run",
-    "test:unit": "vitest run --exclude '**/{autoEnqueue,callable,dispatch,dispatcher,quota,retry,sweeper,webhook,rules,rules-summaries}.test.ts'",
+    "test:unit": "vitest run --exclude '**/{autoEnqueue,callable,dispatch,dispatcher,quota,reconcile,resummarize,retry,rules,rules-summaries,rules-transcripts,sweeper,transcript-automation,transcript-fetch,webhook}.test.ts'",
     "test:rules": "vitest run tests/rules.test.ts"
   },
   "engines": {

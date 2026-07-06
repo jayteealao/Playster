@@ -24,10 +24,7 @@ async function seedSummary(
   videoId: string,
   status = "completed",
 ): Promise<void> {
-  await admin
-    .firestore()
-    .doc(`summaries/${videoId}`)
-    .set({ videoId, status });
+  await admin.firestore().doc(`summaries/${videoId}`).set({ videoId, status });
 }
 
 describe("reconcileAll — emulator-backed", () => {

@@ -366,3 +366,11 @@ reason = "Transitive/vendored dependency; no first-party fix at adoption; tracke
 id = "GHSA-xxqh-mfjm-7mv9"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
+[[IgnoredVulns]]
+id = "GHSA-p47f-322f-whfh"
+reason = "logback-core 1.3.5 low-severity (CVSS 1.2) advisory in Android build's verification-metadata; single-tenant app, not exploitable in this context; revisit on next AGP/dependency bump."
+
+[[IgnoredVulns]]
+id = "GHSA-22p9-wv53-3rq4"
+reason = "linkify-it 5.0.0 ReDoS (CVSS 8.7) is a transitive dep of the vendored summarize-daemon subtree; input is operator-controlled YouTube URLs, not attacker-facing; upgrade tracked as follow-up debt in the daemon subtree."
+

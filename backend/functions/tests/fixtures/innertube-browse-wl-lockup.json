@@ -22,7 +22,9 @@
                               },
                               "metadata": {
                                 "tileMetadataRenderer": {
-                                  "title": { "simpleText": "Sample Tile Video One" },
+                                  "title": {
+                                    "simpleText": "Sample Tile Video One"
+                                  },
                                   "lines": [
                                     {
                                       "lineRenderer": {
@@ -30,7 +32,11 @@
                                           {
                                             "lineItemRenderer": {
                                               "text": {
-                                                "runs": [{ "text": "Sample Tile Channel" }]
+                                                "runs": [
+                                                  {
+                                                    "text": "Sample Tile Channel"
+                                                  }
+                                                ]
                                               }
                                             }
                                           }
@@ -52,7 +58,11 @@
                                           },
                                           {
                                             "lineItemRenderer": {
-                                              "text": { "runs": [{ "text": "1.2M views" }] }
+                                              "text": {
+                                                "runs": [
+                                                  { "text": "1.2M views" }
+                                                ]
+                                              }
                                             }
                                           }
                                         ]
@@ -94,7 +104,9 @@
                               },
                               "metadata": {
                                 "tileMetadataRenderer": {
-                                  "title": { "simpleText": "Sample Tile Video Two" },
+                                  "title": {
+                                    "simpleText": "Sample Tile Video Two"
+                                  },
                                   "lines": [
                                     {
                                       "lineRenderer": {
@@ -102,7 +114,11 @@
                                           {
                                             "lineItemRenderer": {
                                               "text": {
-                                                "runs": [{ "text": "Another Tile Channel" }]
+                                                "runs": [
+                                                  {
+                                                    "text": "Another Tile Channel"
+                                                  }
+                                                ]
                                               }
                                             }
                                           }
@@ -144,7 +160,9 @@
                               },
                               "metadata": {
                                 "tileMetadataRenderer": {
-                                  "title": { "simpleText": "Sample Tile Video Three" },
+                                  "title": {
+                                    "simpleText": "Sample Tile Video Three"
+                                  },
                                   "lines": [
                                     {
                                       "lineRenderer": {
@@ -152,7 +170,11 @@
                                           {
                                             "lineItemRenderer": {
                                               "text": {
-                                                "runs": [{ "text": "Third Tile Channel" }]
+                                                "runs": [
+                                                  {
+                                                    "text": "Third Tile Channel"
+                                                  }
+                                                ]
                                               }
                                             }
                                           }

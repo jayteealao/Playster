@@ -122,7 +122,9 @@ describe("SSRF protection", () => {
     // deterministic and does not depend on real network state.
     function mockResolvesToPrivate() {
       vi.spyOn(dns.promises, "resolve4").mockResolvedValue(["172.18.0.3"]);
-      vi.spyOn(dns.promises, "resolve6").mockRejectedValue(new Error("no-aaaa"));
+      vi.spyOn(dns.promises, "resolve6").mockRejectedValue(
+        new Error("no-aaaa"),
+      );
     }
 
     it("blocks a hostname resolving to a private IP when allowPrivate is unset (default)", async () => {

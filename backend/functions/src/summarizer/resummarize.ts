@@ -2,7 +2,11 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { HttpsError } from "firebase-functions/v2/https";
 import { allowlistedCall } from "../auth/verify.js";
-import type { SummaryDocument, TranscriptDocument, TranscriptSegment } from "../models/index.js";
+import type {
+  SummaryDocument,
+  TranscriptDocument,
+  TranscriptSegment,
+} from "../models/index.js";
 import { SUMMARIZER_API_KEY, summarizerSecrets } from "./secrets.js";
 import { MIN_SUMMARY_CONTENT_CHARS } from "./constants.js";
 
@@ -62,15 +66,20 @@ export async function resummarizeFromTranscript(
   // --- Guard 1: pointer doc must exist and be `available` ---
   const pointerSnap = await pointerRef.get();
   if (!pointerSnap.exists) {
-    logger.info("resummarizeFromTranscript: no pointer doc — skipping", { videoId });
+    logger.info("resummarizeFromTranscript: no pointer doc — skipping", {
+      videoId,
+    });
     return;
   }
   const pointerData = pointerSnap.data() as TranscriptDocument;
   if (pointerData.status !== "available") {
-    logger.info("resummarizeFromTranscript: transcript not available — skipping", {
-      videoId,
-      transcriptStatus: pointerData.status,
-    });
+    logger.info(
+      "resummarizeFromTranscript: transcript not available — skipping",
+      {
+        videoId,
+        transcriptStatus: pointerData.status,
+      },
+    );
     return;
   }
 
@@ -78,11 +87,17 @@ export async function resummarizeFromTranscript(
   const summarySnap = await summaryRef.get();
   if (summarySnap.exists) {
     const summaryData = summarySnap.data() as Partial<SummaryDocument>;
-    if (summaryData.status && NON_RESUMMARISABLE_STATUSES.includes(summaryData.status)) {
-      logger.info("resummarizeFromTranscript: summary in-flight or completed — skipping", {
-        videoId,
-        summaryStatus: summaryData.status,
-      });
+    if (
+      summaryData.status &&
+      NON_RESUMMARISABLE_STATUSES.includes(summaryData.status)
+    ) {
+      logger.info(
+        "resummarizeFromTranscript: summary in-flight or completed — skipping",
+        {
+          videoId,
+          summaryStatus: summaryData.status,
+        },
+      );
       return;
     }
   }
@@ -99,16 +114,26 @@ export async function resummarizeFromTranscript(
       );
     }
     try {
-      const [buffer] = await admin.storage().bucket(bucketName).file(gcsPath).download();
+      const [buffer] = await admin
+        .storage()
+        .bucket(bucketName)
+        .file(gcsPath)
+        .download();
       transcriptText = buffer.toString("utf-8");
     } catch (gcsErr) {
-      logger.warn("resummarizeFromTranscript: GCS download failed, falling back to segments", {
-        videoId,
-        error: gcsErr instanceof Error ? gcsErr.message : String(gcsErr),
-      });
+      logger.warn(
+        "resummarizeFromTranscript: GCS download failed, falling back to segments",
+        {
+          videoId,
+          error: gcsErr instanceof Error ? gcsErr.message : String(gcsErr),
+        },
+      );
       // Fallback to Firestore segments array.
       if (!pointerData.segments || pointerData.segments.length === 0) {
-        logger.warn("resummarizeFromTranscript: no segments in pointer doc — skipping", { videoId });
+        logger.warn(
+          "resummarizeFromTranscript: no segments in pointer doc — skipping",
+          { videoId },
+        );
         return;
       }
       transcriptText = segmentsToText(pointerData.segments);
@@ -116,7 +141,10 @@ export async function resummarizeFromTranscript(
   } else {
     // No gcsPath on the pointer doc — fall back to segments.
     if (!pointerData.segments || pointerData.segments.length === 0) {
-      logger.warn("resummarizeFromTranscript: no gcsPath and no segments — skipping", { videoId });
+      logger.warn(
+        "resummarizeFromTranscript: no gcsPath and no segments — skipping",
+        { videoId },
+      );
       return;
     }
     transcriptText = segmentsToText(pointerData.segments);
@@ -132,11 +160,14 @@ export async function resummarizeFromTranscript(
   //   (e.g. tiktoken) for a precise context-window budget.
   const MAX_TRANSCRIPT_CHARS = 80_000;
   if (transcriptText.length > MAX_TRANSCRIPT_CHARS) {
-    logger.warn("resummarizeFromTranscript: transcript truncated to context window", {
-      videoId,
-      originalLength: transcriptText.length,
-      truncatedLength: MAX_TRANSCRIPT_CHARS,
-    });
+    logger.warn(
+      "resummarizeFromTranscript: transcript truncated to context window",
+      {
+        videoId,
+        originalLength: transcriptText.length,
+        truncatedLength: MAX_TRANSCRIPT_CHARS,
+      },
+    );
     transcriptText = transcriptText.slice(0, MAX_TRANSCRIPT_CHARS);
   }
 
@@ -172,9 +203,16 @@ export async function resummarizeFromTranscript(
   } catch (err) {
     clearTimeout(abortTimer);
     const message = err instanceof Error ? err.message : String(err);
-    logger.warn("resummarizeFromTranscript: OpenRouter call failed", { videoId, message });
+    logger.warn("resummarizeFromTranscript: OpenRouter call failed", {
+      videoId,
+      message,
+    });
     await summaryRef.set(
-      { status: "failed-transient", errorCode: "resummarize_network", errorMessage: message },
+      {
+        status: "failed-transient",
+        errorCode: "resummarize_network",
+        errorMessage: message,
+      },
       { merge: true },
     );
     return;
@@ -241,7 +279,10 @@ export async function resummarizeFromTranscript(
     { merge: true },
   );
 
-  logger.info("resummarizeFromTranscript: complete", { videoId, contentLength: content.length });
+  logger.info("resummarizeFromTranscript: complete", {
+    videoId,
+    contentLength: content.length,
+  });
 }
 
 interface ResummarizeInput {
@@ -252,7 +293,10 @@ interface ResummarizeOutput {
   status: string;
 }
 
-export const resummarizeVideoSummary = allowlistedCall<ResummarizeInput, ResummarizeOutput>(
+export const resummarizeVideoSummary = allowlistedCall<
+  ResummarizeInput,
+  ResummarizeOutput
+>(
   {
     memory: "256MiB",
     timeoutSeconds: 120,

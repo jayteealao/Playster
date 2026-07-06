@@ -33,7 +33,10 @@ export { summaryRetryCron } from "./summarizer/retry";
 export { resummarizeVideoSummary } from "./summarizer/resummarize";
 
 // --- Transcript fetch + backfill cron ---
-export { invokeTranscriptFetch, transcriptBackfillCron } from "./transcript/index";
+export {
+  invokeTranscriptFetch,
+  transcriptBackfillCron,
+} from "./transcript/index";
 
 async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   if (!videoIds || !videoIds.length) return;
@@ -144,15 +147,12 @@ export const syncWatchLater = allowlistedCall<
 export const reconcileVideoSummaries = allowlistedCall<
   Record<string, never>,
   { total: number; enqueued: number; skipped: number }
->(
-  { memory: "512MiB", timeoutSeconds: 540 },
-  async () => {
-    logger.info("reconcileVideoSummaries: starting");
-    const result = await reconcileAll();
-    logger.info("reconcileVideoSummaries: complete", result);
-    return result;
-  },
-);
+>({ memory: "512MiB", timeoutSeconds: 540 }, async () => {
+  logger.info("reconcileVideoSummaries: starting");
+  const result = await reconcileAll();
+  logger.info("reconcileVideoSummaries: complete", result);
+  return result;
+});
 
 /**
  * Scheduled sync — runs every 6 hours via Cloud Scheduler. No auth context.

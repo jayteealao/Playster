@@ -87,7 +87,11 @@ export interface QuotaDocument {
   updatedAt: FieldValue | Date;
 }
 
-export type TranscriptStatus = "pending" | "available" | "transient" | "unavailable";
+export type TranscriptStatus =
+  | "pending"
+  | "available"
+  | "transient"
+  | "unavailable";
 
 export interface TranscriptSegment {
   /** Segment start time in seconds (float). */
