@@ -26,16 +26,20 @@ class TranscriptSectionStateTest {
 
     @Test
     fun availableState_rendersSegments() {
-        val segments = listOf(
-            TranscriptSegmentUi(startSeconds = 5.0, text = "Hello and welcome"),
-            TranscriptSegmentUi(startSeconds = 10.5, text = "To this video"),
-        )
+        val segments =
+            listOf(
+                TranscriptSegmentUi(startSeconds = 5.0, text = "Hello and welcome"),
+                TranscriptSegmentUi(startSeconds = 10.5, text = "To this video"),
+            )
         composeTestRule.setContent {
-            TranscriptSection(state = TranscriptUiState.Available(
-                segments = segments,
-                language = "en",
-                signedUrl = null,
-            ))
+            TranscriptSection(
+                state =
+                    TranscriptUiState.Available(
+                        segments = segments,
+                        language = "en",
+                        signedUrl = null,
+                    ),
+            )
         }
         composeTestRule.onNodeWithTag("transcript-header").performClick()
         composeTestRule.onNodeWithTag("transcript-segments-list").assertIsDisplayed()
