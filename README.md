@@ -31,6 +31,7 @@ backend/functions ──(Firestore write)──▶ Android (live listener picks 
 3. When a summary is requested (manually or automatically after sync), the backend dispatches a job to the Cloud Run summarizer with an HMAC secret.
 4. The summarizer daemon fetches the transcript, calls OpenRouter, then POSTs a Stripe-style signed webhook back to the backend.
 5. The backend verifies the signature and writes the markdown to `summaries/{videoId}`. The Android Firestore listener delivers it to the screen without any polling.
+6. In parallel, the backend captures each video's caption transcript (via `youtubei.js`), stores it as a Cloud Storage blob with a Firestore pointer at `transcripts/{videoId}`, and the app shows the timestamped transcript inline below the summary. Cached transcripts also let the backend re-summarize a video without re-fetching. See [`docs/architecture/summarize-pipeline.md#10-transcript-pipeline`](docs/architecture/summarize-pipeline.md#10-transcript-pipeline).
 
 ## Running tests
 

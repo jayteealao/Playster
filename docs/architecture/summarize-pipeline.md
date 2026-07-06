@@ -19,6 +19,7 @@ Operational setup (secrets provisioning, Cloud Run deploy, uid capture) lives in
 7. [Single-tenant security model](#7-single-tenant-security-model)
 8. [OpenRouter quota model](#8-openrouter-quota-model)
 9. [Summarizer container and daemon subtree](#9-summarizer-container-and-daemon-subtree)
+10. [Transcript pipeline](#10-transcript-pipeline)
 
 ---
 
@@ -381,6 +382,7 @@ The uid is a **hardcoded string literal** in the deployed rules file. The placeh
 | `playlists/**` | read | deny | read + write |
 | `videos/**` | read | deny | read + write |
 | `summaries/**` | read | deny | read + write |
+| `transcripts/**` | read | deny | read + write |
 | `quota/**` | read | deny | read + write |
 | `webhook_secrets/**` | deny | deny | read + write |
 | `tokens/**` | deny | deny | read + write |
@@ -537,3 +539,134 @@ flows (captioned and no-caption) and the replay-rejection check before merging.
 
 `SUMMARIZE_TOKEN` and `SUMMARIZER_API_KEY` are provisioned in Secret Manager and referenced
 via `defineSecret` in `backend/functions/src/summarizer/secrets.ts`.
+
+---
+
+## 10. Transcript pipeline
+
+Alongside the LLM summary, the backend captures each video's caption transcript, stores it as a
+Cloud Storage blob, and records a Firestore pointer so the Android app can display the timestamped
+text inline and the summary pipeline can re-summarize from cached text without re-fetching. This
+section is the reference for the pointer-doc schema and signed-URL contract, and explains the two
+load-bearing design choices behind it.
+
+### Why transcripts are fetched backend-side (not via the daemon)
+
+The summarize daemon has an `extractOnly` mode that returns a transcript, but the Cloud Run
+gateway's job schema never exposes it — there is no way to ask the deployed summarizer for the raw
+transcript. Rather than widen the gateway contract, the backend fetches captions directly with
+`youtubei.js` (already a dependency, used for library sync). The fetch runs in
+`backend/functions/src/transcript/fetch.ts` via `getInnertubeClient()` →
+`videoInfo.getTranscript()`, walking
+`TranscriptInfo.transcript.content.body.initial_segments`. Keeping transcript ingress on the
+backend also keeps it under the single-tenant auth model and off the device.
+
+### Why a GCS blob + a Firestore pointer (not inline text)
+
+A Firestore document is capped at ~1 MiB. A transcript for a multi-hour video easily exceeds that,
+so the full text cannot live inline on a `transcripts/{videoId}` document. Instead the plain-text
+transcript is written to a Cloud Storage blob and the Firestore document holds only a **pointer**:
+the GCS path, a short-lived signed read URL, and the structured segment array (small enough to
+inline for short videos and to serve as a re-summarize fallback). Firestore stays the queryable
+index; GCS carries the bytes.
+
+### Fetch → store → sign → pointer contract
+
+`fetchTranscript(videoId)` performs a strictly ordered sequence, and this ordering is the module's
+core correctness property — **a pointer at `available` is always backed by a readable blob**:
+
+1. Idempotency guard: if `transcripts/{videoId}` is already `available`, return without re-fetching.
+2. Fetch captions via `youtubei.js`. No captions → write pointer at `unavailable` and return.
+3. Write the plain-text blob to GCS **before** the pointer. If `save()` fails → pointer at
+   `transient` (retryable), never `available`.
+4. Generate a signed read URL from the saved file object. If signing fails → pointer at `transient`.
+5. Write the `transcripts/{videoId}` pointer doc at `available` with the GCS path, signed URL, and
+   segments.
+
+Any fetch/network error also lands the pointer at `transient`, leaving the video eligible for the
+next automation tick. The blob format is one line per segment: `<start_seconds> <text>\n` —
+human-readable and directly usable as LLM input.
+
+### `transcripts/{videoId}` schema
+
+The document id is the YouTube video id. The Android client has read access; all writes are via the
+Firebase Admin SDK (backend only). Defined as `TranscriptDocument` in
+`backend/functions/src/models/index.ts`.
+
+| Field | Type | Description |
+|---|---|---|
+| `videoId` | `string` | YouTube video id (mirrors the doc id). |
+| `status` | `TranscriptStatus` | `pending` \| `available` \| `transient` \| `unavailable` — see the state machine below. |
+| `source` | `"youtubei" \| "shortDescription"?` | Where the text came from. `youtubei` for real captions. |
+| `language` | `string?` | Selected caption language (from `TranscriptInfo.selectedLanguage`). |
+| `segments` | `TranscriptSegment[]?` | `{ start: number (seconds), text: string }` per caption line. Inlined for display and as a re-summarize fallback. |
+| `gcsPath` | `string?` | Path of the transcript blob: `transcripts/{videoId}.txt`. Present when `available`. |
+| `signedUrl` | `string?` | Signed read URL for the blob. Present when `available`. |
+| `signedUrlExpiresAt` | `Timestamp?` | Absolute expiry of `signedUrl` (7 days from generation). |
+| `errorCode` | `string?` | Machine-readable failure detail. Present on `transient`. |
+| `createdAt` | `Timestamp` | Server timestamp at first write. |
+| `updatedAt` | `Timestamp` | Server timestamp of the last write. |
+
+### GCS path + signed-URL contract
+
+- **Blob path convention:** `transcripts/{videoId}.txt`, `contentType: text/plain; charset=utf-8`,
+  in the bucket named by the `TRANSCRIPT_BUCKET` env var.
+- **Blobs are never world-readable.** The `storage.rules` deny-all posture means access is only via
+  a signed URL. The signing service account (the Functions default SA) needs the **Service Account
+  Token Creator** role to call `getSignedUrl()`.
+- **URL lifetime is 7 days** (the GCS signed-URL maximum), recorded in `signedUrlExpiresAt`. A URL
+  refresh mechanism (re-sign callable or cron) is a registered follow-up; the field exists so either
+  approach can find expiring URLs.
+
+### Transcript status state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> available : fetchTranscript — captions found,\nblob + signed URL written
+    [*] --> unavailable : fetchTranscript — no captions
+    [*] --> transient : fetchTranscript — fetch / GCS / signing error
+
+    transient --> available : next automation tick re-fetches
+    transient --> unavailable : re-fetch finds no captions
+    available --> [*] : terminal (idempotency guard skips re-fetch)
+    unavailable --> [*] : terminal
+```
+
+`available` and `unavailable` are terminal for the backfill (see `TRANSCRIPT_TERMINAL_STATUSES`);
+`transient` and a missing pointer are eligible for re-fetch.
+
+### Automation: fetch-after-sync + backfill cron
+
+Two paths keep transcripts populated, mirroring the summary pipeline's auto-enqueue design:
+
+- **Fetch-after-sync.** After any sync writes new `videos/{videoId}` docs, `fetchTranscriptsSafe()`
+  (in `index.ts`, mirroring `autoEnqueueSafe()`) fetches transcripts for the new ids in parallel
+  (`Promise.allSettled`). It is wired into all four sync entry points and is error-isolated — a
+  transcript failure never fails the sync.
+- **Backfill cron.** `transcriptBackfillCron` (hourly) drains the pre-existing library.
+  `fetchTranscriptBackfill()` pages `collectionGroup("videos")`, batch-reads the corresponding
+  pointer docs via `db.getAll(...)`, skips terminal ones, and fetches up to
+  `TRANSCRIPT_BACKFILL_BATCH_SIZE = 50` per tick **sequentially** to avoid a burst of parallel
+  YouTube requests. The pagination loop exits early once the batch cap is met. Distributed
+  mutual-exclusion reuses `acquireCronLock`/`releaseCronLock` (`locks/` doc, 10-min TTL,
+  `maxInstances: 1`), the same pattern as the summary crons ([§6](#6-cron-functions-and-distributed-locking)).
+
+At 50/tick × 24 ticks/day the ~8k-video library drains in roughly a week — a deliberately
+conservative cap to stay under YouTube egress limits from shared Cloud Function IPs. Persistent
+egress blocking surfaces as `transient` and is retried on later ticks.
+
+### Re-summarize from a cached transcript
+
+`resummarizeVideoSummary` (callable, `backend/functions/src/summarizer/resummarize.ts`) regenerates
+a summary directly from a stored transcript — used to refresh a finished summary or recover a failed
+one without re-running the daemon. It reads the `transcripts/{videoId}` pointer (only proceeding when
+`available`), loads the transcript text (GCS blob preferred; the `segments` array is the fallback),
+and calls `POST https://openrouter.ai/api/v1/chat/completions` **directly** — the daemon's job
+schema has no field for injecting pre-fetched text, so the webhook loop is bypassed. It reuses the
+same `SUMMARIZER_API_KEY` and free model, then writes `summaries/{videoId}`.
+
+Two guards protect it: the in-flight guard (`pending`/`running` are skipped — but **not**
+`completed`, since refreshing a finished summary is the primary use), and an 80 000-char truncation
+guard (≈20k tokens) applied before the LLM call so an oversized transcript is truncated with a
+`logger.warn` rather than always overflowing the model context and burning a quota slot on a
+guaranteed failure.
