@@ -36,18 +36,20 @@ fun TranscriptSection(
     var expanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-            .testTag("transcript-section"),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp)
+                .testTag("transcript-section"),
     ) {
         // Collapsible header — always visible regardless of state
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(vertical = 8.dp)
-                .testTag("transcript-header"),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 8.dp)
+                    .testTag("transcript-header"),
         ) {
             Text(
                 text = if (expanded) "Transcript ▲" else "Transcript ▼",
@@ -58,9 +60,10 @@ fun TranscriptSection(
 
         AnimatedVisibility(visible = expanded) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
             ) {
                 when (state) {
                     is TranscriptUiState.Loading -> {
@@ -79,9 +82,10 @@ fun TranscriptSection(
                                 text = "Transcript has no segments.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .padding(vertical = 8.dp)
-                                    .testTag("transcript-empty-segments"),
+                                modifier =
+                                    Modifier
+                                        .padding(vertical = 8.dp)
+                                        .testTag("transcript-empty-segments"),
                             )
                         } else {
                             // Regular Column (not LazyColumn) because this section is nested
@@ -91,10 +95,11 @@ fun TranscriptSection(
                             //   refactor SummaryScreenContent to a single LazyColumn so the
                             //   segment list can be lazily rendered.
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 8.dp)
-                                    .testTag("transcript-segments-list"),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp)
+                                        .testTag("transcript-segments-list"),
                             ) {
                                 state.segments.forEach { segment ->
                                     SegmentRow(segment = segment)
@@ -108,9 +113,10 @@ fun TranscriptSection(
                             text = "No transcript available",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .padding(vertical = 8.dp)
-                                .testTag("transcript-unavailable"),
+                            modifier =
+                                Modifier
+                                    .padding(vertical = 8.dp)
+                                    .testTag("transcript-unavailable"),
                         )
                     }
 
@@ -121,9 +127,10 @@ fun TranscriptSection(
                             text = state.message,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier
-                                .padding(vertical = 8.dp)
-                                .testTag("transcript-error"),
+                            modifier =
+                                Modifier
+                                    .padding(vertical = 8.dp)
+                                    .testTag("transcript-error"),
                         )
                     }
                 }
@@ -138,17 +145,19 @@ private fun SegmentRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
     ) {
         Text(
             text = formatTimestamp(segment.startSeconds),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .padding(end = 8.dp)
-                .testTag("transcript-segment-timestamp"),
+            modifier =
+                Modifier
+                    .padding(end = 8.dp)
+                    .testTag("transcript-segment-timestamp"),
         )
         Text(
             text = segment.text,

@@ -45,11 +45,12 @@ fun DocumentSnapshot.toTranscriptDoc(): TranscriptDoc? {
     // Firestore stores segments as List<Map<String, Any>>. Extract them safely.
     @Suppress("UNCHECKED_CAST")
     val rawSegments = get("segments") as? List<Map<String, Any>> ?: emptyList()
-    val segments = rawSegments.mapNotNull { map ->
-        val start = (map["start"] as? Number)?.toDouble() ?: return@mapNotNull null
-        val text = map["text"] as? String ?: return@mapNotNull null
-        TranscriptSegment(start = start, text = text)
-    }
+    val segments =
+        rawSegments.mapNotNull { map ->
+            val start = (map["start"] as? Number)?.toDouble() ?: return@mapNotNull null
+            val text = map["text"] as? String ?: return@mapNotNull null
+            TranscriptSegment(start = start, text = text)
+        }
 
     return TranscriptDoc(
         id = id,

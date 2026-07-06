@@ -127,9 +127,10 @@ class SummaryViewModel
             return when (doc.statusWire) {
                 "pending" -> TranscriptUiState.Loading
                 "available" -> {
-                    val segments = doc.segments.map { seg ->
-                        TranscriptSegmentUi(startSeconds = seg.start, text = seg.text)
-                    }
+                    val segments =
+                        doc.segments.map { seg ->
+                            TranscriptSegmentUi(startSeconds = seg.start, text = seg.text)
+                        }
                     TranscriptUiState.Available(
                         segments = segments,
                         language = doc.language,
@@ -138,9 +139,10 @@ class SummaryViewModel
                 }
                 "unavailable" -> TranscriptUiState.Unavailable
                 // transient, error, too-large, or any unknown status → non-blocking error
-                else -> TranscriptUiState.Error(
-                    "Transcript unavailable" + (doc.errorCode?.let { " ($it)" } ?: "."),
-                )
+                else ->
+                    TranscriptUiState.Error(
+                        "Transcript unavailable" + (doc.errorCode?.let { " ($it)" } ?: "."),
+                    )
             }
         }
 

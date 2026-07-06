@@ -33,13 +33,14 @@ fun SummaryScreen(viewModel: SummaryViewModel = hiltViewModel()) {
     )
 }
 
-private fun stateTag(state: SummaryUiState): String = when (state) {
-    is SummaryUiState.InProgress -> "summary-in-progress"
-    is SummaryUiState.Completed -> "summary-completed"
-    is SummaryUiState.FailedTransient -> "summary-failed-transient"
-    is SummaryUiState.FailedPermanent -> "summary-failed-permanent"
-    is SummaryUiState.NoSummary -> "summary-no-summary"
-}
+private fun stateTag(state: SummaryUiState): String =
+    when (state) {
+        is SummaryUiState.InProgress -> "summary-in-progress"
+        is SummaryUiState.Completed -> "summary-completed"
+        is SummaryUiState.FailedTransient -> "summary-failed-transient"
+        is SummaryUiState.FailedPermanent -> "summary-failed-permanent"
+        is SummaryUiState.NoSummary -> "summary-no-summary"
+    }
 
 @Composable
 fun SummaryScreenContent(
