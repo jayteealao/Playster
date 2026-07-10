@@ -1,0 +1,10 @@
+{
+  "$comment": "Captioned YouTube fixture for the docker-compose harness. AC-6 evidence. Replaced 2026-07-01 after probe finding F5: the original (h7zV9Bzklv8) returned a page-chrome interstitial. Verified via `yt-dlp --list-subs` that this video has real captions and substantive spoken content, so it exercises the caption-transcript path (not the description/ASR fallback). Ken Robinson's 'Do schools kill creativity?' is the most-viewed TED talk — extremely stable. Swap the URL if it ever stops resolving; confirm any replacement has captions via yt-dlp --list-subs.",
+  "url": "https://www.youtube.com/watch?v=iG9CE55wbtY",
+  "title": "Ken Robinson: Do schools kill creativity? (TED, captioned)",
+  "client_job_id": "fixture-captioned",
+  "expect": {
+    "status": "completed",
+    "content_min_chars": 200
+  }
+}

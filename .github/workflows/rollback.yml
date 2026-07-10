@@ -1,0 +1,71 @@
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+# Rollback (plan.rollback-mechanism = redeploy-prior).
+# Android: already-installed APKs cannot be recalled — re-point the prior tag as the
+# latest GitHub Release manually if needed. This workflow rolls back the two live deploys.
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to roll back to (e.g. v1.2.2)'
+        required: true
+      reason:
+        description: 'Reason for rollback'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      REGION: us-central1   # TODO: set the Artifact Registry / Cloud Run region
+      SERVICE: summarizer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
+          fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Roll summarizer traffic back to the prior Cloud Run revision
+        run: |
+          PRIOR=$(gcloud run revisions list --service "${SERVICE}" --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format='value(metadata.name)' --sort-by='~metadata.creationTimestamp' | sed -n '2p')
+          test -n "$PRIOR" || { echo "No prior revision found"; exit 1; }
+          gcloud run services update-traffic "${SERVICE}" --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" --to-revisions "${PRIOR}=100"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Redeploy backend functions at ${{ inputs.version }}
+        working-directory: backend
+        run: |
+          pnpm dlx firebase-tools deploy \
+            --only functions \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --non-interactive --force
+
+      - name: Record rollback
+        run: |
+          echo "Rolled back to ${{ inputs.version }}: ${{ inputs.reason }}"

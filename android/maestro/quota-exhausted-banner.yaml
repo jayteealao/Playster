@@ -1,0 +1,16 @@
+appId: com.github.jayteealao.playster
+name: quota-exhausted-banner (AC-10)
+---
+- runScript: helpers/seed-quota-exhausted.sh
+- launchApp
+- runFlow: helpers/signin-helper.yaml
+- assertVisible:
+    text: "Daily summary limit reached"
+- assertVisible:
+    testTag: "quota-banner"
+- tapOn:
+    testTag: "playlist-tile-PL_TEST_1"
+- assertVisible:
+    testTag: "summarize-button-disabled"
+- assertNotVisible:
+    testTag: "summarize-button-enabled"

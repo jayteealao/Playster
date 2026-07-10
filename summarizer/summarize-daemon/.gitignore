@@ -1,0 +1,21 @@
+node_modules
+.clawpatch/
+dist
+dist-bun
+*.bun-build
+coverage
+.DS_Store
+.pnpm-debug.log
+.pnpm-store/
+.turbo
+.cache
+.output
+.wxt
+_pack
+*.tgz
+*.zip
+apps/chrome-extension/test-results
+/slides/
+
+# Built docs site (see scripts/build-docs-site.mjs)
+dist/docs-site

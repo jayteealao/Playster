@@ -1,0 +1,30 @@
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+# Local git hooks. Inert until `pnpm exec lefthook install` is run and the referenced
+# tools (prettier, eslint, commitlint, gitleaks, ktlint Gradle plugin) are available.
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: "*.{ts,tsx,js,jsx,json,md,yml,yaml}"
+      run: pnpm exec prettier --check {staged_files}
+    eslint:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: pnpm exec eslint {staged_files}
+    ktlint:
+      root: "android/"
+      glob: "*.{kt,kts}"
+      run: ./gradlew ktlintCheck
+    gitleaks:
+      run: gitleaks protect --staged --no-banner --redact
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit {1}
+
+pre-push:
+  commands:
+    type-check:
+      run: pnpm -r exec tsc --noEmit
+    test:
+      run: pnpm -r run test

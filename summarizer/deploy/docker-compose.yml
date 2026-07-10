@@ -1,0 +1,38 @@
+services:
+  summarizer:
+    build:
+      context: ../..
+      dockerfile: summarizer/deploy/Dockerfile
+    environment:
+      - SUMMARIZE_TOKEN=${SUMMARIZE_TOKEN}
+      - API_KEYS=${API_KEYS}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - PORT=8080
+      - JOB_TIMEOUT_MS=900000
+      # Harness-only: the mock backend lives on a private Docker-network IP, so
+      # webhook_url SSRF validation must permit private IPs for this stack. This
+      # flag defaults OFF in production; it is set here for the local harness only.
+      - SSRF_ALLOW_PRIVATE_WEBHOOK=${SSRF_ALLOW_PRIVATE_WEBHOOK:-1}
+    ports:
+      - "18080:8080"
+    networks:
+      - harness
+
+  mock-backend:
+    build:
+      context: ./mock-backend
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - PORT=9000
+      - ARTIFACT_DIR=/verify-artifacts
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./verify-artifacts:/verify-artifacts
+    networks:
+      - harness
+
+networks:
+  harness:
+    driver: bridge

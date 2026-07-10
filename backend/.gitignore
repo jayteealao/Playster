@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+# Firebase Functions per-project param files (hold the operator ALLOWED_UID)
+functions/.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+.firebase/

@@ -1,23 +1,13 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+node_modules/
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+*.log
+docs/internal/
+android/app/google-services.json
+backend/functions/.tmp/
+.ai/**/*
+.claude/scheduled_tasks.lock
 
-# Secrets - decoded from CI secrets
-app/google-services.json
-google-services.json
-*.jks
-*.keystore
-
-.idea/
+# Release signing keystore (local only)
+android/keystore/
+arc_diff_tmp.txt
+summarizer/deploy/verify-artifacts/

@@ -1,0 +1,12 @@
+# CodeQL analysis configuration.
+#
+# The summarizer/summarize-daemon tree is a vendored third-party subtree
+# (upstream "summarize" project) that this repo does not maintain. Its source
+# is excluded from our SAST scanning the same way it is excluded from secret
+# scanning (.gitleaks.toml), dependency auditing (osv-scanner.toml), and
+# formatting (.prettierignore). Scanning vendored code we cannot patch only
+# produces noise and blocks merges on findings we don't own.
+name: "Playster CodeQL config"
+
+paths-ignore:
+  - summarizer/summarize-daemon

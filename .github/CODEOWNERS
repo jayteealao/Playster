@@ -1,0 +1,4 @@
+# Added by wf-meta build-pipeline — plan v1, 2026-06-20
+# Ownership routing. Advisory only today: branch protection requires 0 approvals, so
+# code-owner review is not enforced. Raise required-approvals to 1 to make this blocking.
+* @jayteealao

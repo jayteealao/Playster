@@ -1,0 +1,246 @@
+import type { CacheState } from "../../../cache.js";
+import type { CliProvider, SummarizeConfig } from "../../../config.js";
+import type {
+  ExtractedLinkContent,
+  LinkPreviewProgressEvent,
+  MediaCache,
+} from "../../../content/index.js";
+import type { LlmCall, RunMetricsReport } from "../../../costs.js";
+import type { StreamMode } from "../../../flags.js";
+import type { OutputLanguage } from "../../../language.js";
+import type { ModelRequestOptions } from "../../../llm/model-options.js";
+import type { ExecFileFn } from "../../../markitdown.js";
+import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
+import type { SummaryLength } from "../../../shared/contracts.js";
+import type {
+  SlideExtractionResult,
+  SlideImage,
+  SlideSettings,
+  SlideSourceKind,
+} from "../../../slides/index.js";
+import type { PerfTrace } from "../../perf-trace.js";
+import type { createSummaryEngine } from "../../summary-engine.js";
+import type { SummarizeAssetArgs } from "../asset/summary.js";
+
+export type UrlFlowIo = {
+  env: Record<string, string | undefined>;
+  envForRun: Record<string, string | undefined>;
+  stdout: NodeJS.WritableStream;
+  stderr: NodeJS.WritableStream;
+  execFileImpl: ExecFileFn;
+  fetch: typeof fetch;
+  urlFetch?: typeof fetch;
+};
+
+export type UrlFlowFlags = {
+  timeoutMs: number;
+  maxExtractCharacters?: number | null;
+  retries: number;
+  format: "text" | "markdown";
+  markdownMode: "off" | "auto" | "llm" | "readability";
+  preprocessMode: "off" | "auto" | "always";
+  youtubeMode: "auto" | "web" | "yt-dlp" | "apify" | "no-auto";
+  firecrawlMode: "off" | "auto" | "always";
+  videoMode: "auto" | "transcript" | "understand";
+  transcriptTimestamps: boolean;
+  outputLanguage: OutputLanguage;
+  lengthArg: { kind: "preset"; preset: SummaryLength } | { kind: "chars"; maxCharacters: number };
+  forceSummary: boolean;
+  promptOverride?: string | null;
+  lengthInstruction?: string | null;
+  languageInstruction?: string | null;
+  summaryCacheBypass: boolean;
+  maxOutputTokensArg: number | null;
+  json: boolean;
+  extractMode: boolean;
+  metricsEnabled: boolean;
+  metricsDetailed: boolean;
+  shouldComputeReport: boolean;
+  runStartedAtMs: number;
+  verbose: boolean;
+  verboseColor: boolean;
+  progressEnabled: boolean;
+  streamMode: StreamMode;
+  streamingEnabled: boolean;
+  plain: boolean;
+  configPath: string | null;
+  configModelLabel: string | null;
+  slides: SlideSettings | null;
+  slidesDebug: boolean;
+  slidesOutput?: boolean;
+  throwOnAssetLikeHtmlError?: boolean;
+};
+
+export type UrlFlowModel = {
+  requestedModel: RequestedModel;
+  requestedModelInput: string;
+  requestedModelLabel: string;
+  fixedModelSpec: FixedModelSpec | null;
+  isFallbackModel: boolean;
+  isImplicitAutoSelection: boolean;
+  allowAutoCliFallback: boolean;
+  isNamedModelSelection: boolean;
+  wantsFreeNamedModel: boolean;
+  desiredOutputTokens: number | null;
+  configForModelSelection: SummarizeConfig | null;
+  envForAuto: Record<string, string | undefined>;
+  cliAvailability: Partial<Record<CliProvider, boolean>>;
+  openaiUseChatCompletions: boolean;
+  openaiRequestOptions?: ModelRequestOptions;
+  openaiRequestOptionsOverride?: ModelRequestOptions;
+  openaiWhisperUsdPerMinute: number;
+  apiStatus: {
+    xaiApiKey: string | null;
+    apiKey: string | null;
+    nvidiaApiKey: string | null;
+    openrouterApiKey: string | null;
+    openrouterConfigured: boolean;
+    googleApiKey: string | null;
+    googleConfigured: boolean;
+    anthropicApiKey: string | null;
+    anthropicConfigured: boolean;
+    providerBaseUrls: {
+      openai: string | null;
+      nvidia: string | null;
+      anthropic: string | null;
+      google: string | null;
+      xai: string | null;
+    };
+    zaiApiKey: string | null;
+    zaiBaseUrl: string;
+    nvidiaBaseUrl: string;
+    firecrawlConfigured: boolean;
+    firecrawlApiKey: string | null;
+    apifyToken: string | null;
+    ytDlpPath: string | null;
+    ytDlpCookiesFromBrowser: string | null;
+    falApiKey: string | null;
+    groqApiKey: string | null;
+    assemblyaiApiKey: string | null;
+    openaiApiKey: string | null;
+  };
+  summaryEngine: ReturnType<typeof createSummaryEngine>;
+  getLiteLlmCatalog: () => Promise<
+    Awaited<ReturnType<typeof import("../../../pricing/litellm.js").loadLiteLlmCatalog>>["catalog"]
+  >;
+  llmCalls: LlmCall[];
+};
+
+export type UrlFlowHooks = {
+  onModelChosen?: ((modelId: string) => void) | null;
+  onExtracted?: ((extracted: ExtractedLinkContent) => void) | null;
+  onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
+  onSlidesProgress?: ((text: string) => void) | null;
+  onSlidesDone?: ((result: { ok: boolean; error?: string | null }) => void) | null;
+  onSlideChunk?: (chunk: {
+    slide: SlideImage;
+    meta: {
+      slidesDir: string;
+      sourceUrl: string;
+      sourceId: string;
+      sourceKind: SlideSourceKind;
+      ocrAvailable: boolean;
+    };
+  }) => void;
+  onLinkPreviewProgress?: ((event: LinkPreviewProgressEvent) => void) | null;
+  onSummaryCached?: ((cached: boolean) => void) | null;
+  setTranscriptionCost: (costUsd: number | null, label: string | null) => void;
+  summarizeAsset: (args: SummarizeAssetArgs) => Promise<void>;
+  writeViaFooter: (parts: string[]) => void;
+  clearProgressForStdout: () => void;
+  restoreProgressAfterStdout?: (() => void) | null;
+  setClearProgressBeforeStdout: (fn: (() => undefined | (() => void)) | null) => void;
+  clearProgressIfCurrent: (fn: () => void) => void;
+  buildReport: () => Promise<RunMetricsReport>;
+  estimateCostUsd: () => Promise<number | null>;
+};
+
+export type UrlFlowEventHooks = Pick<
+  UrlFlowHooks,
+  | "onModelChosen"
+  | "onExtracted"
+  | "onSlidesExtracted"
+  | "onSlidesProgress"
+  | "onSlidesDone"
+  | "onSlideChunk"
+  | "onLinkPreviewProgress"
+  | "onSummaryCached"
+>;
+
+export type UrlFlowRuntimeHooks = Pick<
+  UrlFlowHooks,
+  | "setTranscriptionCost"
+  | "summarizeAsset"
+  | "writeViaFooter"
+  | "clearProgressForStdout"
+  | "restoreProgressAfterStdout"
+  | "setClearProgressBeforeStdout"
+  | "clearProgressIfCurrent"
+  | "buildReport"
+  | "estimateCostUsd"
+>;
+
+export function createUrlFlowHooks(options: {
+  runtime: UrlFlowRuntimeHooks;
+  events?: Partial<UrlFlowEventHooks>;
+}): UrlFlowHooks {
+  return {
+    onModelChosen: null,
+    onExtracted: null,
+    onSlidesExtracted: null,
+    onSlidesProgress: null,
+    onSlidesDone: null,
+    onSlideChunk: undefined,
+    onLinkPreviewProgress: null,
+    onSummaryCached: null,
+    ...options.events,
+    ...options.runtime,
+  };
+}
+
+export function composeUrlFlowHooks(
+  base: UrlFlowHooks,
+  overrides: Partial<UrlFlowHooks>,
+): UrlFlowHooks {
+  return {
+    ...base,
+    ...overrides,
+  };
+}
+
+export function createUrlFlowContext(options: {
+  io: UrlFlowIo;
+  flags: UrlFlowFlags;
+  model: UrlFlowModel;
+  cache: CacheState;
+  mediaCache: MediaCache | null;
+  perfTrace?: PerfTrace | null;
+  runtimeHooks: UrlFlowRuntimeHooks;
+  eventHooks?: Partial<UrlFlowEventHooks>;
+}): UrlFlowContext {
+  const { io, flags, model, cache, mediaCache, perfTrace, runtimeHooks, eventHooks } = options;
+  return {
+    io,
+    flags,
+    model,
+    cache,
+    mediaCache,
+    perfTrace: perfTrace ?? null,
+    hooks: createUrlFlowHooks({ runtime: runtimeHooks, events: eventHooks }),
+  };
+}
+
+/**
+ * Wiring struct for `runUrlFlow`.
+ * CLI runner populates the full surface; daemon uses a smaller subset (no TTY/progress/footer),
+ * but both share the same extraction/cache/model logic.
+ */
+export type UrlFlowContext = {
+  io: UrlFlowIo;
+  flags: UrlFlowFlags;
+  model: UrlFlowModel;
+  cache: CacheState;
+  mediaCache: MediaCache | null;
+  perfTrace?: PerfTrace | null;
+  hooks: UrlFlowHooks;
+};

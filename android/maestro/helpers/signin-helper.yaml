@@ -1,0 +1,16 @@
+appId: com.github.jayteealao.playster
+# Reusable sign-in fragment for Maestro flows. Slice 1 establishes the
+# fixture-auth mechanism (debug-build-only deep link or Auth-emulator
+# custom-token bridge — whichever slice-1's plan settled on). Both this slice
+# (summary-ui) and slice 1's own flows reuse this file.
+---
+- assertVisible:
+    text: "Sign in"
+    optional: true
+- tapOn:
+    text: "Sign in with Google"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Playster"
+    timeout: 10000

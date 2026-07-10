@@ -1,0 +1,104 @@
+{
+  "name": "@steipete/summarize",
+  "version": "0.15.2",
+  "description": "Link → clean text → summary.",
+  "bin": {
+    "summarize": "./dist/cli.js",
+    "summarizer": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./content": {
+      "types": "./dist/types/content/index.d.ts",
+      "import": "./dist/esm/content/index.js"
+    },
+    "./prompts": {
+      "types": "./dist/types/prompts/index.d.ts",
+      "import": "./dist/esm/prompts/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm clean && pnpm -C packages/core build && pnpm build:lib && pnpm build:cli",
+    "build:bun": "bun scripts/build-bun.js",
+    "build:bun:test": "bun scripts/build-bun.js --test",
+    "build:cli": "node scripts/build-cli.mjs",
+    "build:lib": "tsgo -p tsconfig.build.json",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage",
+    "clean": "rimraf dist packages/core/dist",
+    "dev:cli": "pnpm -C packages/core build && tsx src/cli.ts",
+    "docs:build": "node scripts/build-docs-site.mjs",
+    "docs:list": "tsx scripts/docs-list.ts",
+    "docs:serve": "bash scripts/docs-serve.sh",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json .",
+    "lint:fix": "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json --fix . && pnpm format",
+    "prepare": "pnpm build",
+    "release": "bash scripts/release.sh",
+    "s": "tsx src/cli.ts",
+    "summarize": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:build": "pnpm build && pnpm test:coverage",
+    "test:extension-e2e": "pnpm -C apps/chrome-extension test:e2e",
+    "typecheck": "pnpm -C packages/core typecheck && tsgo -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.74.0",
+    "@steipete/summarize-core": "workspace:*",
+    "commander": "^14.0.3",
+    "file-type": "^22.0.1",
+    "gpt-tokenizer": "^3.4.0",
+    "json5": "^2.2.3",
+    "markdansi": "^0.2.1",
+    "mime": "^4.1.0",
+    "ora": "^9.4.0",
+    "osc-progress": "^0.3.0",
+    "tokentally": "^0.1.1",
+    "tslog": "^4.10.2",
+    "undici": "7.25.0"
+  },
+  "devDependencies": {
+    "@fal-ai/client": "^1.10.1",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.12.4",
+    "@types/sanitize-html": "^2.16.1",
+    "@typescript/native-preview": "7.0.0-dev.20260515.1",
+    "@vitest/coverage-v8": "^4.1.6",
+    "esbuild": "^0.28.0",
+    "oxfmt": "0.49.0",
+    "oxlint": "^1.64.0",
+    "oxlint-tsgolint": "^0.22.1",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "pnpm": {
+    "overrides": {
+      "uuid": "14.0.0",
+      "vite": "8.0.10"
+    },
+    "patchedDependencies": {
+      "@zag-js/preact@1.40.0": "patches/@zag-js__preact@1.40.0.patch"
+    }
+  }
+}

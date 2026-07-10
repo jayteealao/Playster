@@ -1,0 +1,63 @@
+{
+  "_comment": "Hand-authored legacy-renderer fixture (NOT a real capture). Locks the playlistVideoRenderer fallback path so a YouTube A/B flip back to the pre-lockup co-located shape is caught by a test, not discovered in production. Field names are verbatim; values are synthetic placeholders. The lockupViewModel primary path is pinned by the redacted real capture in innertube-browse-wl-lockup.json (operator-captured).",
+  "contents": {
+    "sectionListRenderer": {
+      "contents": [
+        {
+          "itemSectionRenderer": {
+            "contents": [
+              {
+                "playlistVideoListRenderer": {
+                  "contents": [
+                    {
+                      "playlistVideoRenderer": {
+                        "videoId": "LEGACYvid001",
+                        "title": {
+                          "runs": [{ "text": "Legacy Sample Video One" }]
+                        },
+                        "shortBylineText": {
+                          "runs": [
+                            {
+                              "text": "Legacy Sample Channel",
+                              "navigationEndpoint": {
+                                "browseEndpoint": {
+                                  "browseId": "UCLEGACYchannel00000001"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "lengthText": { "simpleText": "12:34" },
+                        "thumbnail": {
+                          "thumbnails": [
+                            {
+                              "url": "https://i.ytimg.com/vi/LEGACYvid001/default.jpg",
+                              "width": 120,
+                              "height": 90
+                            },
+                            {
+                              "url": "https://i.ytimg.com/vi/LEGACYvid001/hqdefault.jpg",
+                              "width": 480,
+                              "height": 360
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "continuations": [
+                    {
+                      "nextContinuationData": {
+                        "continuation": "LEGACY_CONTINUATION_TOKEN_PLACEHOLDER"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

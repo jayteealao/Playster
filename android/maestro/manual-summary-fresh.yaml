@@ -1,0 +1,20 @@
+appId: com.github.jayteealao.playster
+name: manual-summary-fresh (AC-5)
+---
+- runScript: helpers/seed-fresh-state.sh
+- launchApp
+- runFlow: helpers/signin-helper.yaml
+- tapOn:
+    testTag: "playlist-tile-PL_TEST_1"
+- tapOn:
+    testTag: "summarize-button-enabled"
+# AC-5: in-progress UI within 500ms of tap.
+- assertVisible:
+    testTag: "summary-tab"
+    timeout: 500
+- assertVisible:
+    testTag: "summary-in-progress-spinner"
+    timeout: 500
+- assertVisible:
+    text: "Generating summary"
+    timeout: 500
