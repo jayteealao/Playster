@@ -15,7 +15,7 @@
 # Stage 1 — daemon-build
 # ---------------------------------------------------------------------------
 # Updated digest by running: docker manifest inspect node:24-slim
-FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS daemon-build
+FROM node:26-slim@sha256:ffc78385a788964bb3cbab5e434ff79a10bdc25b8ae6db03fe5fe6cb14053c09 AS daemon-build
 
 ENV CI=true
 
@@ -35,7 +35,7 @@ RUN pnpm prune --prod --ignore-scripts
 # Stage 2 — api-build
 # ---------------------------------------------------------------------------
 # Updated digest by running: docker manifest inspect node:24-slim
-FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS api-build
+FROM node:26-slim@sha256:ffc78385a788964bb3cbab5e434ff79a10bdc25b8ae6db03fe5fe6cb14053c09 AS api-build
 
 ENV CI=true
 
@@ -61,7 +61,7 @@ RUN cd summarizer/summarize-api && pnpm prune --prod --ignore-scripts
 # Stage 3 — runtime
 # ---------------------------------------------------------------------------
 # Updated digest by running: docker manifest inspect node:24-slim
-FROM node:24-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS runtime
+FROM node:26-slim@sha256:ffc78385a788964bb3cbab5e434ff79a10bdc25b8ae6db03fe5fe6cb14053c09 AS runtime
 
 ARG YT_DLP_VERSION=2026.02.21
 
