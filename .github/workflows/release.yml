@@ -254,11 +254,11 @@ jobs:
             exit 1
           fi
           printf 'ALLOWED_UID=%s\n' "$ALLOWED_UID" > ".env.${PROJECT_ID}"
-      - name: Deploy Firebase Functions + Firestore rules
+      - name: Deploy Firebase Functions + Firestore rules + indexes
         working-directory: backend
         run: |
           pnpm dlx firebase-tools deploy \
-            --only functions,firestore:rules \
+            --only functions,firestore:rules,firestore:indexes \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --non-interactive --force
 
