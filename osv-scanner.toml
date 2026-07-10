@@ -374,3 +374,7 @@ reason = "logback-core 1.3.5 low-severity (CVSS 1.2) advisory in Android build's
 id = "GHSA-22p9-wv53-3rq4"
 reason = "linkify-it 5.0.0 ReDoS (CVSS 8.7) is a transitive dep of the vendored summarize-daemon subtree; input is operator-controlled YouTube URLs, not attacker-facing; upgrade tracked as follow-up debt in the daemon subtree."
 
+[[IgnoredVulns]]
+id = "GHSA-jhq6-gfmj-v8fx"
+reason = "logback-core 1.3.5 second low-severity (CVSS 2.9) advisory in the Android build's verification-metadata; same package/version already suppressed as GHSA-p47f-322f-whfh; build-toolchain only, not in the runtime APK/AAB; single-tenant app, not attacker-reachable; revisit on next AGP/dependency bump."
+
