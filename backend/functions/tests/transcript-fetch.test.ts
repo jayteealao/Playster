@@ -358,6 +358,36 @@ describe("fetchTranscript — emulator-backed", () => {
     expect(data.errorClass).toBe("EMPTY_TIMEDTEXT");
   });
 
+  it("AC3 fallback: primary 400, fallback json3 parses to [] → EMPTY_TIMEDTEXT, NOT available with empty segments", async () => {
+    // A json3 body whose events produce zero non-empty text segments:
+    //   - first event has only whitespace in segs → filtered by .filter(s.text.length > 0)
+    //   - second event has no segs array → filtered by the segs-array guard
+    const noiseOnlyJson3 = JSON.stringify({
+      wireMagic: "pb3",
+      events: [
+        { tStartMs: 0, dDurationMs: 500, segs: [{ utf8: "\n" }] },
+        { tStartMs: 500, dDurationMs: 500 },
+      ],
+    });
+    mockInnertubeWithFallback("Request failed with status 400");
+    mockGlobalFetch(noiseOnlyJson3);
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    // GCS must NOT have been written — the empty parse result is a failure.
+    expect(mockFile.save).not.toHaveBeenCalled();
+
+    // Pointer doc must be transient with EMPTY_TIMEDTEXT, not available.
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("transient");
+    expect(data.errorClass).toBe("EMPTY_TIMEDTEXT");
+    // Confirm the idempotency guard was NOT triggered (doc should not be available).
+    expect(data.status).not.toBe("available");
+    expect(data.segments).toBeUndefined();
+  });
+
   // ---
   // AC5: panel-not-found counter guard
   // ---
