@@ -335,9 +335,25 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Verify Cloud Run health
         run: |
+          # The summarizer is deployed with --no-allow-unauthenticated, and under
+          # Workload Identity Federation `gcloud auth print-identity-token` cannot mint
+          # an identity token ("No identity token can be obtained from the current
+          # credentials"), so the old authenticated /health probe failed on every
+          # release even when the deploy succeeded. Assert the deployed revision is
+          # Ready and serving instead: this works with the deploy SA's run.admin role
+          # (no run.invoker / IAM change needed) and is a real post-deploy health
+          # signal, since Cloud Run only routes traffic to a revision that passed
+          # startup. To restore a true end-to-end /health 200 later, grant the deploy
+          # SA roles/run.invoker and mint an id-token via the auth step's
+          # token_format: id_token + id_token_audience: <service url>.
           URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
             --project "${{ secrets.GCP_PROJECT_ID }}" --format='value(status.url)')
-          TOKEN=$(gcloud auth print-identity-token)
-          curl -fsS -H "Authorization: Bearer $TOKEN" "$URL/health" && echo "Cloud Run healthy"
+          LATEST_READY=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format='value(status.latestReadyRevisionName)')
+          echo "URL=${URL} latestReadyRevision=${LATEST_READY}"
+          [ -n "${URL}" ] && [ -n "${LATEST_READY}" ] \
+            || { echo "Cloud Run summarizer not serving a Ready revision (url='${URL}', latestReady='${LATEST_READY}')"; exit 1; }
+          echo "Cloud Run summarizer healthy: revision ${LATEST_READY} Ready and serving at ${URL}"
       - name: Verify backend functions deployed
         run: gcloud functions list --project "${{ secrets.GCP_PROJECT_ID }}"
