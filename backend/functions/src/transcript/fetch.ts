@@ -179,7 +179,10 @@ function parseJson3Segments(body: string): TranscriptSegment[] {
     )
     .map((e) => ({
       start: e.tStartMs / 1000,
-      text: e.segs.map((s) => s.utf8).join("").trim(),
+      text: e.segs
+        .map((s) => s.utf8)
+        .join("")
+        .trim(),
     }))
     .filter((s) => s.text.length > 0);
 }
@@ -203,9 +206,7 @@ function selectCaptionTrackUrl(
   if (tracks.length === 0) return null;
   const exact = tracks.find((t) => t.language_code === preferredLang);
   if (exact) return exact.base_url;
-  const prefix = tracks.find((t) =>
-    t.language_code.startsWith(preferredLang),
-  );
+  const prefix = tracks.find((t) => t.language_code.startsWith(preferredLang));
   if (prefix) return prefix.base_url;
   const autoGen = tracks.find((t) => t.is_auto_generated);
   if (autoGen) return autoGen.base_url;
@@ -325,8 +326,7 @@ export async function fetchTranscript(videoId: string): Promise<void> {
         (s): s is { start_ms: string; snippet: { text: string } } =>
           typeof s["start_ms"] === "string" &&
           s["snippet"] != null &&
-          typeof (s["snippet"] as Record<string, unknown>)["text"] ===
-            "string",
+          typeof (s["snippet"] as Record<string, unknown>)["text"] === "string",
       )
       .map((s) => ({
         start: parseInt(s.start_ms, 10) / 1000,
