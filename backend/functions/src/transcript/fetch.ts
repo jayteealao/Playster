@@ -180,6 +180,10 @@ function parseJson3Segments(body: string): TranscriptSegment[] {
     .map((e) => ({
       start: e.tStartMs / 1000,
       text: e.segs
+        .filter(
+          (s): s is { utf8: string } =>
+            s !== null && typeof s === "object" && typeof s.utf8 === "string",
+        )
         .map((s) => s.utf8)
         .join("")
         .trim(),
@@ -203,14 +207,23 @@ function selectCaptionTrackUrl(
   tracks: CaptionTrack[],
   preferredLang: string,
 ): string | null {
-  if (tracks.length === 0) return null;
-  const exact = tracks.find((t) => t.language_code === preferredLang);
+  const safeTracks = tracks.filter(
+    (t): t is CaptionTrack =>
+      t !== null &&
+      typeof t === "object" &&
+      typeof t.language_code === "string" &&
+      typeof t.base_url === "string",
+  );
+  if (safeTracks.length === 0) return null;
+  const exact = safeTracks.find((t) => t.language_code === preferredLang);
   if (exact) return exact.base_url;
-  const prefix = tracks.find((t) => t.language_code.startsWith(preferredLang));
+  const prefix = safeTracks.find((t) =>
+    t.language_code.startsWith(preferredLang),
+  );
   if (prefix) return prefix.base_url;
-  const autoGen = tracks.find((t) => t.is_auto_generated);
+  const autoGen = safeTracks.find((t) => t.is_auto_generated);
   if (autoGen) return autoGen.base_url;
-  return tracks[0].base_url;
+  return safeTracks[0].base_url;
 }
 
 /**
@@ -240,7 +253,9 @@ async function fetchViaAndroidTimedtext(
   }
   const body = await resp.text();
   if (!body.trim()) throw new EmptyTimedtextError();
-  return parseJson3Segments(body);
+  const parsed = parseJson3Segments(body);
+  if (parsed.length === 0) throw new EmptyTimedtextError();
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------
@@ -415,10 +430,16 @@ export async function fetchTranscript(videoId: string): Promise<void> {
       videoId,
       error: code,
     });
+    const existingPnfc = existing.data()?.panelNotFoundCount as
+      | number
+      | undefined;
     const transientDoc: TranscriptDocument = {
       videoId,
       status: "transient",
       errorCode: `GCS_WRITE: ${code}`.slice(0, 200),
+      ...(existingPnfc !== undefined
+        ? { panelNotFoundCount: existingPnfc }
+        : {}),
       createdAt,
       updatedAt: now,
     };
@@ -444,10 +465,16 @@ export async function fetchTranscript(videoId: string): Promise<void> {
       videoId,
       error: code,
     });
+    const existingPnfc = existing.data()?.panelNotFoundCount as
+      | number
+      | undefined;
     const transientDoc: TranscriptDocument = {
       videoId,
       status: "transient",
       errorCode: `SIGN_URL: ${code}`.slice(0, 200),
+      ...(existingPnfc !== undefined
+        ? { panelNotFoundCount: existingPnfc }
+        : {}),
       createdAt,
       updatedAt: now,
     };
