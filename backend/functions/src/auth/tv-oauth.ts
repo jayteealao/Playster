@@ -1,8 +1,10 @@
 import * as admin from "firebase-admin";
-import { Innertube } from "youtubei.js";
+import { ClientType, Innertube } from "youtubei.js";
 
-// Structural duplicate of youtubei.js's ICache. Inlined because the package
-// doesn't publicly export the type alias.
+// Structural duplicate of youtubei.js's ICache. Inlined because the package's
+// ICache is a type-only export under the Types namespace (not a top-level
+// named export from 'youtubei.js'), so importing it directly is non-idiomatic.
+// The v17 ICache interface fields are identical to this local copy.
 interface ICache {
   cache_dir: string;
   get(key: string): Promise<ArrayBuffer | undefined>;
@@ -12,12 +14,6 @@ interface ICache {
 
 const TV_OAUTH_DOC_PATH = "tokens/innertube-oauth";
 const OAUTH_CREDS_KEY = "youtubei_oauth_credentials";
-
-// youtubei.js v13 sends client_type enum tags ("TV", "TV_SIMPLY", ...) directly
-// as context.client.client_name. YouTube's protobuf enum rejects those — it
-// wants the formal wire names. We patch the session context after create().
-const TV_CLIENT_NAME = "TVHTML5";
-const TV_CLIENT_VERSION = "7.20250812.07.00";
 
 interface TvOauthCredentials {
   access_token: string;
@@ -101,10 +97,11 @@ class FirestoreOAuthCache implements ICache {
  * regular cookie path no longer reliably works.
  */
 export async function getInnertubeTvClient(): Promise<Innertube> {
+  // ClientType.TV resolves to "TVHTML5" in v17 — the correct wire name.
+  // No post-create context patch needed (was required in v13.4.0).
   const innertube = await Innertube.create({
     cache: new FirestoreOAuthCache(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    client_type: "TV" as any,
+    client_type: ClientType.TV,
   });
 
   // youtubei.js doesn't auto-persist refreshed tokens — we have to call
@@ -114,10 +111,6 @@ export async function getInnertubeTvClient(): Promise<Innertube> {
   });
 
   await innertube.session.signIn();
-
-  // Patch the broken enum mapping in v13.4.0 — see TV_CLIENT_NAME comment.
-  innertube.session.context.client.clientName = TV_CLIENT_NAME;
-  innertube.session.context.client.clientVersion = TV_CLIENT_VERSION;
 
   return innertube;
 }
