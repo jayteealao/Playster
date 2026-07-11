@@ -12,7 +12,7 @@ metric-lines-added: 582
 metric-lines-removed: 49
 metric-deviations-from-plan: 1
 metric-review-fixes-applied: 0
-commit-sha: "ff9d7bb2"
+commit-sha: "17afa1a3"
 tags: [backend, transcripts, error-handling, instrument]
 refs:
   index: 00-index.md
