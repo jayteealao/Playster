@@ -346,14 +346,12 @@ jobs:
           # startup. To restore a true end-to-end /health 200 later, grant the deploy
           # SA roles/run.invoker and mint an id-token via the auth step's
           # token_format: id_token + id_token_audience: <service url>.
-          URL=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
-            --project "${{ secrets.GCP_PROJECT_ID }}" --format='value(status.url)')
-          LATEST_READY=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
-            --project "${{ secrets.GCP_PROJECT_ID }}" \
-            --format='value(status.latestReadyRevisionName)')
-          echo "URL=${URL} latestReadyRevision=${LATEST_READY}"
-          [ -n "${URL}" ] && [ -n "${LATEST_READY}" ] \
-            || { echo "Cloud Run summarizer not serving a Ready revision (url='${URL}', latestReady='${LATEST_READY}')"; exit 1; }
-          echo "Cloud Run summarizer healthy: revision ${LATEST_READY} Ready and serving at ${URL}"
+          read -r URL LATEST_CREATED LATEST_READY < <(gcloud run services describe "${SERVICE}" \
+            --region "${REGION}" --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format='value(status.url,status.latestCreatedRevisionName,status.latestReadyRevisionName)')
+          echo "URL=${URL} latestCreated=${LATEST_CREATED} latestReady=${LATEST_READY}"
+          [ -n "${URL}" ] && [ -n "${LATEST_READY}" ] && [ "${LATEST_CREATED}" = "${LATEST_READY}" ] \
+            || { echo "Cloud Run summarizer not serving the just-deployed revision (url='${URL}', latestCreated='${LATEST_CREATED}', latestReady='${LATEST_READY}')"; exit 1; }
+          echo "Cloud Run summarizer healthy: just-deployed revision ${LATEST_READY} Ready and serving at ${URL}"
       - name: Verify backend functions deployed
         run: gcloud functions list --project "${{ secrets.GCP_PROJECT_ID }}"
