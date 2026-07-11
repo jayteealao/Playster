@@ -402,6 +402,36 @@ describe("fetchTranscript — emulator-backed", () => {
     expect(data.panelNotFoundCount).toBe(3);
   });
 
+  it("AC5 counter: non-PANEL_NOT_FOUND error after prior panelNotFoundCount → count reset to 0", async () => {
+    // Pre-seed a prior PANEL_NOT_FOUND history.
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "transient",
+        errorClass: "PANEL_NOT_FOUND",
+        panelNotFoundCount: 2,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    // UNKNOWN error — not fallback-eligible; goes directly to the else branch
+    // which resets panelNotFoundCount to 0.
+    mockInnertube(null, "network timeout");
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    expect(mockFile.save).not.toHaveBeenCalled();
+
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("transient");
+    expect(data.errorClass).toBe("UNKNOWN");
+    expect(data.panelNotFoundCount).toBe(0);
+  });
+
   it("AC5 counter: successful fetch after PANEL_NOT_FOUND history → available, no panelNotFoundCount", async () => {
     // Pre-seed the pointer doc with a prior PANEL_NOT_FOUND count.
     await admin

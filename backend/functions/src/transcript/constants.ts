@@ -41,3 +41,12 @@ export type TranscriptTerminalStatus =
  * never will.
  */
 export const PANEL_NOT_FOUND_TERMINAL_COUNT = 3;
+
+/**
+ * Maximum time in milliseconds to wait for the ANDROID-client timedtext HTTP
+ * fetch to complete. The fetch() in fetchViaAndroidTimedtext calls an external
+ * caption-track URL; without a deadline the function could stall until the
+ * Cloud Functions request timeout is hit (up to 9 minutes for gen-2).
+ * 15 s is generous for a JSON caption file while still bounding total latency.
+ */
+export const TIMEDTEXT_FETCH_TIMEOUT_MS = 15_000;

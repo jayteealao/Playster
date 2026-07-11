@@ -6,7 +6,10 @@ import type {
   TranscriptErrorClass,
   TranscriptSegment,
 } from "../models/index.js";
-import { PANEL_NOT_FOUND_TERMINAL_COUNT } from "./constants.js";
+import {
+  PANEL_NOT_FOUND_TERMINAL_COUNT,
+  TIMEDTEXT_FETCH_TIMEOUT_MS,
+} from "./constants.js";
 
 // ---------------------------------------------------------------------------
 // Sentinel error classes
@@ -228,7 +231,9 @@ async function fetchViaAndroidTimedtext(
   if (!trackUrl) throw new PanelNotFoundError();
 
   const url = `${trackUrl}&fmt=json3`;
-  const resp = await fetch(url);
+  const resp = await fetch(url, {
+    signal: AbortSignal.timeout(TIMEDTEXT_FETCH_TIMEOUT_MS),
+  });
   if (!resp.ok) {
     throw new Error(`timedtext GET failed with status ${resp.status}`);
   }
