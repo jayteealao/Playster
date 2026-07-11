@@ -2,6 +2,10 @@
   "wireMagic": "pb3",
   "events": [
     { "tStartMs": 0, "dDurationMs": 2500, "segs": [{ "utf8": "Hello world" }] },
-    { "tStartMs": 2500, "dDurationMs": 3000, "segs": [{ "utf8": "Next sentence." }] }
+    {
+      "tStartMs": 2500,
+      "dDurationMs": 3000,
+      "segs": [{ "utf8": "Next sentence." }]
+    }
   ]
 }

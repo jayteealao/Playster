@@ -324,7 +324,9 @@ describe("fetchTranscript — emulator-backed", () => {
   it("AC3 fallback: primary 400 → fallback succeeds → available, source=android-timedtext, blob byte-equivalent", async () => {
     mockInnertubeWithFallback("Request failed with status 400");
     mockGlobalFetch(JSON3_FIXTURE_BODY);
-    const { mockFile } = mockGcs({ signedUrl: "https://storage.goog/t/signed-fb" });
+    const { mockFile } = mockGcs({
+      signedUrl: "https://storage.goog/t/signed-fb",
+    });
 
     await fetchTranscript(VIDEO_ID);
 
@@ -376,17 +378,14 @@ describe("fetchTranscript — emulator-backed", () => {
 
   it("AC5 counter: third PANEL_NOT_FOUND hit (prior count=2) → unavailable, panelNotFoundCount=3", async () => {
     // Pre-seed the pointer doc to simulate two prior PANEL_NOT_FOUND hits.
-    await admin
-      .firestore()
-      .doc(`transcripts/${VIDEO_ID}`)
-      .set({
-        videoId: VIDEO_ID,
-        status: "transient",
-        errorClass: "PANEL_NOT_FOUND",
-        panelNotFoundCount: 2,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "transient",
+      errorClass: "PANEL_NOT_FOUND",
+      panelNotFoundCount: 2,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     mockInnertube(null, "Transcript panel not found");
     const { mockFile } = mockGcs();
@@ -404,17 +403,14 @@ describe("fetchTranscript — emulator-backed", () => {
 
   it("AC5 counter: non-PANEL_NOT_FOUND error after prior panelNotFoundCount → count reset to 0", async () => {
     // Pre-seed a prior PANEL_NOT_FOUND history.
-    await admin
-      .firestore()
-      .doc(`transcripts/${VIDEO_ID}`)
-      .set({
-        videoId: VIDEO_ID,
-        status: "transient",
-        errorClass: "PANEL_NOT_FOUND",
-        panelNotFoundCount: 2,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "transient",
+      errorClass: "PANEL_NOT_FOUND",
+      panelNotFoundCount: 2,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     // UNKNOWN error — not fallback-eligible; goes directly to the else branch
     // which resets panelNotFoundCount to 0.
@@ -434,17 +430,14 @@ describe("fetchTranscript — emulator-backed", () => {
 
   it("AC5 counter: successful fetch after PANEL_NOT_FOUND history → available, no panelNotFoundCount", async () => {
     // Pre-seed the pointer doc with a prior PANEL_NOT_FOUND count.
-    await admin
-      .firestore()
-      .doc(`transcripts/${VIDEO_ID}`)
-      .set({
-        videoId: VIDEO_ID,
-        status: "transient",
-        errorClass: "PANEL_NOT_FOUND",
-        panelNotFoundCount: 2,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "transient",
+      errorClass: "PANEL_NOT_FOUND",
+      panelNotFoundCount: 2,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     const segments = [seg("0", "Hello world"), seg("2500", "Next sentence.")];
     mockInnertube(transcriptWith(segments));
@@ -482,9 +475,7 @@ describe("classifyError — classification table", () => {
   });
 
   it("INNERTUBE_4XX: 'Request failed with status 400' → transient, fallback-eligible, httpStatus=400", () => {
-    const result = classifyError(
-      new Error("Request failed with status 400"),
-    );
+    const result = classifyError(new Error("Request failed with status 400"));
     expect(result.errorClass).toBe("INNERTUBE_4XX");
     expect(result.status).toBe("transient");
     expect(result.fallbackEligible).toBe(true);
