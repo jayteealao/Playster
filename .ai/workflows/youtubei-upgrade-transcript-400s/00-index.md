@@ -4,11 +4,11 @@ type: index
 slug: youtubei-upgrade-transcript-400s
 title: "Upgrade youtubei.js to fix systematic transcript-fetch 400s"
 status: active
-current-stage: implement
-stage-number: 5
+current-stage: verify
+stage-number: 6
 created-at: "2026-07-11T00:58:22Z"
-updated-at: "2026-07-11T08:39:44Z"
-selected-slice: "upgrade-and-adapt"
+updated-at: "2026-07-11T09:15:26Z"
+selected-slice: "fallback-and-error-taxonomy"
 branch-strategy: dedicated
 branch: "fix/youtubei-upgrade-transcript-400s"
 base-branch: "main"
@@ -37,7 +37,7 @@ stack:
     - {name: web-search/web-reader, hint: "Freshness research on youtubei.js releases"}
   user-confirmed: true
 next-command: wf-verify
-next-invocation: "/wf verify youtubei-upgrade-transcript-400s upgrade-and-adapt"
+next-invocation: "/wf verify youtubei-upgrade-transcript-400s fallback-and-error-taxonomy"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -53,15 +53,32 @@ workflow-files:
   - 04-plan-upgrade-and-adapt.html.fragment
   - 05-implement.md
   - 05-implement-upgrade-and-adapt.md
+  - 06-verify.md
+  - 06-verify-upgrade-and-adapt.md
+  - 04-plan-fallback-and-error-taxonomy.md
+  - 04-plan-fallback-and-error-taxonomy.yaml
+  - 04-plan-fallback-and-error-taxonomy.html.fragment
+  - 04b-instrument.md
+  - 04b-instrument.yaml
+  - 04b-instrument.html.fragment
+  - 05-implement-fallback-and-error-taxonomy.md
+augmentations:
+  - type: instrument
+    artifact: 04b-instrument.md
+    status: complete
+    created-at: "2026-07-11T08:53:21Z"
 progress:
   intake: complete
   shape: complete
   slice: complete
   plan: complete
   implement: complete
-  verify: not-started
+  verify: in-progress
   review: not-started
   handoff: not-started
   ship: not-started
   retro: not-started
+verify-slice-results:
+  upgrade-and-adapt: {result: pass, convergence: not-needed}
+runtime-evidence-deferrals: []
 ---
