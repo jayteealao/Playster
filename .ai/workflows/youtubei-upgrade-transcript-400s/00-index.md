@@ -7,16 +7,17 @@ status: active
 current-stage: verify
 stage-number: 6
 created-at: "2026-07-11T00:58:22Z"
-updated-at: "2026-07-11T09:15:26Z"
-selected-slice: "fallback-and-error-taxonomy"
+updated-at: "2026-07-11T09:37:52Z"
+selected-slice: "production-watch"
 branch-strategy: dedicated
 branch: "fix/youtubei-upgrade-transcript-400s"
 base-branch: "main"
 review-scope: slug-wide
 pr-url: ""
 pr-number: 0
-open-questions:
-  - "Ops how-to target location: backend/README.md section vs docs/ — decide at plan (production-watch slice)."
+open-questions: []
+resolved-questions:
+  - "Ops how-to target location resolved at plan (production-watch): docs/operations/transcript-backfill-watch.md — matches existing repo convention (deploy-and-bootstrap.md, backfill-watch-later.md in docs/operations/)."
 tags: [backend, firebase-functions, dependencies, transcripts, production-incident]
 stack:
   detected-at: "2026-07-11T00:58:22Z"
@@ -37,7 +38,7 @@ stack:
     - {name: web-search/web-reader, hint: "Freshness research on youtubei.js releases"}
   user-confirmed: true
 next-command: wf-verify
-next-invocation: "/wf verify youtubei-upgrade-transcript-400s fallback-and-error-taxonomy"
+next-invocation: "/wf verify youtubei-upgrade-transcript-400s production-watch"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -62,6 +63,11 @@ workflow-files:
   - 04b-instrument.yaml
   - 04b-instrument.html.fragment
   - 05-implement-fallback-and-error-taxonomy.md
+  - 06-verify-fallback-and-error-taxonomy.md
+  - 04-plan-production-watch.md
+  - 04-plan-production-watch.yaml
+  - 04-plan-production-watch.html.fragment
+  - 05-implement-production-watch.md
 augmentations:
   - type: instrument
     artifact: 04b-instrument.md
@@ -80,5 +86,6 @@ progress:
   retro: not-started
 verify-slice-results:
   upgrade-and-adapt: {result: pass, convergence: not-needed}
+  fallback-and-error-taxonomy: {result: pass, convergence: not-needed}
 runtime-evidence-deferrals: []
 ---
