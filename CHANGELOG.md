@@ -6,6 +6,10 @@ All notable breaking changes to externally-callable interfaces are recorded here
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-07-11
+
 ### Non-breaking — transcript backfill: dual-path fetch with error classification
 
 `fetchTranscript` now attempts a primary caption fetch and, when that is blocked
