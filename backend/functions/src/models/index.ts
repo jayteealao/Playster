@@ -93,6 +93,19 @@ export type TranscriptStatus =
   | "transient"
   | "unavailable";
 
+/**
+ * Stable taxonomy code written to transient/unavailable pointer docs and log
+ * lines. Consumed by the production-watch Cloud Logging query. Additive —
+ * existing consumers tolerate unknown fields via structural typing.
+ */
+export type TranscriptErrorClass =
+  | "PANEL_NOT_FOUND"
+  | "LOGIN_REQUIRED"
+  | "INNERTUBE_4XX"
+  | "EMPTY_TIMEDTEXT"
+  | "PARSE_FAILURE"
+  | "UNKNOWN";
+
 export interface TranscriptSegment {
   /** Segment start time in seconds (float). */
   start: number;
@@ -102,13 +115,21 @@ export interface TranscriptSegment {
 export interface TranscriptDocument {
   videoId: string;
   status: TranscriptStatus;
-  source?: "youtubei" | "shortDescription";
+  source?: "youtubei" | "shortDescription" | "android-timedtext";
   language?: string;
   segments?: TranscriptSegment[];
   gcsPath?: string;
   signedUrl?: string;
   signedUrlExpiresAt?: FieldValue | Date;
   errorCode?: string;
+  /** Stable classification code written on transient/unavailable outcomes. */
+  errorClass?: TranscriptErrorClass;
+  /**
+   * Incremented on consecutive PANEL_NOT_FOUND outcomes; persists across cron
+   * ticks via the pointer doc. When it reaches PANEL_NOT_FOUND_TERMINAL_COUNT
+   * the status flips to terminal `unavailable`.
+   */
+  panelNotFoundCount?: number;
   createdAt: FieldValue | Date;
   updatedAt: FieldValue | Date;
 }

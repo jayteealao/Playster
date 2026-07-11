@@ -42,7 +42,11 @@ vi.mock("firebase-functions/logger", () => ({
 process.env.TRANSCRIPT_BUCKET = "test-bucket";
 
 import { getInnertubeClient } from "../src/auth/innertube.js";
-import { fetchTranscript } from "../src/transcript/fetch.js";
+import {
+  classifyError,
+  EmptyTimedtextError,
+  fetchTranscript,
+} from "../src/transcript/fetch.js";
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -115,6 +119,67 @@ function mockInnertube(
   });
 }
 
+/**
+ * Inline json3 fixture body — byte-equivalent to timedtext-json3-sample.json.
+ * Produces segments [{start:0, text:"Hello world"}, {start:2.5, text:"Next sentence."}].
+ */
+const JSON3_FIXTURE_BODY = JSON.stringify({
+  wireMagic: "pb3",
+  events: [
+    { tStartMs: 0, dDurationMs: 2500, segs: [{ utf8: "Hello world" }] },
+    { tStartMs: 2500, dDurationMs: 3000, segs: [{ utf8: "Next sentence." }] },
+  ],
+});
+
+/**
+ * The blob text that both the primary path and the json3 fallback path produce
+ * for the two-segment Hello-world fixture.
+ */
+const EXPECTED_BLOB_TEXT = "0.00 Hello world\n2.50 Next sentence.";
+
+/**
+ * Mocks getInnertubeClient for the fallback scenario:
+ *   First call  → primary client whose getInfo() throws primaryThrowsMessage.
+ *   Second call → fallback client whose getBasicInfo() returns one "en" caption track.
+ */
+function mockInnertubeWithFallback(primaryThrowsMessage: string) {
+  // Primary innertube call
+  (getInnertubeClient as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    getInfo: vi.fn(async () => {
+      throw new Error(primaryThrowsMessage);
+    }),
+  });
+  // Fallback innertube call
+  (getInnertubeClient as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    getBasicInfo: vi.fn(async () => ({
+      captions: {
+        caption_tracks: [
+          {
+            language_code: "en",
+            base_url: "https://timedtext.example.com/api/timedtext",
+            is_auto_generated: false,
+          },
+        ],
+      },
+    })),
+  });
+}
+
+/**
+ * Stubs the global fetch used by fetchViaAndroidTimedtext.
+ * ok=false simulates a non-200 response; empty body triggers EmptyTimedtextError.
+ */
+function mockGlobalFetch(body: string, ok = true, status = 200) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok,
+      status,
+      text: async () => body,
+    })),
+  );
+}
+
 const VIDEO_ID = "yt-test-vid-1";
 
 // ---------------------------------------------------------------------------
@@ -132,6 +197,7 @@ describe("fetchTranscript — emulator-backed", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   // ---
@@ -250,5 +316,169 @@ describe("fetchTranscript — emulator-backed", () => {
     // Pointer doc must not have been overwritten.
     const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
     expect(snap.data()?.signedUrl).toBe("https://existing.signed.url");
+  });
+
+  // ---
+  // AC3: ANDROID-client fallback engagement + blob byte-equivalence
+  // ---
+  it("AC3 fallback: primary 400 → fallback succeeds → available, source=android-timedtext, blob byte-equivalent", async () => {
+    mockInnertubeWithFallback("Request failed with status 400");
+    mockGlobalFetch(JSON3_FIXTURE_BODY);
+    const { mockFile } = mockGcs({ signedUrl: "https://storage.goog/t/signed-fb" });
+
+    await fetchTranscript(VIDEO_ID);
+
+    // GCS save must have been called exactly once with the expected text.
+    expect(mockFile.save).toHaveBeenCalledOnce();
+    const savedText = mockFile.save.mock.calls[0][0] as string;
+    expect(savedText).toBe(EXPECTED_BLOB_TEXT);
+
+    // Pointer doc must be available with source=android-timedtext.
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("available");
+    expect(data.source).toBe("android-timedtext");
+    expect(data.signedUrl).toBe("https://storage.goog/t/signed-fb");
+  });
+
+  it("AC3 fallback: primary 400, fallback returns empty body → transient, errorClass=EMPTY_TIMEDTEXT", async () => {
+    mockInnertubeWithFallback("Request failed with status 400");
+    mockGlobalFetch(""); // empty body → EmptyTimedtextError
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    expect(mockFile.save).not.toHaveBeenCalled();
+
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("transient");
+    expect(data.errorClass).toBe("EMPTY_TIMEDTEXT");
+  });
+
+  // ---
+  // AC5: panel-not-found counter guard
+  // ---
+  it("AC5 counter: first PANEL_NOT_FOUND hit (no prior pointer) → transient, panelNotFoundCount=1", async () => {
+    mockInnertube(null, "Transcript panel not found");
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    expect(mockFile.save).not.toHaveBeenCalled();
+
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("transient");
+    expect(data.errorClass).toBe("PANEL_NOT_FOUND");
+    expect(data.panelNotFoundCount).toBe(1);
+  });
+
+  it("AC5 counter: third PANEL_NOT_FOUND hit (prior count=2) → unavailable, panelNotFoundCount=3", async () => {
+    // Pre-seed the pointer doc to simulate two prior PANEL_NOT_FOUND hits.
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "transient",
+        errorClass: "PANEL_NOT_FOUND",
+        panelNotFoundCount: 2,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    mockInnertube(null, "Transcript panel not found");
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    expect(mockFile.save).not.toHaveBeenCalled();
+
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("unavailable");
+    expect(data.errorClass).toBe("PANEL_NOT_FOUND");
+    expect(data.panelNotFoundCount).toBe(3);
+  });
+
+  it("AC5 counter: successful fetch after PANEL_NOT_FOUND history → available, no panelNotFoundCount", async () => {
+    // Pre-seed the pointer doc with a prior PANEL_NOT_FOUND count.
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "transient",
+        errorClass: "PANEL_NOT_FOUND",
+        panelNotFoundCount: 2,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    const segments = [seg("0", "Hello world"), seg("2500", "Next sentence.")];
+    mockInnertube(transcriptWith(segments));
+    const { mockFile } = mockGcs();
+
+    await fetchTranscript(VIDEO_ID);
+
+    expect(mockFile.save).toHaveBeenCalledOnce();
+
+    const snap = await admin.firestore().doc(`transcripts/${VIDEO_ID}`).get();
+    const data = snap.data()!;
+    expect(data.status).toBe("available");
+    // The available doc does not carry panelNotFoundCount.
+    expect(data.panelNotFoundCount).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC4: classification table — pure unit tests, no emulator needed
+// ---------------------------------------------------------------------------
+
+describe("classifyError — classification table", () => {
+  it("PANEL_NOT_FOUND: 'Transcript panel not found' → transient, not fallback-eligible", () => {
+    const result = classifyError(new Error("Transcript panel not found"));
+    expect(result.errorClass).toBe("PANEL_NOT_FOUND");
+    expect(result.status).toBe("transient");
+    expect(result.fallbackEligible).toBe(false);
+  });
+
+  it("LOGIN_REQUIRED: 'This video requires sign in' → unavailable, not fallback-eligible", () => {
+    const result = classifyError(new Error("This video requires sign in"));
+    expect(result.errorClass).toBe("LOGIN_REQUIRED");
+    expect(result.status).toBe("unavailable");
+    expect(result.fallbackEligible).toBe(false);
+  });
+
+  it("INNERTUBE_4XX: 'Request failed with status 400' → transient, fallback-eligible, httpStatus=400", () => {
+    const result = classifyError(
+      new Error("Request failed with status 400"),
+    );
+    expect(result.errorClass).toBe("INNERTUBE_4XX");
+    expect(result.status).toBe("transient");
+    expect(result.fallbackEligible).toBe(true);
+    expect(result.httpStatus).toBe(400);
+  });
+
+  it("EMPTY_TIMEDTEXT: EmptyTimedtextError instance → transient, not fallback-eligible", () => {
+    const result = classifyError(new EmptyTimedtextError());
+    expect(result.errorClass).toBe("EMPTY_TIMEDTEXT");
+    expect(result.status).toBe("transient");
+    expect(result.fallbackEligible).toBe(false);
+  });
+
+  it("PARSE_FAILURE: SyntaxError → transient, not fallback-eligible", () => {
+    const result = classifyError(new SyntaxError("Unexpected token"));
+    expect(result.errorClass).toBe("PARSE_FAILURE");
+    expect(result.status).toBe("transient");
+    expect(result.fallbackEligible).toBe(false);
+  });
+
+  it("UNKNOWN: unrecognized error → transient, not fallback-eligible", () => {
+    const result = classifyError(new Error("network timeout"));
+    expect(result.errorClass).toBe("UNKNOWN");
+    expect(result.status).toBe("transient");
+    expect(result.fallbackEligible).toBe(false);
   });
 });

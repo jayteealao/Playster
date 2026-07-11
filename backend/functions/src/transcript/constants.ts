@@ -32,3 +32,12 @@ export const TRANSCRIPT_TERMINAL_STATUSES = [
 ] as const;
 export type TranscriptTerminalStatus =
   (typeof TRANSCRIPT_TERMINAL_STATUSES)[number];
+
+/**
+ * After this many consecutive PANEL_NOT_FOUND outcomes for the same video,
+ * the pointer doc flips from `transient` to terminal `unavailable`.
+ * Three hits defend against YouTube transiently omitting the panel on videos
+ * that genuinely have captions, while preventing infinite retry on videos that
+ * never will.
+ */
+export const PANEL_NOT_FOUND_TERMINAL_COUNT = 3;
