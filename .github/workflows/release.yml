@@ -304,6 +304,7 @@ jobs:
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --platform managed \
             --no-allow-unauthenticated \
+            --startup-probe=httpGet.path=/health,httpGet.port=8080,failureThreshold=3,periodSeconds=30,timeoutSeconds=10,initialDelaySeconds=10 \
             --set-secrets "SUMMARIZE_TOKEN=SUMMARIZE_TOKEN:latest,API_KEYS=SUMMARIZER_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest"
 
   post-publish:
@@ -335,23 +336,18 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Verify Cloud Run health
         run: |
-          # The summarizer is deployed with --no-allow-unauthenticated, and under
-          # Workload Identity Federation `gcloud auth print-identity-token` cannot mint
-          # an identity token ("No identity token can be obtained from the current
-          # credentials"), so the old authenticated /health probe failed on every
-          # release even when the deploy succeeded. Assert the deployed revision is
-          # Ready and serving instead: this works with the deploy SA's run.admin role
-          # (no run.invoker / IAM change needed) and is a real post-deploy health
-          # signal, since Cloud Run only routes traffic to a revision that passed
-          # startup. To restore a true end-to-end /health 200 later, grant the deploy
-          # SA roles/run.invoker and mint an id-token via the auth step's
-          # token_format: id_token + id_token_audience: <service url>.
+          # WIF can't mint an identity token for the --no-allow-unauthenticated
+          # service, so no authenticated /health probe. Assert the just-deployed
+          # revision is Ready instead — and since the deploy configures an HTTP
+          # startup probe on /health, "Ready" now means /health returned 200.
           read -r URL LATEST_CREATED LATEST_READY < <(gcloud run services describe "${SERVICE}" \
             --region "${REGION}" --project "${{ secrets.GCP_PROJECT_ID }}" \
             --format='value(status.url,status.latestCreatedRevisionName,status.latestReadyRevisionName)')
           echo "URL=${URL} latestCreated=${LATEST_CREATED} latestReady=${LATEST_READY}"
-          [ -n "${URL}" ] && [ -n "${LATEST_READY}" ] && [ "${LATEST_CREATED}" = "${LATEST_READY}" ] \
-            || { echo "Cloud Run summarizer not serving the just-deployed revision (url='${URL}', latestCreated='${LATEST_CREATED}', latestReady='${LATEST_READY}')"; exit 1; }
-          echo "Cloud Run summarizer healthy: just-deployed revision ${LATEST_READY} Ready and serving at ${URL}"
+          if ! { [ -n "${URL}" ] && [ -n "${LATEST_READY}" ] && [ "${LATEST_CREATED}" = "${LATEST_READY}" ]; }; then
+            echo "Cloud Run summarizer not serving the just-deployed revision (url='${URL}', latestCreated='${LATEST_CREATED}', latestReady='${LATEST_READY}')"
+            exit 1
+          fi
+          echo "Cloud Run summarizer healthy: just-deployed revision ${LATEST_READY} Ready (passed the /health startup probe) and serving at ${URL}"
       - name: Verify backend functions deployed
         run: gcloud functions list --project "${{ secrets.GCP_PROJECT_ID }}"
