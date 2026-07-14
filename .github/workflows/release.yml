@@ -354,34 +354,39 @@ jobs:
       # Added by wf ship-plan build — plan v3, 2026-07-12
       - name: Verify Firestore composite index ready
         run: |
-          # summaryDispatcher queries summaries by (status, requestedAt); without that
-          # composite index it crash-loops on FAILED_PRECONDITION. Assert the index is built.
-          # (gcloud reports build state as READY; the Console labels the same state ENABLED.)
+          # summaryDispatcher queries summaries via where("status","==","queued").orderBy("requestedAt")
+          # which needs the composite index (status ASC, requestedAt ASC) on collection `summaries`
+          # (backend/firestore.indexes.json). Assert THAT specific index is READY — an unrelated
+          # ready composite index must not satisfy this gate.
           gcloud firestore indexes composite list \
-            --project "${{ secrets.GCP_PROJECT_ID }}" \
-            --format='value(name,state)' | tee /tmp/fs-indexes.txt
-          grep -qiE '(READY|ENABLED)' /tmp/fs-indexes.txt \
-            || { echo "No Firestore composite index in READY/ENABLED state — summaryDispatcher will crash-loop"; exit 1; }
+            --project "${{ secrets.GCP_PROJECT_ID }}" --format=json > /tmp/fs-indexes.json
+          cat /tmp/fs-indexes.json
+          if ! jq -e '[ .[]
+                | select(.name | test("/collectionGroups/summaries/"))
+                | select(.state == "READY")
+                | select(([.fields[] | select(.fieldPath == "status")      | .order] | index("ASCENDING"))
+                     and ([.fields[] | select(.fieldPath == "requestedAt") | .order] | index("ASCENDING")))
+              ] | length > 0' /tmp/fs-indexes.json > /dev/null; then
+            echo "summaries (status ASC, requestedAt ASC) composite index is absent or not READY — summaryDispatcher will crash-loop on FAILED_PRECONDITION"
+            exit 1
+          fi
+          echo "summaries (status, requestedAt) composite index is READY"
       # Added by wf ship-plan build — plan v3, 2026-07-12
       - name: Verify summaryDispatcher healthy
         run: |
-          # Once the index is built, summaryDispatcher must stop throwing FAILED_PRECONDITION.
-          LOGS=$(gcloud functions logs read summaryDispatcher \
-            --project "${{ secrets.GCP_PROJECT_ID }}" --limit 100 2>&1 || true)
-          echo "$LOGS"
-          if echo "$LOGS" | grep -qi 'FAILED_PRECONDITION: query requires an index'; then
-            echo "summaryDispatcher still throwing FAILED_PRECONDITION — the composite index is not effective"
+          # Best-effort signal: with the composite index READY (previous step, the authoritative
+          # gate), summaryDispatcher must not throw FAILED_PRECONDITION. On a first-ever release the
+          # function may not have executed yet, so ABSENCE of logs is NOT proof of health — we only
+          # hard-fail when a missing-index error is actually observed, and never mask a logs-read error.
+          if ! LOGS=$(gcloud functions logs read summaryDispatcher \
+                --project "${{ secrets.GCP_PROJECT_ID }}" --limit 200 2>&1); then
+            echo "Could not read summaryDispatcher logs (function may not have run yet): ${LOGS}"
+            echo "Skipping log assertion — the composite-index readiness gate above is authoritative."
+            exit 0
+          fi
+          echo "${LOGS}"
+          if echo "${LOGS}" | grep -qiE 'FAILED_PRECONDITION.*requires an index'; then
+            echo "summaryDispatcher is throwing FAILED_PRECONDITION — the composite index is not effective"
             exit 1
           fi
-          echo "summaryDispatcher: no missing-index errors in the last 100 log lines"
-      # Added by wf ship-plan build — plan v3, 2026-07-12
-      - name: Verify transcript signed URL generates
-        run: |
-          # TODO(ship-plan Block D: transcript-signed-url): implement a real check —
-          # trigger a transcript fetch and assert a signed URL is returned. A generated
-          # signed URL proves both that the transcript bucket exists AND that the signing
-          # SA holds roles/iam.serviceAccountTokenCreator. The plan's cmd is prose, not an
-          # executable command, so this lands as a non-failing stub until a concrete
-          # callable + auth wiring exist. Does NOT fail the release yet (would block every
-          # release on an unimplemented probe); see recovery playbook transcript-signed-url-failure.
-          echo "WARNING: transcript-signed-url post-publish check is a TODO stub — not yet verifying signed-URL generation"
+          echo "summaryDispatcher: no missing-index errors observed (best-effort; index-readiness gate is authoritative)"

@@ -17,15 +17,17 @@ previous authenticated `/health` probe could never pass under Workload Identity
 Federation (the summarizer runs `--no-allow-unauthenticated` and WIF cannot mint
 an id-token for it); it is replaced by a `gcloud run services describe`
 revision-readiness assertion, and the summarizer deploy now carries a `/health`
-startup probe so a revision reaches Ready only after `/health` returns 200. Three
-post-publish checks were added (Firestore composite-index readiness,
-`summaryDispatcher` health, and transcript signed-URL generation — the last a
-non-failing stub pending a concrete probe).
+startup probe so a revision reaches Ready only after `/health` returns 200. Two
+post-publish checks were added — Firestore composite-index readiness for the
+`summaries (status, requestedAt)` index, and a best-effort `summaryDispatcher`
+health signal. (A transcript signed-URL post-publish check remains tracked as
+follow-up in the ship plan and recovery playbooks, pending a concrete probe.)
 
-**No breaking changes:** this release touches only the CI/release pipeline
-(`.github/workflows/release.yml`). No externally-callable interface, Firestore
-field contract, or GCS blob format changed, and no IAM grant was added (the
-summarizer stays `--no-allow-unauthenticated`).
+**No breaking changes:** this release changes only the CI/release pipeline
+(`.github/workflows/release.yml`) and the version manifests. No
+externally-callable interface, Firestore field contract, or GCS blob format
+changed, and no IAM grant was added (the summarizer stays
+`--no-allow-unauthenticated`).
 
 ---
 
