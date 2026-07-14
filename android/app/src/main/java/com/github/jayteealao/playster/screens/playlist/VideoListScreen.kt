@@ -41,7 +41,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
 import com.github.jayteealao.playster.data.firestore.VideoDoc
 import com.github.jayteealao.playster.screens.common.rememberQuotaState

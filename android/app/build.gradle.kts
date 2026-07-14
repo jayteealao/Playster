@@ -105,6 +105,20 @@ kotlin {
     }
 }
 
+// Hilt 2.58 (the last release compatible with AGP 8.x) bundles
+// kotlin-metadata-jvm 2.3, which rejects classpath libraries compiled by
+// Kotlin 2.4 ("Provided Metadata instance has version 2.4.0, while maximum
+// supported version is 2.3.0" from :app:hiltJavaCompileDebug — repro: build
+// with the 2026.06.01 Compose / 34.16.0 Firebase BOMs). Pin the metadata
+// reader to a version that understands 2.4 metadata until the eventual
+// AGP 9 + Hilt 2.59+ upgrade retires this.
+// sdlc-debt: remove this force when AGP 9 / Hilt >= 2.59 lands.
+configurations.configureEach {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-metadata-jvm:2.4.0")
+    }
+}
+
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
@@ -169,8 +183,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     ksp(libs.hilt.compilerx)
 
-//    coil
+//    coil (Coil 3 unbundles networking — coil-network-okhttp is required for remote images)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
