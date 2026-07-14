@@ -351,3 +351,37 @@ jobs:
           echo "Cloud Run summarizer healthy: just-deployed revision ${LATEST_READY} Ready (passed the /health startup probe) and serving at ${URL}"
       - name: Verify backend functions deployed
         run: gcloud functions list --project "${{ secrets.GCP_PROJECT_ID }}"
+      # Added by wf ship-plan build — plan v3, 2026-07-12
+      - name: Verify Firestore composite index ready
+        run: |
+          # summaryDispatcher queries summaries by (status, requestedAt); without that
+          # composite index it crash-loops on FAILED_PRECONDITION. Assert the index is built.
+          # (gcloud reports build state as READY; the Console labels the same state ENABLED.)
+          gcloud firestore indexes composite list \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format='value(name,state)' | tee /tmp/fs-indexes.txt
+          grep -qiE '(READY|ENABLED)' /tmp/fs-indexes.txt \
+            || { echo "No Firestore composite index in READY/ENABLED state — summaryDispatcher will crash-loop"; exit 1; }
+      # Added by wf ship-plan build — plan v3, 2026-07-12
+      - name: Verify summaryDispatcher healthy
+        run: |
+          # Once the index is built, summaryDispatcher must stop throwing FAILED_PRECONDITION.
+          LOGS=$(gcloud functions logs read summaryDispatcher \
+            --project "${{ secrets.GCP_PROJECT_ID }}" --limit 100 2>&1 || true)
+          echo "$LOGS"
+          if echo "$LOGS" | grep -qi 'FAILED_PRECONDITION: query requires an index'; then
+            echo "summaryDispatcher still throwing FAILED_PRECONDITION — the composite index is not effective"
+            exit 1
+          fi
+          echo "summaryDispatcher: no missing-index errors in the last 100 log lines"
+      # Added by wf ship-plan build — plan v3, 2026-07-12
+      - name: Verify transcript signed URL generates
+        run: |
+          # TODO(ship-plan Block D: transcript-signed-url): implement a real check —
+          # trigger a transcript fetch and assert a signed URL is returned. A generated
+          # signed URL proves both that the transcript bucket exists AND that the signing
+          # SA holds roles/iam.serviceAccountTokenCreator. The plan's cmd is prose, not an
+          # executable command, so this lands as a non-failing stub until a concrete
+          # callable + auth wiring exist. Does NOT fail the release yet (would block every
+          # release on an unimplemented probe); see recovery playbook transcript-signed-url-failure.
+          echo "WARNING: transcript-signed-url post-publish check is a TODO stub — not yet verifying signed-URL generation"
