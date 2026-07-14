@@ -19,7 +19,7 @@
     "eventsource-parser": "^3.0.0",
     "fastify": "^5.0.0",
     "nanoid": "^5.0.0",
-    "p-limit": "^6.0.0",
+    "p-limit": "^7.3.0",
     "pino": "^9.0.0",
     "rss-parser": "^3.13.0",
     "undici": "^7.0.0",
