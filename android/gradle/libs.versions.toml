@@ -28,7 +28,7 @@ runtime-tracing = "1.0.0-beta01"
 kotlinx-coroutines-play-services = "1.7.3"
 compose-markdown = "0.7.2"
 ktlint = "12.1.1"
-detekt = "1.23.6"
+detekt = "1.23.8"
 
 [libraries]
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-preferences" }
