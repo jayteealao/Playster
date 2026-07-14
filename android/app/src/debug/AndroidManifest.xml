@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug-only forced-crash trigger for crash-reporting smoke tests.
+             exported=true is acceptable here: this manifest is merged into
+             debug builds only, which are never shipped. -->
+        <receiver
+            android:name=".debug.CrashSmokeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.DEBUG_CRASH" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

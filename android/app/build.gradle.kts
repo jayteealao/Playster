@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
 }
@@ -170,6 +171,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.kotlinx.coroutines.play.services)
 
     // Markdown rendering for summaries (slice 4)
