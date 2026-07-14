@@ -8,6 +8,27 @@ All notable breaking changes to externally-callable interfaces are recorded here
 
 ---
 
+## [0.2.1] - 2026-07-14
+
+### Non-breaking — release pipeline: post-publish health gate works under Workload Identity Federation
+
+The release workflow's post-publish verification was repaired and hardened. The
+previous authenticated `/health` probe could never pass under Workload Identity
+Federation (the summarizer runs `--no-allow-unauthenticated` and WIF cannot mint
+an id-token for it); it is replaced by a `gcloud run services describe`
+revision-readiness assertion, and the summarizer deploy now carries a `/health`
+startup probe so a revision reaches Ready only after `/health` returns 200. Three
+post-publish checks were added (Firestore composite-index readiness,
+`summaryDispatcher` health, and transcript signed-URL generation — the last a
+non-failing stub pending a concrete probe).
+
+**No breaking changes:** this release touches only the CI/release pipeline
+(`.github/workflows/release.yml`). No externally-callable interface, Firestore
+field contract, or GCS blob format changed, and no IAM grant was added (the
+summarizer stays `--no-allow-unauthenticated`).
+
+---
+
 ## [0.2.0] - 2026-07-11
 
 ### Non-breaking — transcript backfill: dual-path fetch with error classification
