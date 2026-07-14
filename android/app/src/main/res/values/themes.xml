@@ -2,4 +2,21 @@
 <resources>
 
     <style name="Theme.Playster" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Per-palette window styles: the saved paper tone is already the window
+         background before the first Compose frame, so a cold start can never
+         flash the wrong theme. Applied via Activity.setTheme() before
+         setContent from the synchronous palette preference. -->
+    <style name="Theme.Playster.Editorial.Cream" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_cream</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Vellum" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_vellum</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Newsprint" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_newsprint</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Night" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_night</item>
+    </style>
 </resources>

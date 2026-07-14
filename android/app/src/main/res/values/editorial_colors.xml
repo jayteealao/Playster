@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-palette paper tones for pre-first-frame window backgrounds.
+     Values mirror the Kotlin PaperPalette tokens; a Robolectric test asserts
+     the two can never drift. -->
+<resources>
+    <color name="editorial_paper_cream">#f3eee4</color>
+    <color name="editorial_paper_vellum">#f7f2e7</color>
+    <color name="editorial_paper_newsprint">#ebe7df</color>
+    <color name="editorial_paper_night">#1c1a17</color>
+</resources>

@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.firebaseCrashlytics)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -85,6 +86,13 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    testOptions {
+        unitTests {
+            // JVM screenshot tests render the app's actual resources (fonts,
+            // colors, themes) under Robolectric.
+            isIncludeAndroidResources = true
+        }
     }
     packaging {
         resources {
@@ -190,6 +198,13 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.ui.test.junit4)
+    testImplementation(libs.ui.test.manifest)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))

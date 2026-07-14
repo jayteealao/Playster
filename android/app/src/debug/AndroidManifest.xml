@@ -12,6 +12,23 @@
                 <action android:name="com.github.jayteealao.playster.DEBUG_CRASH" />
             </intent-filter>
         </receiver>
+
+        <!-- Debug-only palette pref writer for cold-start theme recordings.
+             Same exported=true rationale as above: debug builds only. -->
+        <receiver
+            android:name=".debug.ThemePrefReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_PALETTE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only cold-startable host for the editorial token sample
+             sheet; exercises the production no-flash theme gate. -->
+        <activity
+            android:name=".debug.TokenSampleSheetActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Playster.Editorial.Cream" />
     </application>
 
 </manifest>

@@ -10,6 +10,10 @@ complexity:
   LongMethod:
     # Composable layout functions are declaratively long by nature.
     ignoreAnnotated: ['Composable', 'Preview']
+  LongParameterList:
+    # Theme-root composables legitimately take one parameter per design axis
+    # (palette/accent/face/size/line-height/density), like MaterialTheme itself.
+    ignoreAnnotated: ['Composable']
 
 style:
   MagicNumber:
@@ -18,6 +22,8 @@ style:
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
     ignoreNamedArgument: true
+    # Enum entries are named constants by definition (e.g. design-token step axes).
+    ignoreEnums: true
 
 exceptions:
   TooGenericExceptionCaught:
