@@ -28,6 +28,7 @@ ktlint = "12.1.1"
 detekt = "1.23.6"
 roborazzi = "1.68.0"
 robolectric = "4.16"
+android-youtube-player = "13.0.0"
 
 [libraries]
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-preferences" }
@@ -89,6 +90,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" }
+android-youtube-player = { module = "com.pierfrancescosoffritti.androidyoutubeplayer:core", version.ref = "android-youtube-player" }
 
 [bundles]
 credential-manager = ["credentials", "credentials-play-services-auth", "identity"]

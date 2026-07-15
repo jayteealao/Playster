@@ -19,14 +19,31 @@ object EditorialRoutes {
     const val ARG_VIDEO_ID = "videoId"
 
     const val PLAYLIST = "playlist/{$ARG_PLAYLIST_ID}"
-    const val PLAYER = "player/{$ARG_VIDEO_ID}"
+
+    /**
+     * The player route carries the videoId in the path and the playlist context
+     * as an *optional* query arg — the header kicker (ep/total) and a created
+     * note both need a playlist, and the nav sources (home headliner, playlist
+     * rows) know it. When absent, the ViewModel derives it from the video's
+     * collection-group path (Assumption 8), so the bare `player/{videoId}` link
+     * still works — the query arg is backward-compatible.
+     */
+    const val PLAYER = "player/{$ARG_VIDEO_ID}?$ARG_PLAYLIST_ID={$ARG_PLAYLIST_ID}"
     const val TRANSCRIPT = "transcript/{$ARG_VIDEO_ID}"
 
     /** Concrete route for one playlist volume. */
     fun playlist(playlistId: String): String = "playlist/$playlistId"
 
-    /** Concrete route for one episode's player. */
-    fun player(videoId: String): String = "player/$videoId"
+    /** Concrete route for one episode's player, optionally carrying its playlist context. */
+    fun player(
+        videoId: String,
+        playlistId: String? = null,
+    ): String =
+        if (playlistId.isNullOrBlank()) {
+            "player/$videoId"
+        } else {
+            "player/$videoId?$ARG_PLAYLIST_ID=$playlistId"
+        }
 
     /** Concrete route for one episode's transcript. */
     fun transcript(videoId: String): String = "transcript/$videoId"

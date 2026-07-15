@@ -196,6 +196,11 @@ dependencies {
     // Markdown rendering for summaries (slice 4)
     implementation(libs.compose.markdown)
 
+    // YouTube playback — the ToS-compliant IFrame embed wrapper (core module
+    // only; the library's custom-ui module is not taken, editorial controls
+    // are ours).
+    implementation(libs.android.youtube.player)
+
     // hilt
     implementation(libs.hilt.android)
     implementation(libs.bundles.hilt)

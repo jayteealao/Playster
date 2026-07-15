@@ -19,8 +19,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.github.jayteealao.playster.screens.auth.AuthScreen
 import com.github.jayteealao.playster.screens.home.HomeScreen
+import com.github.jayteealao.playster.screens.player.PlayerScreen
 import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
-import com.github.jayteealao.playster.ui.editorial.chrome.PlayerRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SearchRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SettingsRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.TranscriptRouteSkeleton
@@ -80,6 +80,16 @@ fun EditorialNavGraph(
             onBack = { navController.popBackStack() },
         )
     },
+    playerContent: @Composable () -> Unit = {
+        PlayerScreen(
+            onBack = { navController.popBackStack() },
+            onOpenTranscript = { videoId ->
+                navController.navigate(
+                    EditorialRoutes.transcript(videoId.ifEmpty { SAMPLE_VIDEO_ID }),
+                )
+            },
+        )
+    },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -131,19 +141,14 @@ fun EditorialNavGraph(
             arguments =
                 listOf(
                     navArgument(EditorialRoutes.ARG_VIDEO_ID) { type = NavType.StringType },
+                    navArgument(EditorialRoutes.ARG_PLAYLIST_ID) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
                 ),
-        ) { entry ->
-            val videoId = entry.arguments?.getString(EditorialRoutes.ARG_VIDEO_ID).orEmpty()
-            PlayerRouteSkeleton(
-                videoId = videoId,
-                onFollowTranscript = {
-                    // Player → transcript sibling navigation over the id the
-                    // player itself was opened with.
-                    navController.navigate(
-                        EditorialRoutes.transcript(videoId.ifEmpty { SAMPLE_VIDEO_ID }),
-                    )
-                },
-            )
+        ) {
+            playerContent()
         }
         composable(
             route = EditorialRoutes.TRANSCRIPT,

@@ -93,7 +93,44 @@ class FirestoreRepository
                         }
                 awaitClose { listener.remove() }
             }
+
+        /**
+         * The video plus the playlist it lives under — the Player's header needs
+         * the volume context (kicker, note playlistId) and the route may carry
+         * only a videoId, so the playlist id is derived from the collection-group
+         * document's path (`playlists/{playlistId}/videos/{doc}` →
+         * `reference.parent.parent.id` — Assumption 8's path-derivation fallback).
+         * A caller with an explicit `?playlistId=` nav arg overrides this.
+         */
+        fun videoContextFlow(videoId: String): Flow<VideoWithContext?> =
+            callbackFlow {
+                val listener =
+                    firestore.collectionGroup("videos")
+                        .whereEqualTo("videoId", videoId)
+                        .limit(1)
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null) {
+                                Log.w(TAG, "videoContextFlow listen error for $videoId", error)
+                                close(error)
+                                return@addSnapshotListener
+                            }
+                            val doc = snapshot?.documents?.firstOrNull()
+                            val video = doc?.toObject(VideoDoc::class.java)
+                            trySend(
+                                video?.let {
+                                    VideoWithContext(it, doc.reference.parent.parent?.id ?: "")
+                                },
+                            )
+                        }
+                awaitClose { listener.remove() }
+            }
     }
+
+/** A video document with the playlist id derived from its collection-group path. */
+data class VideoWithContext(
+    val video: VideoDoc,
+    val playlistId: String,
+)
 
 /**
  * Firestore listener over `summaries/{videoId}`. Emits null when the doc

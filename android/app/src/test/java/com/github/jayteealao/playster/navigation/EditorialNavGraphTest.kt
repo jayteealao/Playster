@@ -45,7 +45,7 @@ class EditorialNavGraphTest {
         composeTestRule.onNodeWithTag("home-content").assertExists()
         listOf(
             EditorialRoutes.playlist("PL_1") to "playlist-content",
-            EditorialRoutes.player("VID_1") to "route-skeleton-player",
+            EditorialRoutes.player("VID_1") to "player-content",
             EditorialRoutes.transcript("VID_1") to "route-skeleton-transcript",
             EditorialRoutes.SEARCH to "route-skeleton-search",
             EditorialRoutes.SETTINGS to "route-skeleton-settings",
@@ -143,6 +143,7 @@ class EditorialNavGraphTest {
                     // Hilt-free stand-ins for the real screens so the graph is JVM-testable.
                     homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
                     playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
+                    playerContent = { Box(Modifier.fillMaxSize().testTag("player-content")) },
                 )
             }
         }

@@ -1,0 +1,59 @@
+appId: com.github.jayteealao.playster
+name: editorial-player-progress-resume (AC5/AC8)
+# AC5: playback progress is written throttled (not per-second) and resumes ~T
+# across process death — play a while, force-stop, relaunch, and the Player
+# resumes near where it left off while Home's headliner reflects it. AC8: a note
+# added at the current position persists and appears in the Notes tab.
+#
+# The write cadence itself is proven by the Firestore-emulator doc dump taken
+# alongside this flow (a single progress doc per user, updatedAt advancing on the
+# 15s/pause/exit cadence — never per-second); this flow drives the loop.
+#
+# Fixture (verify-pinned — Assumption 2): a seeded account + the curated normal
+# videoId under ed-p1's first episode.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; runScript is JS-only):
+#   1. firebase emulators:start --only auth,firestore
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+#
+# Between the two launches, capture the progress doc:
+#   node maestro/helpers/dump-progress.js   (or firestore emulator REST) → verify-evidence
+---
+- launchApp
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "player-content"
+# Play, let some position accrue (the 15s periodic write fires while playing).
+- tapOn:
+    id: "player-play-pause"
+- waitForAnimationToEnd:
+    timeout: 20000
+# AC8 — add a note at the current position; it persists and lists.
+- tapOn:
+    text: "Notes"
+- tapOn:
+    id: "player-note-input"
+- inputText: "Resume-loop probe note."
+- tapOn:
+    id: "player-note-save"
+- assertVisible:
+    id: "player-notes"
+# Force-stop (process death) and relaunch — the Player resumes ~T.
+- stopApp
+- launchApp
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "player-content"
+- assertVisible:
+    id: "player-seek-bar"
+# The resume position (~T, non-zero) and Home's headliner reflection are read
+# off the recording + the progress-doc dump; the saved note is still present.
+- tapOn:
+    text: "Notes"
+- assertVisible:
+    id: "player-notes"

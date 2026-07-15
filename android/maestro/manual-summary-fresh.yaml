@@ -1,20 +1,35 @@
 appId: com.github.jayteealao.playster
-name: manual-summary-fresh (AC-5)
+name: manual-summary-fresh (AC11 — player summary generation)
+# The fresh-summary regression, rewritten off the deleted Material VideoDetail
+# screen onto the editorial Player. Opening an episode with no summary yet makes
+# the Player reuse the app's summary machinery — it requests a summary once on
+# open (auto-dispatch) — and the Summary tab shows the editorial in-progress
+# state ("The summary is being written."), never a Material spinner. This is the
+# owed half of the old manual-summary flow the playlist slice deferred here.
+#
+# Selector convention: Compose testTags surface as resource-ids (`id:`).
+#
+# Fixture: a seeded episode with NO `summaries/{videoId}` doc (fresh state).
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; runScript is JS-only):
+#   1. firebase emulators:start --only auth,firestore,functions
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-fresh-state.sh   (episode present, summary absent)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
 ---
-- runScript: helpers/seed-fresh-state.sh
 - launchApp
-- runFlow: helpers/signin-helper.yaml
 - tapOn:
-    testTag: "playlist-tile-PL_TEST_1"
-- tapOn:
-    testTag: "summarize-button-enabled"
-# AC-5: in-progress UI within 500ms of tap.
+    id: "home-headliner"
 - assertVisible:
-    testTag: "summary-tab"
-    timeout: 500
+    id: "player-content"
+# The Summary tab is the default; opening the fresh episode auto-dispatches the
+# summary request, so the editorial in-progress notice appears (no CTA needed).
 - assertVisible:
-    testTag: "summary-in-progress-spinner"
-    timeout: 500
+    id: "player-summary"
 - assertVisible:
-    text: "Generating summary"
-    timeout: 500
+    id: "summary-in-progress"
+    timeout: 3000
+- assertVisible:
+    text: "The summary is being written."
+    timeout: 3000
