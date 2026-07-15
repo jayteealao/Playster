@@ -51,6 +51,8 @@ export interface SummarizeDaemonHandle {
   server: Server;
   /** Authorization header captured on each incoming request. */
   capturedAuth: string[];
+  /** Raw JSON bodies captured on POST /v1/summarize. */
+  capturedBodies: string[];
 }
 
 /**
@@ -65,6 +67,7 @@ export function startSummarizeDaemon(
   const chunks = opts.chunks ?? ["Hello ", "world"];
   return new Promise((resolve) => {
     const capturedAuth: string[] = [];
+    const capturedBodies: string[] = [];
     const server = createHttpServer((req, res) => {
       capturedAuth.push(req.headers.authorization ?? "");
 
@@ -75,15 +78,22 @@ export function startSummarizeDaemon(
       }
 
       if (req.method === "POST" && req.url === "/v1/summarize") {
-        if (opts.summarizeError) {
-          res.writeHead(opts.summarizeError.status, {
-            "Content-Type": "text/plain",
-          });
-          res.end(opts.summarizeError.body);
-          return;
-        }
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ id: "daemon-test-123", status: "queued" }));
+        let body = "";
+        req.on("data", (chunk: Buffer) => {
+          body += chunk.toString("utf8");
+        });
+        req.on("end", () => {
+          capturedBodies.push(body);
+          if (opts.summarizeError) {
+            res.writeHead(opts.summarizeError.status, {
+              "Content-Type": "text/plain",
+            });
+            res.end(opts.summarizeError.body);
+            return;
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ id: "daemon-test-123", status: "queued" }));
+        });
         return;
       }
 
@@ -131,7 +141,12 @@ export function startSummarizeDaemon(
     });
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address() as { port: number };
-      resolve({ url: `http://127.0.0.1:${addr.port}`, server, capturedAuth });
+      resolve({
+        url: `http://127.0.0.1:${addr.port}`,
+        server,
+        capturedAuth,
+        capturedBodies,
+      });
     });
   });
 }

@@ -16,6 +16,13 @@ export const urlJobSchema = z.object({
        */
       mode: z.enum(["auto", "website", "youtube", "media"]).optional(),
       prompt: z.string().optional(),
+      /**
+       * Forwarded to the daemon (DAEMON_FORWARD_KEYS): feed the timed
+       * transcript to the model so the summary carries timestamped
+       * "Key moments". Without this schema entry zod strips the key at
+       * route validation and the flag silently never reaches the daemon.
+       */
+      timestamps: z.boolean().optional(),
     })
     .optional(),
   // Webhook callback contract (Stripe-style signing on terminal SSE events).

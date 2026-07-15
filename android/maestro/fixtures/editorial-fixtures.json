@@ -1,0 +1,40 @@
+{
+  "description": "Fixture ids seeded by android/maestro/helpers/seed-editorial-corpus.sh. Screen verification flows reference these ids instead of magic strings.",
+  "projects": {
+    "firestore": "playster-406121",
+    "firestoreNote": "The Android SDK addresses Firestore under the app's own project id (google-services.json) even against the emulator — seeds MUST live there.",
+    "authDefault": "playster-dev",
+    "authNote": "Key-based (client SDK) auth requests resolve to the emulator suite's default project; the fixture account lives under the --project the suite was started with."
+  },
+  "user": {
+    "email": "verify@playster.test",
+    "password": "playster-verify-fixture",
+    "uid": "pinned at seed time to the operator allowlist literal in backend/firestore.rules (never hardcoded here)"
+  },
+  "playlists": {
+    "featured": "ed-p1",
+    "all": ["ed-p1", "ed-p2", "ed-p3", "ed-p4", "ed-p5"],
+    "neverOpened": "ed-p5"
+  },
+  "videos": {
+    "featured": "ed-v09",
+    "kinds": {
+      "normal": ["ed-v01", "ed-v03", "ed-v04", "ed-v05", "ed-v06", "ed-v07", "ed-v08", "ed-v12"],
+      "long-transcript": "ed-v02",
+      "summarizer-chapters": "ed-v09",
+      "description-chapters": "ed-v11",
+      "no-transcript": "ed-v10"
+    }
+  },
+  "progress": {
+    "video": { "mid": "ed-v09", "nearlyDone": "ed-v03", "barelyStarted": "ed-v01" },
+    "playlistOrderNewestFirst": ["ed-p1", "ed-p2", "ed-p3", "ed-p4"]
+  },
+  "notes": { "videoId": "ed-v09", "count": 3 },
+  "highlights": { "videoId": "ed-v09", "segmentStarts": [43, 46] },
+  "transcripts": { "available": ["ed-v09", "ed-v02"], "longParagraphs": 2000 },
+  "summaries": { "withChapters": "ed-v09", "chapterCount": 6 },
+  "deferred": {
+    "real-youtube-curated-ids": "Curated LIVE videoIds (embed-disabled, real description-chapters, region-locked) require probing YouTube itself — recorded as a player-screen plan prerequisite, deliberately NOT invented here."
+  }
+}

@@ -3,9 +3,12 @@ import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {
+  SummaryChapter,
   SummaryDocument,
+  TranscriptSegment,
   WebhookSecretDocument,
 } from "../models/index.js";
+import { parseChapters } from "./chapters.js";
 import {
   WEBHOOK_REPLAY_WINDOW_SECONDS,
   TERMINAL_STATUSES,
@@ -93,6 +96,32 @@ function verifySignature(
   }
 }
 
+/**
+ * Best-effort read of the transcript's last segment start (seconds), used
+ * to bound the final chapter's duration. Returns null when the pointer doc
+ * or its inline segments are missing — chapters bounding is optional and a
+ * failure here must never fail the webhook.
+ */
+async function transcriptMaxSegmentStart(
+  videoId: string,
+): Promise<number | null> {
+  try {
+    const snap = await admin.firestore().doc(`transcripts/${videoId}`).get();
+    const segments = snap.data()?.segments as TranscriptSegment[] | undefined;
+    if (!Array.isArray(segments) || segments.length === 0) return null;
+    let max: number | null = null;
+    for (const segment of segments) {
+      const start = (segment as { start?: unknown })?.start;
+      if (typeof start === "number" && Number.isFinite(start) && start >= 0) {
+        max = max == null ? start : Math.max(max, start);
+      }
+    }
+    return max;
+  } catch {
+    return null;
+  }
+}
+
 function classifyFailure(
   errorCode: string | undefined,
 ): SummaryDocument["status"] {
@@ -165,14 +194,40 @@ export async function processSummaryWebhook(
   const incomingStatus = typeof parsed.status === "string" ? parsed.status : "";
   const summaryText =
     typeof parsed.result?.summary === "string" ? parsed.result.summary : "";
+
+  // Chapters: a completed summary may carry the summarizer's "Key moments"
+  // section. Parse it into structured `chapters` and keep the prose with the
+  // section stripped (same information, structured). A summary without a
+  // parseable section passes through byte-identical with no chapters field —
+  // the parser never fails a webhook.
+  let chapters: SummaryChapter[] | null = null;
+  let effectiveSummaryText = summaryText;
+  if (incomingStatus === "completed" && summaryText) {
+    const parsedChapters = parseChapters(summaryText);
+    if (parsedChapters.chapters) {
+      chapters = parsedChapters.chapters;
+      effectiveSummaryText = parsedChapters.strippedContent;
+      const last = chapters[chapters.length - 1];
+      if (last && last.dur == null) {
+        // Bound the final chapter with the transcript's last segment start
+        // when the transcript pointer doc is available.
+        const maxStart = await transcriptMaxSegmentStart(clientJobId);
+        if (maxStart != null && maxStart >= last.t) {
+          chapters[chapters.length - 1] = { ...last, dur: maxStart - last.t };
+        }
+      }
+    }
+  }
+
   // Guard: a "completed" summary shorter than the floor is almost certainly a
   // degraded extraction (e.g. a caption scrape that captured page chrome). Treat
   // it as a transient failure so summaryRetryCron re-dispatches instead of
   // storing the chrome as the final summary. A genuinely completed, plausible
-  // summary passes untouched.
+  // summary passes untouched. The check runs on the STRIPPED prose — a
+  // moments-only degenerate summary has no real prose and must not complete.
   const degradedSummary =
     incomingStatus === "completed" &&
-    summaryText.trim().length < MIN_SUMMARY_CONTENT_CHARS;
+    effectiveSummaryText.trim().length < MIN_SUMMARY_CONTENT_CHARS;
   const inboundTerminal: SummaryDocument["status"] =
     incomingStatus === "completed" && !degradedSummary
       ? "completed"
@@ -237,9 +292,12 @@ export async function processSummaryWebhook(
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (resolvedStatus === "completed") {
-      updates.content = summaryText;
+      updates.content = effectiveSummaryText;
+      if (chapters) {
+        updates.chapters = chapters;
+      }
     } else if (degradedSummary) {
-      const trimmedLen = summaryText.trim().length;
+      const trimmedLen = effectiveSummaryText.trim().length;
       updates.errorCode = "summary_too_short";
       updates.errorMessage =
         resolvedStatus === "failed-permanent"

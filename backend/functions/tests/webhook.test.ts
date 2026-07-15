@@ -335,4 +335,123 @@ describe("processSummaryWebhook — emulator-backed", () => {
     expect(doc.data()?.status).toBe("completed");
     expect(doc.data()?.content).toBe("original-content");
   });
+
+  // --- chapters: backward compatibility + parse-and-store ---
+
+  it("chapters-compat: chapters-free completed summary → byte-identical content, NO chapters field", async () => {
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    await seedRunningSummary();
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: LONG_SUMMARY },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("completed");
+    expect(doc.data()?.content).toBe(LONG_SUMMARY);
+    expect(doc.data()?.chapters).toBeUndefined();
+  });
+
+  it("chapters: completed summary with Key moments → structured chapters + stripped content", async () => {
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    await seedRunningSummary();
+    const summaryWithMoments = [
+      LONG_SUMMARY,
+      "",
+      "### Key moments",
+      "- [0:00] Cold open",
+      "- [2:14] Why libraries stop scaling",
+      "- [6:22] Tokens as a runtime contract",
+    ].join("\n");
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: summaryWithMoments },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("completed");
+    // Prose stored with the section stripped.
+    expect(doc.data()?.content).toBe(LONG_SUMMARY);
+    // Final chapter unbounded: no transcripts/{videoId} doc exists here.
+    expect(doc.data()?.chapters).toEqual([
+      { t: 0, label: "Cold open", dur: 134 },
+      { t: 134, label: "Why libraries stop scaling", dur: 248 },
+      { t: 382, label: "Tokens as a runtime contract", dur: null },
+    ]);
+  });
+
+  it("chapters: final chapter duration bounded by the transcript's last segment", async () => {
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    await seedRunningSummary();
+    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
+      videoId: VIDEO_ID,
+      status: "available",
+      segments: [
+        { start: 0, text: "intro" },
+        { start: 700.5, text: "middle" },
+        { start: 1394, text: "outro" },
+      ],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    const summaryWithMoments = [
+      LONG_SUMMARY,
+      "",
+      "### Key moments",
+      "- [2:00] Only chapter",
+    ].join("\n");
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: { summary: summaryWithMoments },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.chapters).toEqual([
+      { t: 120, label: "Only chapter", dur: 1394 - 120 },
+    ]);
+  });
+
+  it("chapters: moments-only degenerate summary → failed-transient (floor runs on stripped prose)", async () => {
+    const { processSummaryWebhook } =
+      await import("../src/summarizer/webhook.js");
+    await seedRunningSummary();
+    const payload = {
+      client_job_id: VIDEO_ID,
+      status: "completed",
+      result: {
+        summary: "### Key moments\n- [0:10] The only content is moments",
+      },
+    };
+    const { header, rawBody } = signWebhook(payload, SECRET);
+    const result = await processSummaryWebhook({
+      signatureHeader: header,
+      rawBody: Buffer.from(rawBody, "utf8"),
+    });
+    expect(result.status).toBe(204);
+    const doc = await admin.firestore().doc(`summaries/${VIDEO_ID}`).get();
+    expect(doc.data()?.status).toBe("failed-transient");
+    expect(doc.data()?.errorCode).toBe("summary_too_short");
+    expect(doc.data()?.content).toBeUndefined();
+    expect(doc.data()?.chapters).toBeUndefined();
+  });
 });

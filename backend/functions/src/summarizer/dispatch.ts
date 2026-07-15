@@ -148,7 +148,14 @@ export async function dispatchSummary(
   const doFetch = opts.fetchImpl ?? fetch;
   const body = {
     url: `https://www.youtube.com/watch?v=${videoId}`,
-    options: { model: dispatchModel, format: "markdown" as const },
+    // timestamps: the daemon feeds the timed transcript to the model and
+    // guarantees a "Key moments" section on its final output — the webhook
+    // parses it into the summary doc's structured `chapters` field.
+    options: {
+      model: dispatchModel,
+      format: "markdown" as const,
+      timestamps: true,
+    },
     webhook_url: webhookUrl(),
     webhook_secret: webhookSecret,
     client_job_id: videoId,
