@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <application>
+    <!-- networkSecurityConfig: debug builds may speak cleartext HTTP to the
+         local Firebase emulator host (10.0.2.2) only — see
+         res/xml/network_security_config.xml. Merged into debug builds only. -->
+    <application android:networkSecurityConfig="@xml/network_security_config">
         <!-- Debug-only forced-crash trigger for crash-reporting smoke tests.
              exported=true is acceptable here: this manifest is merged into
              debug builds only, which are never shipped. -->

@@ -49,6 +49,10 @@ Invoke-Adb @('shell', 'am', 'broadcast',
     '-a', "$AppId.debug.SET_PALETTE",
     '--es', 'palette', $Palette)
 
+Write-Host '== Syncing the splash theme (one launch persists the palette splash)'
+Invoke-Adb @('shell', 'am', 'start', '-W', '-n', $Activity)
+Start-Sleep -Seconds 2
+
 Write-Host '== Force-stopping the app (cold start required)'
 Invoke-Adb @('shell', 'am', 'force-stop', $AppId)
 Start-Sleep -Seconds 1

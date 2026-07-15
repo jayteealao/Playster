@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only network security config: the Firebase emulator suite speaks
+     plain HTTP on the host loopback (10.0.2.2 from an emulator), which
+     API 28+ blocks by default. Cleartext is permitted for that single host
+     and nothing else; this file lives in the debug source set, so release
+     builds keep the platform default (no cleartext anywhere). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
