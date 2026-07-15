@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Seed quota/openrouter to requestCount = dailyLimit so the QuotaBanner shows
-# and all Summarize CTAs disable.
+# Seed the editorial corpus + an exhausted quota/openrouter doc so the re-skinned
+# quota notice appears on the Playlist Summary tab (semantics preserved).
+# Re-pointed off the legacy playster-dev / throwaway-emulator target onto the
+# running editorial corpus under the app's own project id (see
+# quota-exhausted-banner.yaml prerequisites).
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HELPER_JS="${ROOT_DIR}/helpers/write-quota-cap.js"
+HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export FIRESTORE_EMULATOR_HOST="${FIRESTORE_EMULATOR:-${FIRESTORE_EMULATOR_HOST:-127.0.0.1:8080}}"
 
-cd "${ROOT_DIR}/../.."
-firebase emulators:exec --only firestore --project playster-dev \
-  "node ${HELPER_JS}"
+bash "${HELPER_DIR}/seed-editorial-corpus.sh"
+node "${HELPER_DIR}/write-quota-cap.js"
+echo "seed-quota-exhausted OK (firestore=${FIRESTORE_EMULATOR_HOST})"

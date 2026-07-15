@@ -95,6 +95,7 @@ class EditorialSessionGateTest {
                     // and the home stub avoids the real screen's hiltViewModel().
                     authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
                     homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
+                    playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
                 )
             }
         }

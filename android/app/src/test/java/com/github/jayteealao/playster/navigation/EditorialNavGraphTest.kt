@@ -44,7 +44,7 @@ class EditorialNavGraphTest {
         // the Hilt-free homeContent slot, tagged here for the route-resolves check.
         composeTestRule.onNodeWithTag("home-content").assertExists()
         listOf(
-            EditorialRoutes.playlist("PL_1") to "route-skeleton-playlist",
+            EditorialRoutes.playlist("PL_1") to "playlist-content",
             EditorialRoutes.player("VID_1") to "route-skeleton-player",
             EditorialRoutes.transcript("VID_1") to "route-skeleton-transcript",
             EditorialRoutes.SEARCH to "route-skeleton-search",
@@ -140,8 +140,9 @@ class EditorialNavGraphTest {
                     navController = navController,
                     loggedIn = true,
                     authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
-                    // Hilt-free stand-in for the real Home screen so the graph is JVM-testable.
+                    // Hilt-free stand-ins for the real screens so the graph is JVM-testable.
                     homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
+                    playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
                 )
             }
         }

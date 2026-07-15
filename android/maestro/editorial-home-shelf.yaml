@@ -49,10 +49,11 @@ name: editorial-home-shelf
 - assertVisible:
     id: "route-skeleton-player"
 - back
-# Tapping a shelf row opens that playlist volume.
+# Tapping a shelf row opens that playlist volume (the real screen now replaces
+# the old route-skeleton-playlist, restored by the playlist-screen slice).
 - assertVisible:
     id: "home-shelf-row-ed-p1"
 - tapOn:
     id: "home-shelf-row-ed-p1"
 - assertVisible:
-    id: "route-skeleton-playlist"
+    id: "playlist-content"

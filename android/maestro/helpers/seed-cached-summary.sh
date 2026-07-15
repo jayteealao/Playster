@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Seed summaries/VID_CACHED at status=completed so the cached-navigation
-# slice-local AC has a deterministic fixture.
+# Seed the editorial corpus — which already includes summaries/ed-v09 at
+# status=completed — so the cached-summary regression flow reads a completed
+# summary on the Playlist Summary tab with NO new requestSummary call. Re-pointed
+# off the legacy playster-dev / throwaway-emulator target onto the running
+# editorial corpus (see cached-summary-navigation.yaml prerequisites).
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HELPER_JS="${ROOT_DIR}/helpers/write-cached-summary.js"
-
-cd "${ROOT_DIR}/../.."
-firebase emulators:exec --only firestore --project playster-dev \
-  "node ${HELPER_JS}"
+HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "${HELPER_DIR}/seed-editorial-corpus.sh"
+echo "seed-cached-summary OK (editorial corpus seeded; summaries/ed-v09 completed)"

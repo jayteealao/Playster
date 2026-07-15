@@ -1,19 +1,39 @@
 appId: com.github.jayteealao.playster
-name: cached-summary-navigation (slice-local)
-# Pre-seeded summaries/VID_CACHED at status=completed. Tapping Summarize
-# should navigate straight to the completed state — NO new requestVideoSummary
-# invocation. Run `lazylogcat --tag playster.summary` after this flow and
-# assert zero matches for `requestVideoSummary{videoId=VID_CACHED}`.
+name: cached-summary-navigation (regression)
+# Regression guard: a playlist whose representative episode already has a
+# completed summary (summaries/ed-v09) shows that completed body on the Summary
+# tab with NO new requestSummary invocation — the cached read is served from
+# Firestore. After this flow, run `lazylogcat --tag playster.summary` and assert
+# ZERO `state{action=dispatch` lines (no callable fired for the cached video).
+#
+# Rewritten from the pre-redesign Material IA (playlist-tile-PL_TEST_1 /
+# summarize-button-enabled / summary-completed on the deleted VideoListScreen)
+# to the editorial IA + the harness's id: selector convention. Seeding moves
+# OUTSIDE the flow (Maestro runScript is JavaScript-only).
+#
+# Prerequisites (run from android/ BEFORE `maestro test`):
+#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-cached-summary.sh   (editorial corpus incl. ed-v09 completed)
+#   4. ./gradlew :app:installDebug
+#   5. adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \
+#        -a com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR --ez enabled true
+#   6. adb shell am force-stop com.github.jayteealao.playster
+#   7. adb shell am broadcast -n com.github.jayteealao.playster/.debug.DebugAuthReceiver \
+#        -a com.github.jayteealao.playster.debug.SIGN_IN
 ---
-- runScript: helpers/seed-cached-summary.sh
 - launchApp
-- runFlow: helpers/signin-helper.yaml
-- tapOn:
-    testTag: "playlist-tile-PL_TEST_1"
-- tapOn:
-    testTag: "summarize-button-enabled"
 - assertVisible:
-    testTag: "summary-completed"
-    timeout: 2000
-- assertNotVisible:
-    testTag: "summary-in-progress-spinner"
+    id: "home-shelf-row-ed-p1"
+- tapOn:
+    id: "home-shelf-row-ed-p1"
+- assertVisible:
+    id: "playlist-content"
+- tapOn:
+    text: "Summary"
+# The cached completed summary renders in the editorial drop-cap body — no
+# Material spinner, no new callable.
+- assertVisible:
+    id: "summary-completed"
+- assertVisible:
+    id: "playlist-summary"

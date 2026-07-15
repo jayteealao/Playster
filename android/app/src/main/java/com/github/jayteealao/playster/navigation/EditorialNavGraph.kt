@@ -19,8 +19,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.github.jayteealao.playster.screens.auth.AuthScreen
 import com.github.jayteealao.playster.screens.home.HomeScreen
+import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
 import com.github.jayteealao.playster.ui.editorial.chrome.PlayerRouteSkeleton
-import com.github.jayteealao.playster.ui.editorial.chrome.PlaylistRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SearchRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SettingsRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.TranscriptRouteSkeleton
@@ -72,6 +72,14 @@ fun EditorialNavGraph(
             onOpenSettings = { navController.navigate(EditorialRoutes.SETTINGS) },
         )
     },
+    playlistContent: @Composable () -> Unit = {
+        PlaylistScreen(
+            onOpenPlayer = { videoId ->
+                navController.navigate(EditorialRoutes.player(videoId))
+            },
+            onBack = { navController.popBackStack() },
+        )
+    },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -115,13 +123,8 @@ fun EditorialNavGraph(
                 listOf(
                     navArgument(EditorialRoutes.ARG_PLAYLIST_ID) { type = NavType.StringType },
                 ),
-        ) { entry ->
-            PlaylistRouteSkeleton(
-                playlistId = entry.arguments?.getString(EditorialRoutes.ARG_PLAYLIST_ID).orEmpty(),
-                onReadSampleEpisode = {
-                    navController.navigate(EditorialRoutes.player(SAMPLE_VIDEO_ID))
-                },
-            )
+        ) {
+            playlistContent()
         }
         composable(
             route = EditorialRoutes.PLAYER,

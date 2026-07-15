@@ -126,6 +126,19 @@ const P1_VIDEOS = [
   { id: "ed-v12", title: "Picking a north-star token", dur: "PT11M54S", sec: 714 },
 ];
 
+// Episodes for "Modern Type Practice" (ed-p2) — a DISJOINT set from ed-p1 so
+// AC1 ("every playlist loads its own episodes") is provable: the mock's
+// prototype served one shared VIDEO_LIST for every playlist; the real app must
+// not. Distinct ids, titles, and durations from P1_VIDEOS.
+const P2_VIDEOS = [
+  { id: "ed-v13", title: "The anatomy of a typeface", dur: "PT9M42S", sec: 582 },
+  { id: "ed-v14", title: "Measure, leading, and rhythm", dur: "PT16M20S", sec: 980 },
+  { id: "ed-v15", title: "Variable fonts in practice", dur: "PT22M4S", sec: 1324 },
+  { id: "ed-v16", title: "Optical sizing, honestly", dur: "PT13M50S", sec: 830 },
+  { id: "ed-v17", title: "Setting text for screens", dur: "PT18M7S", sec: 1087 },
+  { id: "ed-v18", title: "When to break the grid", dur: "PT11M15S", sec: 675 },
+];
+
 const FEATURED_ID = "ed-v09";
 
 // Mock transcript paragraphs (t in seconds, speaker folded into text).
@@ -224,6 +237,25 @@ async function main() {
     );
   });
 
+  // ed-p2's own disjoint episode set (AC1: each playlist loads its own).
+  P2_VIDEOS.forEach((video, i) => {
+    batchWrites.push(
+      db.doc(`playlists/ed-p2/videos/${video.id}`).set({
+        videoId: video.id,
+        playlistId: "ed-p2",
+        title: video.title,
+        channelTitle: "Ellen Lupton",
+        channelId: "UC_ED_FIXTURE_P2",
+        duration: video.dur,
+        thumbnailUrl: "",
+        publishedAt: `2025-09-${String(i + 1).padStart(2, "0")}T12:00:00Z`,
+        viewCount: 920 * (i + 1),
+        position: i,
+        addedAt: `2025-12-${String(i + 1).padStart(2, "0")}T08:00:00Z`,
+      }),
+    );
+  });
+
   // Progress spread: fresh / mid / nearly-done; untouched videos have no doc.
   const featured = P1_VIDEOS.find((v) => v.id === FEATURED_ID);
   batchWrites.push(
@@ -250,6 +282,24 @@ async function main() {
       positionSeconds: 31, // barely started.
       durationSeconds: 728,
       updatedAt: daysAgo(6),
+    }),
+    // ed-p2's own progress: ed-v15 mid (the representative/"playing" episode),
+    // ed-v13 nearly done (renders "watched" — struck through).
+    db.doc(`users/${uid}/progress/ed-v15`).set({
+      kind: "video",
+      videoId: "ed-v15",
+      playlistId: "ed-p2",
+      positionSeconds: 640,
+      durationSeconds: 1324,
+      updatedAt: daysAgo(1),
+    }),
+    db.doc(`users/${uid}/progress/ed-v13`).set({
+      kind: "video",
+      videoId: "ed-v13",
+      playlistId: "ed-p2",
+      positionSeconds: 575, // ~99% of 582 — watched.
+      durationSeconds: 582,
+      updatedAt: daysAgo(4),
     }),
   );
   for (const pl of PLAYLISTS) {
@@ -346,8 +396,9 @@ async function main() {
   await Promise.all(batchWrites);
   console.log(
     `write-editorial-corpus OK: project=${PROJECT_ID} user=${uid} ` +
-      `playlists=${PLAYLISTS.length} videos=${P1_VIDEOS.length} ` +
-      `progress=${3 + PLAYLISTS.filter((p) => p.lastOpened).length} ` +
+      `playlists=${PLAYLISTS.length} videos=${P1_VIDEOS.length + P2_VIDEOS.length} ` +
+      `(ed-p1=${P1_VIDEOS.length}, ed-p2=${P2_VIDEOS.length}) ` +
+      `progress=${5 + PLAYLISTS.filter((p) => p.lastOpened).length} ` +
       `notes=${notes.length} highlights=${highlights.length} transcripts=2 summaries=1`,
   );
 }

@@ -27,27 +27,6 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialTextActio
  * in the kicker so an argument's round-trip is visible on a recording.
  */
 
-/** Playlist / Volume placeholder. */
-@Composable
-fun PlaylistRouteSkeleton(
-    playlistId: String,
-    onReadSampleEpisode: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    RouteSkeleton(
-        routeTag = "playlist",
-        kicker = "Volume · $playlistId",
-        waitingLine = "This volume's table of contents is on its way.",
-        modifier = modifier,
-    ) {
-        SkeletonNavAction(
-            routeTag = "playlist",
-            label = "Read the sample episode",
-            onClick = onReadSampleEpisode,
-        )
-    }
-}
-
 /** Player placeholder. */
 @Composable
 fun PlayerRouteSkeleton(

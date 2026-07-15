@@ -9,7 +9,6 @@ import com.github.jayteealao.playster.data.firestore.SummaryRepository
 import com.github.jayteealao.playster.data.firestore.TranscriptDoc
 import com.github.jayteealao.playster.data.firestore.TranscriptRepository
 import com.github.jayteealao.playster.functions.SummaryFunctions
-import com.github.jayteealao.playster.screens.common.state.SummaryStatus
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,26 +100,7 @@ class SummaryViewModel
             }
         }
 
-        private fun mapDocToState(doc: SummaryDoc?): SummaryUiState {
-            val status = doc?.let { SummaryStatus.fromWire(it.statusWire) } ?: SummaryStatus.UNKNOWN
-            return when (status) {
-                SummaryStatus.UNKNOWN -> SummaryUiState.NoSummary
-                SummaryStatus.QUEUED, SummaryStatus.PENDING, SummaryStatus.RUNNING -> SummaryUiState.InProgress
-                SummaryStatus.COMPLETED ->
-                    SummaryUiState.Completed(
-                        content = doc?.content.orEmpty().ifBlank { "(empty summary)" },
-                        model = doc?.model ?: "free",
-                    )
-                SummaryStatus.FAILED_TRANSIENT ->
-                    SummaryUiState.FailedTransient(
-                        message = doc?.errorMessage ?: "Couldn't summarize. Try again.",
-                    )
-                SummaryStatus.FAILED_PERMANENT ->
-                    SummaryUiState.FailedPermanent(
-                        message = doc?.errorMessage ?: "This video can't be summarized.",
-                    )
-            }
-        }
+        private fun mapDocToState(doc: SummaryDoc?): SummaryUiState = mapSummaryDocToState(doc)
 
         private fun mapDocToTranscriptState(doc: TranscriptDoc?): TranscriptUiState {
             if (doc == null) return TranscriptUiState.Loading
