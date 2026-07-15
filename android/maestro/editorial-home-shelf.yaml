@@ -1,0 +1,58 @@
+appId: com.github.jayteealao.playster
+name: editorial-home-shelf
+# AC2: Home renders the seeded shelf over the real Firestore query path — the
+# shelf orders by last-opened descending, the headliner is the most-recent
+# video-progress doc, and the seeded progress bars render. Drives the real
+# screen (not a skeleton) on the merged fixture-auth harness + backend-schema
+# seed corpus.
+#
+# Selector convention (per editorial-navigation-skeleton.yaml): Compose
+# testTags surface as resource-ids via testTagsAsResourceId on the scaffold
+# root, so surfaces are matched with `id:` selectors. The shelf order itself
+# (ed-p1 above ed-p2 above ed-p3 above ed-p4) is asserted off the accompanying
+# adb screencap; Maestro's assertVisible only confirms presence.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; Maestro's runScript
+# executes JavaScript only, so shell/adb setup stays outside the flow):
+#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (playlists + progress spread)
+#   4. ./gradlew :app:installDebug
+#   5. adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \
+#        -a com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR --ez enabled true
+#   6. adb shell am force-stop com.github.jayteealao.playster
+#   7. adb shell am broadcast -n com.github.jayteealao.playster/.debug.DebugAuthReceiver \
+#        -a com.github.jayteealao.playster.debug.SIGN_IN
+#      (assert `debugSignIn{status=success}` on the playster.debug logcat tag)
+---
+- launchApp
+# The real Home replaces the old route-skeleton-home surface.
+- assertVisible:
+    id: "home-headliner"
+# The seeded shelf: opened playlists (last-opened desc) then the never-opened
+# tail (ed-p5). All five seed playlists render.
+- assertVisible:
+    id: "home-shelf-row-ed-p1"
+- assertVisible:
+    id: "home-shelf-row-ed-p2"
+- assertVisible:
+    id: "home-shelf-row-ed-p3"
+- assertVisible:
+    id: "home-shelf-row-ed-p4"
+- scrollUntilVisible:
+    element:
+      id: "home-shelf-row-ed-p5"
+    direction: DOWN
+# Tapping the headliner opens the player over the featured videoId (ed-v09).
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "route-skeleton-player"
+- back
+# Tapping a shelf row opens that playlist volume.
+- assertVisible:
+    id: "home-shelf-row-ed-p1"
+- tapOn:
+    id: "home-shelf-row-ed-p1"
+- assertVisible:
+    id: "route-skeleton-playlist"

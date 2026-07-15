@@ -1,8 +1,12 @@
 package com.github.jayteealao.playster.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.navigation.compose.ComposeNavigator
@@ -36,7 +40,9 @@ class EditorialNavGraphTest {
     @Test
     fun allSevenRoutes_resolveToTheirSkeletons() {
         setSignedInGraph()
-        composeTestRule.onNodeWithTag("route-skeleton-home").assertExists()
+        // Home is a real screen now (not a skeleton); the graph hosts it behind
+        // the Hilt-free homeContent slot, tagged here for the route-resolves check.
+        composeTestRule.onNodeWithTag("home-content").assertExists()
         listOf(
             EditorialRoutes.playlist("PL_1") to "route-skeleton-playlist",
             EditorialRoutes.player("VID_1") to "route-skeleton-player",
@@ -134,6 +140,8 @@ class EditorialNavGraphTest {
                     navController = navController,
                     loggedIn = true,
                     authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
+                    // Hilt-free stand-in for the real Home screen so the graph is JVM-testable.
+                    homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
                 )
             }
         }

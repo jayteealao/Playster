@@ -27,26 +27,6 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialTextActio
  * in the kicker so an argument's round-trip is visible on a recording.
  */
 
-/** Home / Reading Room placeholder. */
-@Composable
-fun HomeRouteSkeleton(
-    onOpenSampleVolume: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    RouteSkeleton(
-        routeTag = "home",
-        kicker = "Playster · Reading Room",
-        waitingLine = "Your reading room is being composed.",
-        modifier = modifier,
-    ) {
-        SkeletonNavAction(
-            routeTag = "home",
-            label = "Open the sample volume",
-            onClick = onOpenSampleVolume,
-        )
-    }
-}
-
 /** Playlist / Volume placeholder. */
 @Composable
 fun PlaylistRouteSkeleton(

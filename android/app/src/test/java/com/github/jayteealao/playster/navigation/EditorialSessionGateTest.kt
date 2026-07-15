@@ -1,10 +1,14 @@
 package com.github.jayteealao.playster.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -86,9 +90,11 @@ class EditorialSessionGateTest {
                 EditorialNavGraph(
                     navController = navController,
                     loggedIn = loggedIn.value,
-                    // Hilt-free stand-in for the real screen so the gate is JVM-testable;
-                    // it renders the same `auth-cover` surface the production screen does.
+                    // Hilt-free stand-ins so the gate is JVM-testable; the auth stub
+                    // renders the same `auth-cover` surface the production screen does,
+                    // and the home stub avoids the real screen's hiltViewModel().
                     authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
+                    homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
                 )
             }
         }

@@ -18,7 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.github.jayteealao.playster.screens.auth.AuthScreen
-import com.github.jayteealao.playster.ui.editorial.chrome.HomeRouteSkeleton
+import com.github.jayteealao.playster.screens.home.HomeScreen
 import com.github.jayteealao.playster.ui.editorial.chrome.PlayerRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.PlaylistRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SearchRouteSkeleton
@@ -32,11 +32,10 @@ private const val ED_FADE_DURATION_MS = 250
 private val ED_FADE_RISE = 4.dp
 
 /**
- * Inert sample ids for the temporary skeleton journey (home → playlist →
- * player → transcript). Skeletons fetch nothing; each id disappears with
- * the screen slice that replaces its skeleton's navigation action.
+ * Inert sample id for the temporary skeleton journey (playlist → player →
+ * transcript). Skeletons fetch nothing; the id disappears with the screen
+ * slice that replaces its skeleton's navigation action.
  */
-internal const val SAMPLE_PLAYLIST_ID = "sample-volume"
 internal const val SAMPLE_VIDEO_ID = "sample-episode"
 
 /**
@@ -61,6 +60,18 @@ fun EditorialNavGraph(
     loggedIn: Boolean,
     modifier: Modifier = Modifier,
     authContent: @Composable () -> Unit = { AuthScreen() },
+    homeContent: @Composable () -> Unit = {
+        HomeScreen(
+            onOpenPlaylist = { playlistId ->
+                navController.navigate(EditorialRoutes.playlist(playlistId))
+            },
+            onOpenPlayer = { videoId ->
+                navController.navigate(EditorialRoutes.player(videoId))
+            },
+            onOpenSearch = { navController.navigate(EditorialRoutes.SEARCH) },
+            onOpenSettings = { navController.navigate(EditorialRoutes.SETTINGS) },
+        )
+    },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -96,11 +107,7 @@ fun EditorialNavGraph(
             authContent()
         }
         composable(EditorialRoutes.HOME) {
-            HomeRouteSkeleton(
-                onOpenSampleVolume = {
-                    navController.navigate(EditorialRoutes.playlist(SAMPLE_PLAYLIST_ID))
-                },
-            )
+            homeContent()
         }
         composable(
             route = EditorialRoutes.PLAYLIST,
