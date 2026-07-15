@@ -19,6 +19,10 @@ import com.github.jayteealao.playster.ui.editorial.EditorialThemeGate
 class TokenSampleSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         EditorialThemeGate.applyPreSetContent(this)
+        // Mirror MainActivity's call order: persist the saved palette's splash
+        // theme so the NEXT cold start's OS starting window is palette-true too
+        // (the recording script's sync launch depends on this).
+        EditorialThemeGate.syncSplashTheme(this)
         super.onCreate(savedInstanceState)
         val palette = EditorialThemeGate.savedPalette(this)
         setContent {
