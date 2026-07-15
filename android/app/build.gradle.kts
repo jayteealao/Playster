@@ -92,6 +92,18 @@ android {
             // JVM screenshot tests render the app's actual resources (fonts,
             // colors, themes) under Robolectric.
             isIncludeAndroidResources = true
+            all { test ->
+                // Robolectric resolves androidx.activity.ComponentActivity from the
+                // variant's merged app manifest, and only the debug manifest carries
+                // it (injected by the debugImplementation ui-test-manifest fixture).
+                // The release variant cannot declare it without shipping a test
+                // activity, so release unit-test EXECUTION is debug-owned; the
+                // release unit-test sources still COMPILE (that gate stays), and
+                // debug runs every suite.
+                if (test.name == "testReleaseUnitTest") {
+                    test.enabled = false
+                }
+            }
         }
     }
     packaging {
