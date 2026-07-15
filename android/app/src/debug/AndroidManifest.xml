@@ -29,6 +29,13 @@
             android:name=".debug.TokenSampleSheetActivity"
             android:exported="true"
             android:theme="@style/Theme.Playster.Editorial.Cream" />
+
+        <!-- Debug-only cold-startable host for the editorial component
+             galleries; same no-flash gate as the sample sheet. -->
+        <activity
+            android:name=".debug.ComponentGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Playster.Editorial.Cream" />
     </application>
 
 </manifest>

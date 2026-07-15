@@ -6,8 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
-import com.github.jayteealao.playster.ui.editorial.EditorialFace
-import com.github.jayteealao.playster.ui.editorial.EditorialFaces
 import com.github.jayteealao.playster.ui.editorial.EditorialPalettes
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import com.github.jayteealao.playster.ui.editorial.PaperPalette
@@ -20,43 +18,51 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * AC: the token sample sheet matches the recorded baselines in all
- * 4 palettes x 4 display faces (JVM screenshot regression at the 412x892
- * reference viewport), and no rendered pixel is ever pure #FFFFFF/#000000.
+ * AC: every editorial component renders golden-equal to the recorded
+ * baselines in all 4 palettes (4 themed galleries x 4 palettes = 16 JVM
+ * goldens at the 412x892 reference viewport, Source face / size M — face
+ * and step variation is already golden-covered by the token sample sheet),
+ * and no rendered pixel is ever pure #FFFFFF/#000000.
  *
  * Record baselines: ./gradlew recordRoborazziDebug
  * Verify against them: ./gradlew verifyRoborazziDebug
- * The pixel-purity scan runs on every plain testDebugUnitTest execution.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w412dp-h892dp-420dpi")
-class TokenSampleSheetRoborazziTest {
+class ComponentGalleryRoborazziTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun tokenSampleSheet_all16PaletteFaceCombinations() {
+    fun typographyGallery_allPalettes() = captureGalleryOnAllPalettes(ComponentGalleryPage.TYPOGRAPHY)
+
+    @Test
+    fun listsGallery_allPalettes() = captureGalleryOnAllPalettes(ComponentGalleryPage.LISTS)
+
+    @Test
+    fun chromeGallery_allPalettes() = captureGalleryOnAllPalettes(ComponentGalleryPage.CHROME)
+
+    @Test
+    fun gapStatesGallery_allPalettes() = captureGalleryOnAllPalettes(ComponentGalleryPage.GAP_STATES)
+
+    private fun captureGalleryOnAllPalettes(page: ComponentGalleryPage) {
         var palette by mutableStateOf<PaperPalette>(EditorialPalettes.Cream)
-        var face by mutableStateOf<EditorialFace>(EditorialFaces.Source)
 
         composeTestRule.setContent {
-            EditorialTheme(palette = palette, face = face) {
-                TokenSampleSheet()
+            EditorialTheme(palette = palette) {
+                ComponentGallery(page)
             }
         }
 
         for (nextPalette in EditorialPalettes.All) {
-            for (nextFace in EditorialFaces.All) {
-                palette = nextPalette
-                face = nextFace
-                composeTestRule.waitForIdle()
+            palette = nextPalette
+            composeTestRule.waitForIdle()
 
-                composeTestRule.onRoot().captureRoboImage(
-                    filePath = "src/test/snapshots/images/token_sheet_${nextPalette.key}_${nextFace.key}.png",
-                )
-                assertNoPurePixels(composeTestRule, "${nextPalette.key}/${nextFace.key}")
-            }
+            composeTestRule.onRoot().captureRoboImage(
+                filePath = "src/test/snapshots/images/component_gallery_${page.key}_${nextPalette.key}.png",
+            )
+            assertNoPurePixels(composeTestRule, "${page.key}/${nextPalette.key}")
         }
     }
 }
