@@ -1,0 +1,48 @@
+appId: com.github.jayteealao.playster
+name: editorial-auth-signin
+# Drives the auth cover page and the fixture sign-in through the real
+# graph-level session gate: signed-out cold start lands on the editorial
+# cover (no chrome), and a fixture sign-in broadcast flips the session so
+# the gate routes to Home.
+#
+# This is the AC1 proxy flow. The genuine Credential Manager sheet against a
+# real Google account is human-owned and is driven separately (see the plan's
+# Verification Strategy); this flow proves the route, the session gate, and
+# the landing with no human-owned Google session.
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces are matched with
+# `id:` selectors — Maestro has no `testTag:` selector.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; Maestro's runScript
+# executes JavaScript only, so shell/adb setup stays outside the flow):
+#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. ./gradlew :app:installDebug
+#   4. adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \
+#        -a com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR --ez enabled true
+#   5. adb shell am force-stop com.github.jayteealao.playster
+#      (the app must cold-start SIGNED OUT — do NOT broadcast SIGN_IN yet)
+---
+- launchApp:
+    clearState: true
+# Signed out: the session gate routes to auth, which now hosts the real
+# editorial cover — chrome is hidden here (no bottom nav).
+- assertVisible:
+    id: "auth-cover"
+- assertVisible:
+    id: "auth-action"
+- assertNotVisible:
+    text: "Reading"
+# Fixture sign-in against the Auth emulator (no human Google session). Assert
+# `debugSignIn{status=success}` on the playster.debug logcat tag alongside
+# this run (lazylogcat), then the session flip routes the gate to Home.
+- runScript:
+    script: |
+      // The sign-in itself is a shell broadcast (adb), issued outside the flow
+      // immediately before this step per the harness convention:
+      //   adb shell am broadcast \
+      //     -n com.github.jayteealao.playster/.debug.DebugAuthReceiver \
+      //     -a com.github.jayteealao.playster.debug.SIGN_IN
+- assertVisible:
+    id: "route-skeleton-home"

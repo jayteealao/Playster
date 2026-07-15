@@ -184,7 +184,6 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.identity)
-    implementation(libs.one.tap.sign.`in`)
 
     // Firebase (BOM 34+ — KTX rolled into main modules; no `-ktx` suffix needed)
     implementation(platform(libs.firebase.bom))

@@ -17,7 +17,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.github.jayteealao.playster.ui.editorial.chrome.AuthRouteSkeleton
+import com.github.jayteealao.playster.screens.auth.AuthScreen
 import com.github.jayteealao.playster.ui.editorial.chrome.HomeRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.PlayerRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.PlaylistRouteSkeleton
@@ -60,6 +60,7 @@ fun EditorialNavGraph(
     navController: NavHostController,
     loggedIn: Boolean,
     modifier: Modifier = Modifier,
+    authContent: @Composable () -> Unit = { AuthScreen() },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -92,7 +93,7 @@ fun EditorialNavGraph(
         popExitTransition = { ExitTransition.None },
     ) {
         composable(EditorialRoutes.AUTH) {
-            AuthRouteSkeleton()
+            authContent()
         }
         composable(EditorialRoutes.HOME) {
             HomeRouteSkeleton(

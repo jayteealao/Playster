@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
+import com.github.jayteealao.playster.screens.auth.AuthCoverPage
+import com.github.jayteealao.playster.screens.auth.AuthUiState
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -41,7 +43,7 @@ class EditorialNavGraphTest {
             EditorialRoutes.transcript("VID_1") to "route-skeleton-transcript",
             EditorialRoutes.SEARCH to "route-skeleton-search",
             EditorialRoutes.SETTINGS to "route-skeleton-settings",
-            EditorialRoutes.AUTH to "route-skeleton-auth",
+            EditorialRoutes.AUTH to "auth-cover",
         ).forEach { (route, skeletonTag) ->
             navigate(route)
             composeTestRule.onNodeWithTag(skeletonTag).assertExists()
@@ -128,7 +130,11 @@ class EditorialNavGraphTest {
                     }
                 }
             EditorialTheme {
-                EditorialNavGraph(navController = navController, loggedIn = true)
+                EditorialNavGraph(
+                    navController = navController,
+                    loggedIn = true,
+                    authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
+                )
             }
         }
         composeTestRule.waitForIdle()

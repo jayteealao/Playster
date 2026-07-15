@@ -27,17 +27,6 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialTextActio
  * in the kicker so an argument's round-trip is visible on a recording.
  */
 
-/** Auth cover-page placeholder — chrome hides here; the auth screen slice replaces it. */
-@Composable
-fun AuthRouteSkeleton(modifier: Modifier = Modifier) {
-    RouteSkeleton(
-        routeTag = "auth",
-        kicker = "Playster · A YouTube Reader",
-        waitingLine = "The sign-in page is being set in type.",
-        modifier = modifier,
-    )
-}
-
 /** Home / Reading Room placeholder. */
 @Composable
 fun HomeRouteSkeleton(

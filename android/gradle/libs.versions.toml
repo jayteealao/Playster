@@ -16,7 +16,6 @@ activity-compose = "1.8.2"
 compose-bom = "2026.06.01"
 credential-manager = "1.2.0"
 googleid =   "1.1.0"
-googleid-one-tap = "20.7.0"
 ksp = "2.3.10"
 hilt = "2.58"
 hilt-androidx = "1.1.0"
@@ -71,7 +70,6 @@ compose-markdown = { module = "com.github.jeziellago:compose-markdown", version.
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credential-manager"}
 credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credential-manager"}
 identity = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid"}
-one-tap-sign-in = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "googleid-one-tap"}
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-common = { module = "androidx.hilt:hilt-common", version.ref = "hilt-androidx"}
@@ -93,7 +91,7 @@ roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose"
 roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" }
 
 [bundles]
-credential-manager = ["credentials", "credentials-play-services-auth", "identity", "one-tap-sign-in"]
+credential-manager = ["credentials", "credentials-play-services-auth", "identity"]
 hilt = ["hilt-android", "hilt-common", "hilt-navigation", "hilt-navigation-compose", "hilt-navigation-fragment"]
 
 [plugins]

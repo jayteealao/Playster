@@ -5,9 +5,13 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
+import com.github.jayteealao.playster.screens.auth.AuthCoverPage
+import com.github.jayteealao.playster.screens.auth.AuthUiState
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -38,12 +42,15 @@ class EditorialSessionGateTest {
 
         assertEquals(EditorialRoutes.AUTH, currentRoute())
         assertEquals(0, routeCount(EditorialRoutes.HOME))
+        // The real auth cover — not the old skeleton — renders on the route.
+        composeTestRule.onNodeWithTag("auth-cover").assertIsDisplayed()
     }
 
     @Test
     fun signInFromAuth_landsOnHomeWithAuthCleared() {
         setGraph(initiallyLoggedIn = false)
         assertEquals(EditorialRoutes.AUTH, currentRoute())
+        composeTestRule.onNodeWithTag("auth-cover").assertIsDisplayed()
 
         setLoggedIn(true)
 
@@ -76,7 +83,13 @@ class EditorialSessionGateTest {
                     }
                 }
             EditorialTheme {
-                EditorialNavGraph(navController = navController, loggedIn = loggedIn.value)
+                EditorialNavGraph(
+                    navController = navController,
+                    loggedIn = loggedIn.value,
+                    // Hilt-free stand-in for the real screen so the gate is JVM-testable;
+                    // it renders the same `auth-cover` surface the production screen does.
+                    authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
+                )
             }
         }
         composeTestRule.waitForIdle()

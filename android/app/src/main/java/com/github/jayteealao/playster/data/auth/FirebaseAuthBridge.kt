@@ -1,7 +1,9 @@
 package com.github.jayteealao.playster.data.auth
 
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.crashlytics.crashlytics
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +30,13 @@ class FirebaseAuthBridge
 
         private val authStateListener =
             FirebaseAuth.AuthStateListener { auth ->
-                _currentUid.value = auth.currentUser?.uid
+                val uid = auth.currentUser?.uid
+                _currentUid.value = uid
+                // Instrumentation (04b-instrument §5): attribute crash reports to the
+                // signed-in user via Crashlytics only — never the uid in logcat or a
+                // custom key (PII rule). Covers fresh sign-in, restored sessions, and
+                // sign-out (cleared to empty).
+                Firebase.crashlytics.setUserId(uid ?: "")
             }
 
         init {
