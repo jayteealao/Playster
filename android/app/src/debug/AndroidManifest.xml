@@ -23,6 +23,27 @@
             </intent-filter>
         </receiver>
 
+        <!-- Debug-only Firebase-emulator flag writer for verification drives.
+             Same exported=true rationale as above: debug builds only. -->
+        <receiver
+            android:name=".debug.EmulatorPrefReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only fixture sign-in against the local Auth emulator so
+             navigation flows can run signed-in without a human Google
+             session. Same exported=true rationale as above. -->
+        <receiver
+            android:name=".debug.DebugAuthReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SIGN_IN" />
+            </intent-filter>
+        </receiver>
+
         <!-- Debug-only cold-startable host for the editorial token sample
              sheet; exercises the production no-flash theme gate. -->
         <activity

@@ -19,11 +19,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Playster"
         tools:targetApi="31">
+        <!-- Manifest theme is the pre-process default (first run / cleared
+             data): Cream, the design's first-run palette. Saved palettes are
+             applied by EditorialThemeGate before the first frame, and the
+             API 31+ system splash follows the saved palette via
+             syncSplashTheme's persisted override. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Playster">
+            android:theme="@style/Theme.Playster.Editorial.Cream">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

@@ -2,6 +2,7 @@ package com.github.jayteealao.playster.ui.editorial
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import androidx.annotation.StyleRes
 import com.github.jayteealao.playster.R
 
@@ -49,6 +50,34 @@ object EditorialThemeGate {
      */
     fun applyPreSetContent(activity: Activity) {
         activity.setTheme(themeResFor(savedPaletteKey(activity)))
+    }
+
+    /**
+     * Keeps the OS starting window (the system splash, API 31+) on the saved
+     * paper for *future* cold starts. The current launch's splash is inflated
+     * from the manifest theme before the process exists — no runtime call can
+     * repaint it — but `SplashScreen.setSplashScreenTheme` "overrides and
+     * persists the theme used for the SplashScreen of this application"
+     * (source: Sdk/sources/android-34/android/window/SplashScreen.java), so
+     * one sync per launch makes every subsequent cold start splash in the
+     * saved palette.
+     *
+     * Two platform caveats the call site must respect:
+     * - The platform persists the override by *resolved theme name* — the
+     *   `Theme.Playster.Editorial.*` style names must stay stable across
+     *   releases or persisted overrides dangle.
+     * - A palette written while no activity runs (e.g. the debug pref
+     *   receiver) is picked up on the next launch's sync — one launch of lag,
+     *   self-healing because this runs on every `onCreate`. The settings
+     *   screen calls this directly at palette-write time to avoid even that.
+     *
+     * No-op below API 31: the system splash does not exist there and the
+     * editorial window styles disable the legacy starting-window preview.
+     */
+    fun syncSplashTheme(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            activity.splashScreen.setSplashScreenTheme(themeResFor(savedPaletteKey(activity)))
+        }
     }
 
     @StyleRes

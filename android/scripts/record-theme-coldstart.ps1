@@ -1,13 +1,19 @@
 <#
 .SYNOPSIS
-    Records a cold start of the editorial token sample sheet so the first
-    rendered frames can be reviewed frame-by-frame for palette correctness
-    (no wrong-theme flash).
+    Records a cold start so the first rendered frames can be reviewed
+    frame-by-frame for palette correctness (no wrong-theme flash) —
+    including the API 31+ system splash, which follows the saved palette
+    once the app has synced its splash theme.
 
 .DESCRIPTION
     Seeds the saved palette via the debug ThemePrefReceiver broadcast,
-    force-stops the app, starts a screen recording, cold-starts the debug
-    TokenSampleSheetActivity, then pulls the mp4.
+    launches once so the app persists the palette's splash theme (the OS
+    applies a splash-theme override from the NEXT cold start), force-stops,
+    starts a screen recording, cold-starts the activity, then pulls the mp4.
+
+    Defaults to the real MainActivity (the editorial chrome). Pass
+    -ActivityName '.debug.TokenSampleSheetActivity' to record the
+    design-tokens sample sheet instead.
 
     Prerequisites: a booted emulator/device (API 29+) with the debug APK
     installed (./gradlew :app:installDebug).
@@ -15,17 +21,19 @@
 .EXAMPLE
     powershell android/scripts/record-theme-coldstart.ps1 -Palette night
     powershell android/scripts/record-theme-coldstart.ps1 -Palette cream -OutDir out
+    powershell android/scripts/record-theme-coldstart.ps1 -Palette night -ActivityName '.debug.TokenSampleSheetActivity'
 #>
 param(
     [ValidateSet('cream', 'vellum', 'newsprint', 'night')]
     [string]$Palette = 'night',
     [string]$OutDir = '.',
-    [int]$RecordSeconds = 8
+    [int]$RecordSeconds = 8,
+    [string]$ActivityName = '.MainActivity'
 )
 
 $ErrorActionPreference = 'Stop'
 $AppId = 'com.github.jayteealao.playster'
-$Activity = "$AppId/.debug.TokenSampleSheetActivity"
+$Activity = "$AppId/$ActivityName"
 $DeviceFile = "/data/local/tmp/theme-coldstart-$Palette.mp4"
 $LocalFile = Join-Path $OutDir "theme-coldstart-$Palette.mp4"
 

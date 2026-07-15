@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.data
 
+import android.content.Context
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -10,19 +11,34 @@ import com.google.firebase.functions.functions
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    @Provides
-    @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = Firebase.auth
+    // FirebaseEmulatorGate is a debug-only emulator redirect (release variant
+    // is a compiled no-op); it must run before the first use of each SDK
+    // singleton, hence inside the providers.
 
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore = Firebase.firestore
+    fun provideFirebaseAuth(
+        @ApplicationContext context: Context,
+    ): FirebaseAuth {
+        FirebaseEmulatorGate.configure(context)
+        return Firebase.auth
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(
+        @ApplicationContext context: Context,
+    ): FirebaseFirestore {
+        FirebaseEmulatorGate.configure(context)
+        return Firebase.firestore
+    }
 
     @Provides
     @Singleton

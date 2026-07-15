@@ -6,17 +6,26 @@
     <!-- Per-palette window styles: the saved paper tone is already the window
          background before the first Compose frame, so a cold start can never
          flash the wrong theme. Applied via Activity.setTheme() before
-         setContent from the synchronous palette preference. -->
+         setContent from the synchronous palette preference.
+
+         windowDisablePreview kills the wrong-paper starting-window preview on
+         API 29/30, where no palette-aware splash mechanism exists. Android 12+
+         ignores it (the system splash always shows there); the values-v31
+         overlay replaces these styles with palette-true splash styles instead. -->
     <style name="Theme.Playster.Editorial.Cream" parent="Theme.Playster">
         <item name="android:windowBackground">@color/editorial_paper_cream</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
     <style name="Theme.Playster.Editorial.Vellum" parent="Theme.Playster">
         <item name="android:windowBackground">@color/editorial_paper_vellum</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
     <style name="Theme.Playster.Editorial.Newsprint" parent="Theme.Playster">
         <item name="android:windowBackground">@color/editorial_paper_newsprint</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
     <style name="Theme.Playster.Editorial.Night" parent="Theme.Playster">
         <item name="android:windowBackground">@color/editorial_paper_night</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
 </resources>
