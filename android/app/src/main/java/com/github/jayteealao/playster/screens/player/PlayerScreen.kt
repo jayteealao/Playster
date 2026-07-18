@@ -37,6 +37,8 @@ import com.github.jayteealao.playster.data.editorial.EditorialDressing
 import com.github.jayteealao.playster.data.firestore.SummaryChapter
 import com.github.jayteealao.playster.screens.player.chapters.ChaptersResolver
 import com.github.jayteealao.playster.screens.player.playback.PlaybackController
+import com.github.jayteealao.playster.screens.player.playback.PlaybackError
+import com.github.jayteealao.playster.screens.player.playback.PlaybackInstrumentation
 import com.github.jayteealao.playster.screens.player.playback.PlaybackState
 import com.github.jayteealao.playster.screens.player.playback.YouTubePlayerHost
 import com.github.jayteealao.playster.screens.player.playback.isDeviceOffline
@@ -57,6 +59,7 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialPillButto
 import com.github.jayteealao.playster.ui.editorial.components.EditorialTabs
 import com.github.jayteealao.playster.ui.editorial.components.Folio
 import com.github.jayteealao.playster.ui.editorial.components.Kicker
+import kotlinx.coroutines.delay
 
 /**
  * Player — the mock's article-page player over real, compliant YouTube playback.
@@ -127,6 +130,23 @@ private fun LivePlayer(
     val duration by controller.durationSeconds.collectAsStateWithLifecycle()
     var panelExpanded by rememberSaveable(content.videoId) { mutableStateOf(true) }
 
+    // Load watchdog (AC4): if the embed never reaches ready within the window —
+    // a network loss during initial load fires neither onReady nor onError — the
+    // controller would sit in Loading forever ("Cueing the recording…"). Time it
+    // out into the editorial error surface. Keyed on playbackState so leaving
+    // Loading cancels the pending timeout; re-arms if it re-enters Loading.
+    LaunchedEffect(playbackState) {
+        if (playbackState is PlaybackState.Loading) {
+            delay(LOAD_TIMEOUT_MS)
+            controller.onLoadTimedOut()?.let { error ->
+                PlaybackInstrumentation.onLoadTimeout(
+                    content.videoId,
+                    offline = error is PlaybackError.Offline,
+                )
+            }
+        }
+    }
+
     // Forward every position tick to the VM; the throttle inside prevents any
     // per-second write (AC5). A play→pause transition writes immediately.
     LaunchedEffect(position, playbackState) {
@@ -165,6 +185,15 @@ private fun LivePlayer(
 }
 
 private val SCREEN_HORIZONTAL = 22.dp
+
+/**
+ * How long the embed may sit in [PlaybackState.Loading] before the watchdog
+ * surfaces the editorial error (AC4). Generous enough to clear a slow-but-real
+ * cold IFrame load on a live network, short enough that an offline launch fails
+ * to a readable surface rather than an indefinite "Cueing the recording…".
+ */
+private const val LOAD_TIMEOUT_MS = 8_000L
+
 private val TABS = listOf("Summary", "Chapters", "Transcript", "Notes")
 private const val TAB_SUMMARY = 0
 private const val TAB_CHAPTERS = 1

@@ -191,9 +191,12 @@ async function main() {
   // Playlists + videos.
   for (const pl of PLAYLISTS) {
     batchWrites.push(
+      // Mirrors production `PlaylistDocument` (backend/functions/src/models/index.ts)
+      // exactly: no `id` and no `playlistId` body field. `id` would collide with
+      // `PlaylistDoc`'s @DocumentId mapping and make the Firestore POJO mapper
+      // throw on read (crashing the app on launch); `playlistId` is not a
+      // production field. The id lives in the doc path.
       db.doc(`playlists/${pl.id}`).set({
-        id: pl.id,
-        playlistId: pl.id,
         title: pl.title,
         description: pl.description,
         thumbnailUrl: "",
@@ -207,9 +210,10 @@ async function main() {
     );
   }
   P1_VIDEOS.forEach((video, i) => {
+    // Mirrors production `VideoDocument`: no `playlistId` body field (the
+    // playlist association is the subcollection path).
     const doc = {
       videoId: video.id,
-      playlistId: "ed-p1",
       title: video.title,
       channelTitle: "Joey Banks",
       channelId: "UC_ED_FIXTURE",
@@ -242,7 +246,6 @@ async function main() {
     batchWrites.push(
       db.doc(`playlists/ed-p2/videos/${video.id}`).set({
         videoId: video.id,
-        playlistId: "ed-p2",
         title: video.title,
         channelTitle: "Ellen Lupton",
         channelId: "UC_ED_FIXTURE_P2",

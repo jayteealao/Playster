@@ -125,6 +125,29 @@ class PlaybackController(
             }
         }
 
+    /**
+     * The embed never reached [onReady] within the load window. A network loss
+     * during initial load leaves the IFrame unable to fetch its player HTML, and
+     * the library fires *neither* `onReady` nor `onError` — so without this the
+     * screen hangs forever on the "Cueing the recording…" beat with no editorial
+     * error surface (AC4). Surfaces [PlaybackError.Offline] when the network is
+     * down, otherwise a retryable [PlaybackError.Unknown]. A no-op (returns null)
+     * once the load has already resolved to any non-loading state, so a late
+     * watchdog tick can never clobber a live or already-errored player.
+     *
+     * Pure state mutation (no Android/Firebase calls) so it stays JVM-unit
+     * testable; the caller instruments the returned error on-device.
+     *
+     * @return the error that was surfaced, or null if the load had resolved.
+     */
+    fun onLoadTimedOut(): PlaybackError? {
+        if (_state.value !is PlaybackState.Loading) return null
+        sawError = true
+        val error = if (isOffline()) PlaybackError.Offline else PlaybackError.Unknown
+        _state.value = PlaybackState.Error(error)
+        return error
+    }
+
     fun play() {
         player?.play()
     }

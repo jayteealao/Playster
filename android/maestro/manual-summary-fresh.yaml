@@ -25,11 +25,16 @@ name: manual-summary-fresh (AC11 — player summary generation)
     id: "player-content"
 # The Summary tab is the default; opening the fresh episode auto-dispatches the
 # summary request, so the editorial in-progress notice appears (no CTA needed).
+# `assertVisible` takes no `timeout` on Maestro 2.2.0 (it rejects the property);
+# `extendedWaitUntil` is the supported timed wait for a slice that appears after
+# the async summary dispatch resolves.
 - assertVisible:
     id: "player-summary"
-- assertVisible:
-    id: "summary-in-progress"
+- extendedWaitUntil:
+    visible:
+      id: "summary-in-progress"
     timeout: 3000
-- assertVisible:
-    text: "The summary is being written."
+- extendedWaitUntil:
+    visible:
+      text: "The summary is being written."
     timeout: 3000

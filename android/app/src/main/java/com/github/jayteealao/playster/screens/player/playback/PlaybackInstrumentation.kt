@@ -37,6 +37,25 @@ object PlaybackInstrumentation {
         }
     }
 
+    /**
+     * `playback_load_timeout{offline,video_id_hash}` — the embed never reached
+     * ready within the load window (a silent no-onReady/no-onError failure the
+     * error-code signal above cannot see). `offline` separates the airplane-mode
+     * case from an online load that stalled.
+     */
+    fun onLoadTimeout(
+        videoId: String,
+        offline: Boolean,
+    ) {
+        val vidHash = hash(videoId)
+        Log.w(TAG, "playbackLoadTimeout{offline=$offline,videoId=$vidHash}")
+        Firebase.crashlytics.apply {
+            setCustomKey("error_code", if (offline) "LOAD_TIMEOUT_OFFLINE" else "LOAD_TIMEOUT")
+            setCustomKey("video_id_hash", vidHash)
+            recordException(PlaybackException("embed load timed out (offline=$offline)"))
+        }
+    }
+
     /** `playback_recovered{video_id_hash}` when a load succeeds after an error. */
     fun onPlayerRecovered(videoId: String) {
         val vidHash = hash(videoId)
