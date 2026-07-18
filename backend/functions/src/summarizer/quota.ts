@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type { QuotaDocument } from "../models/index.js";
@@ -94,7 +95,7 @@ export async function reserveOpenRouterQuotaSlot(): Promise<void> {
       dailyLimit: current.dailyLimit,
       perMinuteLimit: current.perMinuteLimit,
       recentTimestamps: [...current.recentTimestamps, now],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
     tx.set(ref, next);
   });
@@ -156,7 +157,7 @@ export async function releaseOpenRouterQuotaSlot(): Promise<void> {
           dailyLimit: data.dailyLimit ?? DEFAULT_DAILY_LIMIT,
           perMinuteLimit: data.perMinuteLimit ?? DEFAULT_PER_MINUTE_LIMIT,
           recentTimestamps,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: false },
       );

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { allowlistedCall } from "../auth/verify.js";
@@ -121,7 +122,7 @@ export async function dispatchSummary(
       status: "pending",
       model: dispatchModel,
       requestedAt:
-        prior?.requestedAt ?? admin.firestore.FieldValue.serverTimestamp(),
+        prior?.requestedAt ?? FieldValue.serverTimestamp(),
     };
     // Reserve doc: transactional read-then-set keeps auto-enqueue,
     // dispatcher, and the manual callable collision-safe.
@@ -130,7 +131,7 @@ export async function dispatchSummary(
     tx.set(summaryRef, next);
     const secretDoc: WebhookSecretDocument = {
       secret: webhookSecret,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     };
     tx.set(secretRef, secretDoc);
   });
@@ -237,7 +238,7 @@ export async function dispatchSummary(
     {
       status: "running",
       summarizerJobId: summarizerJobId ?? null,
-      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      dispatchedAt: FieldValue.serverTimestamp(),
     },
     { merge: true },
   );
