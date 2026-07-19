@@ -57,8 +57,14 @@ class MainActivity : ComponentActivity() {
             val lineHeightStep by readingPreferences.lineHeightStep.collectAsStateWithLifecycle()
 
             // Re-apply the transparent edge-to-edge bars whenever the paper
-            // changes so a live Night switch flips the system-bar icons dark.
-            LaunchedEffect(palette) { applyEditorialSystemBars(this@MainActivity, palette) }
+            // changes so a live Night switch flips the system-bar icons dark,
+            // and re-sync the persisted OS splash theme at change-time so the
+            // very NEXT cold start already splashes in the new paper (the
+            // onCreate sync alone lags one launch behind a Settings change).
+            LaunchedEffect(palette) {
+                applyEditorialSystemBars(this@MainActivity, palette)
+                EditorialThemeGate.syncSplashTheme(this@MainActivity)
+            }
 
             EditorialTheme(
                 palette = palette,

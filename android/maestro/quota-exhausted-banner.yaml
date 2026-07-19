@@ -12,7 +12,7 @@ name: quota-exhausted-banner (regression)
 # (Maestro runScript is JavaScript-only).
 #
 # Prerequisites (run from android/ BEFORE `maestro test`):
-#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   1. firebase emulators:start --only auth,firestore --project playster-406121
 #   2. bash maestro/helpers/seed-auth-emulator.sh
 #   3. bash maestro/helpers/seed-quota-exhausted.sh   (editorial corpus + exhausted quota doc)
 #   4. ./gradlew :app:installDebug

@@ -1,5 +1,6 @@
 appId: com.github.jayteealao.playster
-name: editorial-player-progress-resume (AC5/AC8)
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-player-progress-resume (AC5-AC8)
 # AC5: playback progress is written throttled (not per-second) and resumes ~T
 # across process death — play a while, force-stop, relaunch, and the Player
 # resumes near where it left off while Home's headliner reflects it. AC8: a note

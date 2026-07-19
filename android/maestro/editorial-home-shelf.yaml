@@ -14,7 +14,7 @@ name: editorial-home-shelf
 #
 # Prerequisites (run from android/ BEFORE `maestro test`; Maestro's runScript
 # executes JavaScript only, so shell/adb setup stays outside the flow):
-#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   1. firebase emulators:start --only auth,firestore --project playster-406121
 #   2. bash maestro/helpers/seed-auth-emulator.sh
 #   3. bash maestro/helpers/seed-editorial-corpus.sh   (playlists + progress spread)
 #   4. ./gradlew :app:installDebug
@@ -43,7 +43,8 @@ name: editorial-home-shelf
     element:
       id: "home-shelf-row-ed-p5"
     direction: DOWN
-# Tapping the headliner opens the player over the featured videoId (ed-v09).
+# Tapping the headliner opens the player over the featured episode (doc
+# ed-v09; its videoId is the curated real id in fixtures videos.realIds).
 - tapOn:
     id: "home-headliner"
 - assertVisible:

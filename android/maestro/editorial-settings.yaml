@@ -1,5 +1,6 @@
 appId: com.github.jayteealao.playster
-name: editorial-settings (settings-screen AC1/AC2/AC4/AC5/AC6)
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-settings (settings-screen AC1-AC2-AC4-AC5-AC6)
 # Drives the Settings screen over the seeded corpus + Firebase emulator:
 #   AC1 — selecting each of the four papers re-themes the whole app live (no
 #         restart); force-stop + relaunch keeps the choice with NO wrong-theme

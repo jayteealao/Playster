@@ -11,9 +11,11 @@
 //
 // Project id: key-based (client SDK) requests resolve to the emulator
 // suite's DEFAULT project — probed empirically against the Auth emulator —
-// so the account must live under the project the suite was started with
-// (`--project playster-dev` in the documented recipe). Override with
-// AUTH_PROJECT_ID if the suite runs under a different default.
+// so the account must live under the project the suite was started with.
+// That default is playster-406121 (backend/.firebaserc), which is also the
+// project the app's Firestore SDK addresses — one project id everywhere.
+// Override with AUTH_PROJECT_ID only if the suite is started with an
+// explicit different --project.
 const fs = require("node:fs");
 const path = require("node:path");
 // firebase-admin lives in backend/functions's node_modules; resolve it
@@ -33,7 +35,7 @@ const admin = require(
 
 const EMAIL = "verify@playster.test";
 const PASSWORD = "playster-verify-fixture";
-const PROJECT_ID = process.env.AUTH_PROJECT_ID || "playster-dev";
+const PROJECT_ID = process.env.AUTH_PROJECT_ID || "playster-406121";
 
 if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
   process.env.FIREBASE_AUTH_EMULATOR_HOST =

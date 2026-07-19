@@ -1,5 +1,6 @@
 appId: com.github.jayteealao.playster
-name: editorial-transcript-sync (AC1/AC4)
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-transcript-sync (AC1-AC4)
 # Drives the Transcript over the shared, still-live embed: the Masthead-strip
 # mini-embed stays visible while reading (Option 1 / C5 — read off the recording),
 # auto-scroll follows the active line, tapping a paragraph seeks playback (AC1),

@@ -8,7 +8,7 @@
 #
 # Requires a RUNNING emulator suite (it must outlive this script so the app
 # can drive against it):
-#   (from backend/) firebase emulators:start --only auth,firestore --project playster-dev
+#   (from backend/) firebase emulators:start --only auth,firestore --project playster-406121
 #
 # Ports/hosts: an already-exported FIREBASE_AUTH_EMULATOR_HOST /
 # FIRESTORE_EMULATOR_HOST wins (emulators:exec sets both), then the

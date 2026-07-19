@@ -12,11 +12,24 @@ name: manual-summary-fresh (AC11 — player summary generation)
 # Fixture: a seeded episode with NO `summaries/{videoId}` doc (fresh state).
 #
 # Prerequisites (run from android/ BEFORE `maestro test`; runScript is JS-only):
-#   1. firebase emulators:start --only auth,firestore,functions
-#   2. bash maestro/helpers/seed-auth-emulator.sh
-#   3. bash maestro/helpers/seed-fresh-state.sh   (episode present, summary absent)
-#   4. ./gradlew :app:installDebug
-#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+#   1. Summarizer secrets + a mock dispatch target. requestVideoSummary declares
+#      secrets: [SUMMARIZER_URL, SUMMARIZER_API_KEY]; without local values the
+#      callable dies INTERNAL before the reservation transaction ever runs.
+#        a. Copy backend/functions/.secret.local.example to
+#           backend/functions/.secret.local (gitignored) — it points
+#           SUMMARIZER_URL at the local mock below.
+#        b. Start the mock dispatch target (any 200 {"id": ...} satisfies the
+#           dispatch; this flow only asserts the in-progress state):
+#             node -e "require('http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({id:'mock-job-1'}))}).listen(18080)"
+#      NOTE: the emulator binds secret values at suite START (no hot reload —
+#      probe-proven 2026-07-19; upstream docs are silent). Restart the suite
+#      after creating or editing .secret.local.
+#   2. (from backend/) firebase emulators:start --only auth,firestore,functions --project playster-406121
+#   3. bash maestro/helpers/seed-auth-emulator.sh
+#   4. bash maestro/helpers/seed-fresh-state.sh   (full corpus seeded, then the
+#      featured summary + quota docs DELETED against the running suite)
+#   5. ./gradlew :app:installDebug
+#   6. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
 ---
 - launchApp
 - tapOn:

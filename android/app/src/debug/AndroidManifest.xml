@@ -47,6 +47,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Debug-only progress-write fault injector so a drive can force the
+             progress_sync_write_failed emit path once (one-shot flag). Same
+             exported=true rationale as above. -->
+        <receiver
+            android:name=".debug.ProgressFaultReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_PROGRESS_FAULT" />
+            </intent-filter>
+        </receiver>
+
         <!-- Debug-only cold-startable host for the editorial token sample
              sheet; exercises the production no-flash theme gate. -->
         <activity

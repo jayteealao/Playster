@@ -13,7 +13,7 @@ name: editorial-navigation-skeleton
 # Prerequisites (run from android/ BEFORE `maestro test`; Maestro's
 # runScript executes JavaScript only, so shell/adb setup stays outside the
 # flow):
-#   1. firebase emulators:start --only auth,firestore --project playster-dev
+#   1. firebase emulators:start --only auth,firestore --project playster-406121
 #   2. bash maestro/helpers/seed-auth-emulator.sh
 #   3. ./gradlew :app:installDebug
 #   4. adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \

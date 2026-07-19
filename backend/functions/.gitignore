@@ -6,3 +6,8 @@ node_modules/
 
 # Logs
 *.log
+
+# Local emulator secret overrides (.secret.local, .env.local, ...) — the
+# firebase-init template ignores *.local; real secret values never commit.
+# The committed .secret.local.example template is exempt (ends in .example).
+*.local

@@ -1,5 +1,8 @@
 appId: com.github.jayteealao.playster
-name: editorial-transcript-highlight (AC2/AC3)
+# NOTE: flow names must never contain "/" — Maestro interpolates the name into
+# its report filename unsanitized (ai-report-<name>.html), and a slash breaks
+# report writing on Windows (maestro #2017; fix merged upstream, unreleased at 2.2.0).
+name: editorial-transcript-highlight (AC2-AC3)
 # Drives the Transcript's two persistence loops against the Firebase emulator:
 #  - AC2: long-press a paragraph to highlight it; the highlighter renders
 #    immediately, and the write lands in users/{uid}/highlights (survives
@@ -45,6 +48,11 @@ name: editorial-transcript-highlight (AC2/AC3)
 - tapOn:
     id: "transcript-note-input"
 - inputText: "The whole thesis is in this line."
+# The soft keyboard covers the save affordance; dismiss it first. Maestro's
+# hideKeyboard is a system back press — safe here because the keyboard is
+# provably up (inputText just ran). If it ever proves flaky, the documented
+# fallback is tapping a non-interactive app-bar point instead.
+- hideKeyboard
 - tapOn:
     id: "transcript-note-save"
 - assertVisible:

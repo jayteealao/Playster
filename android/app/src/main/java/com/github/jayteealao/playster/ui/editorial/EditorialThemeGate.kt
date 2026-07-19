@@ -68,8 +68,10 @@ object EditorialThemeGate {
      *   releases or persisted overrides dangle.
      * - A palette written while no activity runs (e.g. the debug pref
      *   receiver) is picked up on the next launch's sync — one launch of lag,
-     *   self-healing because this runs on every `onCreate`. The settings
-     *   screen calls this directly at palette-write time to avoid even that.
+     *   self-healing because this runs on every `onCreate`. Palette changes
+     *   made while the app runs have no lag: MainActivity's palette collector
+     *   re-runs this sync on every change, so the very next cold start
+     *   already splashes in the new paper.
      *
      * No-op below API 31: the system splash does not exist there and the
      * editorial window styles disable the legacy starting-window preview.

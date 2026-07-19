@@ -1,5 +1,6 @@
 appId: com.github.jayteealao.playster
-name: editorial-player-playback (AC1/AC2/AC6)
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-player-playback (AC1-AC2-AC6)
 # Drives real, compliant YouTube playback on the running Player: play / pause /
 # scrub / each speed with the embed visibly responding (AC1), the Masthead-band
 # panel collapsing and expanding while playback stays visible (AC2), and the

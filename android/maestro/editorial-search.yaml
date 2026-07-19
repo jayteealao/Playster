@@ -1,5 +1,6 @@
 appId: com.github.jayteealao.playster
-name: editorial-search (search-screen AC1/AC2/AC5)
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-search (search-screen AC1-AC2-AC5)
 # Drives the hybrid Search over the seeded corpus + Firebase emulator:
 #   AC1 — typing a title fragment yields instant results with ZERO callable hits
 #         (assert against the functions-emulator request log: no `searchTranscripts`

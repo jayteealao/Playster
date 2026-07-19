@@ -26,8 +26,9 @@ import javax.inject.Singleton
  *  - the palette persists synchronously through [EditorialThemeGate.writePalette]
  *    (`commit()`), so a force-stop racing the switch can never lose the choice and
  *    the pre-first-frame window paints the saved paper — the flash-free guarantee.
- *    The next launch's `MainActivity.onCreate` syncs the OS splash theme (the gate
- *    self-heals on every `onCreate`).
+ *    MainActivity's palette collector re-syncs the OS splash theme on every change
+ *    (write-time, so the very next cold start splashes in the new paper); the
+ *    `onCreate` sync remains as self-heal for writes made while no activity runs.
  *  - face / size / line-height / default-speed persist through the DataStore.
  *
  * The DataStore axes are also *collected back* so an external write (the debug

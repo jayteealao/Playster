@@ -6,7 +6,7 @@
 # The app's debug-only fixture sign-in broadcast uses these credentials
 # (debug builds only; the credentials are meaningless outside a local
 # emulator). Requires the Auth emulator to be running:
-#   (from backend/) firebase emulators:start --only auth,firestore --project playster-dev
+#   (from backend/) firebase emulators:start --only auth,firestore --project playster-406121
 set -euo pipefail
 
 HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -141,6 +141,21 @@ const P2_VIDEOS = [
 
 const FEATURED_ID = "ed-v09";
 
+// Curated REAL YouTube ids (probe-proven embeddable, 2026-07-19). They ride
+// the `videoId` FIELD and every videoId-keyed doc path (transcripts/,
+// summaries/, users/*/progress/, notes + highlights body fields), so
+// live-embed drives play out of the box instead of hitting the IFrame's
+// embed-error surface on a synthetic id. Doc paths under
+// playlists/*/videos/ keep the synthetic ed-vNN ids — those are path ids,
+// not videoIds (the app resolves videos by the videoId FIELD via a
+// collection-group query). Map recorded in fixtures/editorial-fixtures.json.
+const REAL_VIDEO_IDS = {
+  "ed-v09": "jNQXAC9IVRw", // featured / summarizer-chapters / needle-carrier
+  "ed-v02": "M7lc1UVf-VE", // long-transcript stressor
+  "ed-v11": "aqz-KE-bpKQ", // description-chapters
+};
+const realId = (id) => REAL_VIDEO_IDS[id] || id;
+
 // Mock transcript paragraphs (t in seconds, speaker folded into text).
 //
 // Search verify needle (search-screen AC2, deterministic jump-to-T target):
@@ -219,7 +234,7 @@ async function main() {
     // Mirrors production `VideoDocument`: no `playlistId` body field (the
     // playlist association is the subcollection path).
     const doc = {
-      videoId: video.id,
+      videoId: realId(video.id),
       title: video.title,
       channelTitle: "Joey Banks",
       channelId: "UC_ED_FIXTURE",
@@ -251,7 +266,7 @@ async function main() {
   P2_VIDEOS.forEach((video, i) => {
     batchWrites.push(
       db.doc(`playlists/ed-p2/videos/${video.id}`).set({
-        videoId: video.id,
+        videoId: realId(video.id),
         title: video.title,
         channelTitle: "Ellen Lupton",
         channelId: "UC_ED_FIXTURE_P2",
@@ -274,9 +289,12 @@ async function main() {
   // JVM layer; this corpus is the on-device render fixture (settings AC1/AC3/AC6).
   const featured = P1_VIDEOS.find((v) => v.id === FEATURED_ID);
   batchWrites.push(
-    db.doc(`users/${uid}/progress/${FEATURED_ID}`).set({
+    // Progress doc ids are the videoId VALUE (the Player writes
+    // `progress/{videoId}` with a deterministic id), so mapped fixtures key
+    // by the real id.
+    db.doc(`users/${uid}/progress/${realId(FEATURED_ID)}`).set({
       kind: "video",
-      videoId: FEATURED_ID,
+      videoId: realId(FEATURED_ID),
       playlistId: "ed-p1",
       positionSeconds: 767, // 12:47 into 23:14 — the mock's 0.55.
       durationSeconds: featured.sec,
@@ -338,7 +356,7 @@ async function main() {
   notes.forEach(([t, text], i) => {
     batchWrites.push(
       db.doc(`users/${uid}/notes/ed-note-${i + 1}`).set({
-        videoId: FEATURED_ID,
+        videoId: realId(FEATURED_ID),
         playlistId: "ed-p1",
         t,
         text,
@@ -356,7 +374,7 @@ async function main() {
   highlights.forEach(([segmentStart, text], i) => {
     batchWrites.push(
       db.doc(`users/${uid}/highlights/ed-hl-${i + 1}`).set({
-        videoId: FEATURED_ID,
+        videoId: realId(FEATURED_ID),
         segmentStart,
         text,
         createdAt: daysAgo(2),
@@ -367,8 +385,10 @@ async function main() {
   // Transcripts: featured (mock paragraphs) + 2,000-paragraph stressor.
   // ed-v10 deliberately gets NO transcript doc (the no-transcript state).
   batchWrites.push(
-    db.doc(`transcripts/${FEATURED_ID}`).set({
-      videoId: FEATURED_ID,
+    // Transcript doc ids are the videoId VALUE (the app observes
+    // `transcripts/{videoId}` and searchTranscripts returns the videoId).
+    db.doc(`transcripts/${realId(FEATURED_ID)}`).set({
+      videoId: realId(FEATURED_ID),
       status: "available",
       source: "youtubei",
       language: "en",
@@ -384,8 +404,8 @@ async function main() {
       "design language honest across platforms and years of churn.",
   }));
   batchWrites.push(
-    db.doc("transcripts/ed-v02").set({
-      videoId: "ed-v02",
+    db.doc(`transcripts/${realId("ed-v02")}`).set({
+      videoId: realId("ed-v02"),
       status: "available",
       source: "youtubei",
       language: "en",
@@ -397,8 +417,8 @@ async function main() {
 
   // Summary with structured chapters (the summarizer-chapters fixture).
   batchWrites.push(
-    db.doc(`summaries/${FEATURED_ID}`).set({
-      videoId: FEATURED_ID,
+    db.doc(`summaries/${realId(FEATURED_ID)}`).set({
+      videoId: realId(FEATURED_ID),
       status: "completed",
       model: "free",
       content: FEATURED_SUMMARY_CONTENT,

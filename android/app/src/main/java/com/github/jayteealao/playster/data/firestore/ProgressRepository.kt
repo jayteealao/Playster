@@ -1,6 +1,8 @@
 package com.github.jayteealao.playster.data.firestore
 
+import android.content.Context
 import android.util.Log
+import com.github.jayteealao.playster.data.ProgressFaultGate
 import com.github.jayteealao.playster.data.auth.FirebaseAuthBridge
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
@@ -10,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -42,6 +45,7 @@ private const val HEX_RADIX = 16
 class ProgressRepository
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val firestore: FirebaseFirestore,
         private val authBridge: FirebaseAuthBridge,
     ) {
@@ -123,6 +127,13 @@ class ProgressRepository
                     "updatedAt" to FieldValue.serverTimestamp(),
                 )
             try {
+                // Debug-only fault seam (release twin is always false): an armed
+                // gate throws HERE so the real failure branch below fires once
+                // under a live drive — the only way to exercise this dark path,
+                // since a conforming client can never provoke a rules denial.
+                check(!ProgressFaultGate.consumeArmed(context)) {
+                    "debug progress-fault injection: forced write failure"
+                }
                 collection.document(videoId).set(data, SetOptions.merge()).await()
             } catch (e: Exception) {
                 val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
