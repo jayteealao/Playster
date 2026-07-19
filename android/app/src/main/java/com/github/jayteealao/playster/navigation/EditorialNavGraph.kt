@@ -22,8 +22,8 @@ import com.github.jayteealao.playster.screens.home.HomeScreen
 import com.github.jayteealao.playster.screens.player.PlayerScreen
 import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
 import com.github.jayteealao.playster.screens.search.SearchScreen
+import com.github.jayteealao.playster.screens.settings.SettingsScreen
 import com.github.jayteealao.playster.screens.transcript.TranscriptScreen
-import com.github.jayteealao.playster.ui.editorial.chrome.SettingsRouteSkeleton
 
 /** The mock's `edFade`: 250ms ease-out, entering screen only. */
 private const val ED_FADE_DURATION_MS = 250
@@ -113,6 +113,9 @@ fun EditorialNavGraph(
             },
         )
     },
+    // Sign-out needs no nav callback here: the session gate above redirects to
+    // Auth on the `loggedIn` flip. The Hilt-free default keeps the graph testable.
+    settingsContent: @Composable () -> Unit = { SettingsScreen() },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -191,7 +194,7 @@ fun EditorialNavGraph(
             searchContent()
         }
         composable(EditorialRoutes.SETTINGS) {
-            SettingsRouteSkeleton()
+            settingsContent()
         }
     }
 }

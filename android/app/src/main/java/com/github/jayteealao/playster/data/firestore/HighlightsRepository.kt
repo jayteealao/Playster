@@ -45,6 +45,22 @@ class HighlightsRepository
         private val firestore: FirebaseFirestore,
         private val authBridge: FirebaseAuthBridge,
     ) {
+        /**
+         * Every highlight this reader has made, newest first — the Settings
+         * "highlights this week" stat aggregates the last 7 days off this stream.
+         * A missing uid short-circuits to empty, the same signed-out posture the
+         * per-video query takes.
+         */
+        fun allHighlightsFlow(): Flow<List<HighlightDoc>> {
+            val uid = authBridge.currentUid.value?.takeIf { it.isNotBlank() } ?: return flowOf(emptyList())
+            return firestore
+                .collection("users")
+                .document(uid)
+                .collection("highlights")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .highlightsFlow()
+        }
+
         /** Highlights for one video, earliest segment first — the transcript merge query. */
         fun highlightsByVideoFlow(videoId: String): Flow<List<HighlightDoc>> {
             val uid = authBridge.currentUid.value?.takeIf { it.isNotBlank() }

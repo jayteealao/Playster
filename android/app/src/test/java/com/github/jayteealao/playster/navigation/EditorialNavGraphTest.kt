@@ -52,7 +52,9 @@ class EditorialNavGraphTest {
             // Search is a real screen now (not a skeleton), hosted behind the
             // Hilt-free searchContent slot, tagged here for the route-resolves check.
             EditorialRoutes.SEARCH to "search-content",
-            EditorialRoutes.SETTINGS to "route-skeleton-settings",
+            // Settings is a real screen now (not a skeleton), hosted behind the
+            // Hilt-free settingsContent slot, tagged here for the route-resolves check.
+            EditorialRoutes.SETTINGS to "settings-content",
             EditorialRoutes.AUTH to "auth-cover",
         ).forEach { (route, skeletonTag) ->
             navigate(route)
@@ -150,6 +152,7 @@ class EditorialNavGraphTest {
                     playerContent = { Box(Modifier.fillMaxSize().testTag("player-content")) },
                     transcriptContent = { Box(Modifier.fillMaxSize().testTag("transcript-content")) },
                     searchContent = { Box(Modifier.fillMaxSize().testTag("search-content")) },
+                    settingsContent = { Box(Modifier.fillMaxSize().testTag("settings-content")) },
                 )
             }
         }

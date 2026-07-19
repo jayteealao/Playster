@@ -97,6 +97,22 @@ class SettingsManager
             }
         }
 
+        // Default playback speed. Stored as a string (mirroring the face/size keys)
+        // so a corrupt/absent value resolves to 1.0x rather than crashing the
+        // Float mapper; the Player seeds its starting speed from this, and the
+        // controller snaps whatever it gets to the nearest supported YouTube rate.
+        private val editorialDefaultSpeedKey = stringPreferencesKey("editorial_default_speed")
+        val defaultSpeed: Flow<Float> =
+            dataStore.data.map { preferences ->
+                preferences[editorialDefaultSpeedKey]?.toFloatOrNull() ?: DEFAULT_SPEED
+            }
+
+        suspend fun setDefaultSpeed(rate: Float) {
+            dataStore.edit { preferences ->
+                preferences[editorialDefaultSpeedKey] = rate.toString()
+            }
+        }
+
         suspend fun getAccount(): Flow<Account?> {
             return combine(accountName, accountType) { name, type ->
                 if (name.isNotBlank() && type.isNotBlank()) {
@@ -105,5 +121,9 @@ class SettingsManager
                     return@combine null
                 }
             }
+        }
+
+        private companion object {
+            const val DEFAULT_SPEED = 1.0f
         }
     }

@@ -77,6 +77,7 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val defaultSpeed by viewModel.defaultSpeed.collectAsStateWithLifecycle()
     when (val current = state) {
         is PlayerUiState.Content ->
             LivePlayer(
@@ -84,6 +85,7 @@ fun PlayerScreen(
                 viewModel = viewModel,
                 onBack = onBack,
                 onOpenTranscript = onOpenTranscript,
+                initialSpeed = defaultSpeed,
                 modifier = modifier,
             )
         else ->
@@ -114,6 +116,7 @@ private fun LivePlayer(
     viewModel: PlayerViewModel,
     onBack: () -> Unit,
     onOpenTranscript: (String) -> Unit,
+    initialSpeed: Float,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -182,6 +185,7 @@ private fun LivePlayer(
         onOpenTranscript = { onOpenTranscript(content.videoId) },
         onRetry = viewModel::retry,
         videoSlot = { m -> YouTubePlayerHost(session = viewModel.playbackSession, modifier = m) },
+        initialSpeed = initialSpeed,
         modifier = modifier,
     )
 }
@@ -223,6 +227,7 @@ fun PlayerContent(
     videoSlot: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: Int = TAB_SUMMARY,
+    initialSpeed: Float = 1f,
 ) {
     Column(modifier = modifier.fillMaxSize().testTag("player-content")) {
         EditorialAppBar(
@@ -267,6 +272,7 @@ fun PlayerContent(
                     onRetry = onRetry,
                     videoSlot = videoSlot,
                     initialTab = initialTab,
+                    initialSpeed = initialSpeed,
                     modifier = Modifier.weight(1f),
                 )
         }
@@ -291,10 +297,21 @@ private fun LoadedBody(
     onRetry: () -> Unit,
     videoSlot: @Composable (Modifier) -> Unit,
     initialTab: Int,
+    initialSpeed: Float,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(initialTab) }
-    var speed by rememberSaveable { mutableFloatStateOf(1f) }
+    var speed by rememberSaveable { mutableFloatStateOf(initialSpeed) }
+    // AC5: apply the Settings default speed once, the first time the embed leaves
+    // Loading — the controller then snaps it to the nearest supported rate. Guarded
+    // so a later manual speed pick is never overridden by a state re-emission.
+    var appliedInitialSpeed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(playbackState) {
+        if (!appliedInitialSpeed && playbackState !is PlaybackState.Loading) {
+            if (initialSpeed != 1f) onSetSpeed(initialSpeed)
+            appliedInitialSpeed = true
+        }
+    }
     val playbackError = (playbackState as? PlaybackState.Error)?.error
 
     Column(modifier = modifier) {

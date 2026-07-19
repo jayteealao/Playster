@@ -266,6 +266,12 @@ async function main() {
   });
 
   // Progress spread: fresh / mid / nearly-done; untouched videos have no doc.
+  // This spread doubles as the Settings-stats fixture: the video-progress
+  // updatedAt values below span minutesAgo(5) / daysAgo(1,2,4,6) — a live
+  // streak reaching today plus in-week positionSeconds for "hours this week" —
+  // and the highlights further down carry createdAt daysAgo(2) for "highlights
+  // this week". SettingsStatsAssembler's arithmetic is proven exactly at the
+  // JVM layer; this corpus is the on-device render fixture (settings AC1/AC3/AC6).
   const featured = P1_VIDEOS.find((v) => v.id === FEATURED_ID);
   batchWrites.push(
     db.doc(`users/${uid}/progress/${FEATURED_ID}`).set({

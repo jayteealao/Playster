@@ -28,6 +28,14 @@ class FirebaseAuthBridge
         private val _currentUid = MutableStateFlow(firebaseAuth.currentUser?.uid)
         val currentUid: StateFlow<String?> = _currentUid.asStateFlow()
 
+        /** The signed-in user's Google display name, for the Settings masthead. */
+        val currentDisplayName: String?
+            get() = firebaseAuth.currentUser?.displayName
+
+        /** When this account was created (epoch millis) — the "subscriber since" line. */
+        val accountCreatedAtMillis: Long?
+            get() = firebaseAuth.currentUser?.metadata?.creationTimestamp
+
         private val authStateListener =
             FirebaseAuth.AuthStateListener { auth ->
                 val uid = auth.currentUser?.uid

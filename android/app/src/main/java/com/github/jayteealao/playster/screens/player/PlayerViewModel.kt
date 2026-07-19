@@ -3,6 +3,7 @@ package com.github.jayteealao.playster.screens.player
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.jayteealao.playster.SettingsManager
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
 import com.github.jayteealao.playster.data.firestore.NotesRepository
 import com.github.jayteealao.playster.data.firestore.ProgressRepository
@@ -57,6 +58,7 @@ class PlayerViewModel
         private val notesRepository: NotesRepository,
         private val descriptionSource: YouTubeDescriptionSource,
         private val summaryFunctions: SummaryFunctions,
+        settingsManager: SettingsManager,
         /**
          * The activity-shared embed. Exposed so the screen can render the one
          * retained player and so it is the *same* instance the Transcript route
@@ -67,6 +69,18 @@ class PlayerViewModel
     ) : ViewModel() {
         private val videoId: String = savedStateHandle[EditorialRoutes.ARG_VIDEO_ID] ?: ""
         private val navPlaylistId: String? = savedStateHandle[EditorialRoutes.ARG_PLAYLIST_ID]
+
+        /**
+         * The Settings default-speed preference (AC5). The screen seeds the initial
+         * playback speed from this and applies it once the embed is ready; the
+         * controller snaps it to the nearest supported YouTube rate. Absent → 1.0×.
+         */
+        val defaultSpeed: StateFlow<Float> =
+            settingsManager.defaultSpeed.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                initialValue = 1.0f,
+            )
 
         private val retryTrigger = MutableStateFlow(0)
         private val throttle = ProgressWriteThrottle()

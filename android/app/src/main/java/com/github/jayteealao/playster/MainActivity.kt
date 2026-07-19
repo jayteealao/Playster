@@ -3,6 +3,7 @@ package com.github.jayteealao.playster
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,6 +13,7 @@ import com.github.jayteealao.playster.screens.auth.AuthViewModel
 import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import com.github.jayteealao.playster.ui.editorial.EditorialThemeGate
+import com.github.jayteealao.playster.ui.editorial.ReadingPreferencesStore
 import com.github.jayteealao.playster.ui.editorial.chrome.EditorialAppScaffold
 import com.github.jayteealao.playster.ui.editorial.chrome.applyEditorialSystemBars
 import dagger.hilt.android.AndroidEntryPoint
@@ -24,8 +26,10 @@ import javax.inject.Inject
  * transparent over the paper field; the scaffold + graph carry the whole
  * seven-route IA.
  *
- * Face, size, and line-height render at their defaults here — the settings
- * screen slice wires the live preference flows when it lands.
+ * The live reading preferences ([ReadingPreferencesStore]) are collected into
+ * [EditorialTheme] here, so picking a paper/face/size/line-height in Settings
+ * re-themes the whole running tree without a restart. A palette change also
+ * re-applies the system bars, so Night flips to dark chrome live.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -37,14 +41,31 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var playbackSession: PlaybackSession
 
+    /** The live reading-preferences bridge — its flows drive [EditorialTheme]. */
+    @Inject
+    lateinit var readingPreferences: ReadingPreferencesStore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         EditorialThemeGate.applyPreSetContent(this)
         EditorialThemeGate.syncSplashTheme(this)
         super.onCreate(savedInstanceState)
-        val palette = EditorialThemeGate.savedPalette(this)
-        applyEditorialSystemBars(this, palette)
+        applyEditorialSystemBars(this, EditorialThemeGate.savedPalette(this))
         setContent {
-            EditorialTheme(palette = palette) {
+            val palette by readingPreferences.palette.collectAsStateWithLifecycle()
+            val face by readingPreferences.face.collectAsStateWithLifecycle()
+            val sizeStep by readingPreferences.sizeStep.collectAsStateWithLifecycle()
+            val lineHeightStep by readingPreferences.lineHeightStep.collectAsStateWithLifecycle()
+
+            // Re-apply the transparent edge-to-edge bars whenever the paper
+            // changes so a live Night switch flips the system-bar icons dark.
+            LaunchedEffect(palette) { applyEditorialSystemBars(this@MainActivity, palette) }
+
+            EditorialTheme(
+                palette = palette,
+                face = face,
+                sizeStep = sizeStep,
+                lineHeightStep = lineHeightStep,
+            ) {
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = hiltViewModel()
                 val loggedIn by authViewModel.loggedIn.collectAsStateWithLifecycle()
