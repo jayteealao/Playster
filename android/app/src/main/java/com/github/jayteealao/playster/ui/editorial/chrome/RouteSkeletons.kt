@@ -19,17 +19,6 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialLoadingNo
  * screen took over its route.
  */
 
-/** Search placeholder. */
-@Composable
-fun SearchRouteSkeleton(modifier: Modifier = Modifier) {
-    RouteSkeleton(
-        routeTag = "search",
-        kicker = "Find Anywhere",
-        waitingLine = "The index is being compiled.",
-        modifier = modifier,
-    )
-}
-
 /** Settings placeholder. */
 @Composable
 fun SettingsRouteSkeleton(modifier: Modifier = Modifier) {

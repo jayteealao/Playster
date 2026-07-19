@@ -49,7 +49,9 @@ class EditorialNavGraphTest {
             // Transcript is a real screen now (not a skeleton), hosted behind the
             // Hilt-free transcriptContent slot, tagged here for the route-resolves check.
             EditorialRoutes.transcript("VID_1") to "transcript-content",
-            EditorialRoutes.SEARCH to "route-skeleton-search",
+            // Search is a real screen now (not a skeleton), hosted behind the
+            // Hilt-free searchContent slot, tagged here for the route-resolves check.
+            EditorialRoutes.SEARCH to "search-content",
             EditorialRoutes.SETTINGS to "route-skeleton-settings",
             EditorialRoutes.AUTH to "auth-cover",
         ).forEach { (route, skeletonTag) ->
@@ -147,6 +149,7 @@ class EditorialNavGraphTest {
                     playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
                     playerContent = { Box(Modifier.fillMaxSize().testTag("player-content")) },
                     transcriptContent = { Box(Modifier.fillMaxSize().testTag("transcript-content")) },
+                    searchContent = { Box(Modifier.fillMaxSize().testTag("search-content")) },
                 )
             }
         }

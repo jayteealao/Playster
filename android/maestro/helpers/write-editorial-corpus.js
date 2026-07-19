@@ -142,6 +142,12 @@ const P2_VIDEOS = [
 const FEATURED_ID = "ed-v09";
 
 // Mock transcript paragraphs (t in seconds, speaker folded into text).
+//
+// Search verify needle (search-screen AC2, deterministic jump-to-T target):
+// the phrase "paint bucket" occurs ONLY in the t=78 segment below, so the
+// query "paint bucket" yields exactly one transcript hit whose start is 78s —
+// tapping it must land the Transcript on that paragraph. Keep this phrase
+// unique across the corpus so the AC2 landing screenshot stays deterministic.
 const FEATURED_TRANSCRIPT = [
   [0, "Alright, let's just get into it. I've been thinking a lot about why design systems plateau."],
   [8, "You ship the first wave, everyone's happy, the demo GIF goes viral."],

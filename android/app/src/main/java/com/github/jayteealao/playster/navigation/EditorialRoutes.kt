@@ -18,6 +18,15 @@ object EditorialRoutes {
     const val ARG_PLAYLIST_ID = "playlistId"
     const val ARG_VIDEO_ID = "videoId"
 
+    /**
+     * Optional start position (seconds) for the transcript route — the Search
+     * screen's jump-to-timestamp deep link cues the shared embed at this second
+     * so the Transcript lands on the matched paragraph. Absent for every other
+     * entry point (the header/player/playlist links open at 0), so the arg is
+     * nullable and defaulted — those callers stay byte-compatible.
+     */
+    const val ARG_START_SECONDS = "t"
+
     const val PLAYLIST = "playlist/{$ARG_PLAYLIST_ID}"
 
     /**
@@ -29,7 +38,7 @@ object EditorialRoutes {
      * still works — the query arg is backward-compatible.
      */
     const val PLAYER = "player/{$ARG_VIDEO_ID}?$ARG_PLAYLIST_ID={$ARG_PLAYLIST_ID}"
-    const val TRANSCRIPT = "transcript/{$ARG_VIDEO_ID}"
+    const val TRANSCRIPT = "transcript/{$ARG_VIDEO_ID}?$ARG_START_SECONDS={$ARG_START_SECONDS}"
 
     /** Concrete route for one playlist volume. */
     fun playlist(playlistId: String): String = "playlist/$playlistId"
@@ -45,8 +54,22 @@ object EditorialRoutes {
             "player/$videoId?$ARG_PLAYLIST_ID=$playlistId"
         }
 
-    /** Concrete route for one episode's transcript. */
-    fun transcript(videoId: String): String = "transcript/$videoId"
+    /**
+     * Concrete route for one episode's transcript, optionally cued at a start
+     * position. The bare `transcript(videoId)` call (no [startSeconds]) yields
+     * exactly the old `transcript/$videoId` string, so existing callers are
+     * untouched; the Search jump-to-timestamp deep link passes the matched
+     * segment's start so the shared embed cues there.
+     */
+    fun transcript(
+        videoId: String,
+        startSeconds: Double? = null,
+    ): String =
+        if (startSeconds == null) {
+            "transcript/$videoId"
+        } else {
+            "transcript/$videoId?$ARG_START_SECONDS=$startSeconds"
+        }
 
     /**
      * Which bottom-nav tab reads as active for a route — the prototype's

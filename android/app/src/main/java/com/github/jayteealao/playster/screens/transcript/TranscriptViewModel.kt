@@ -67,18 +67,32 @@ class TranscriptViewModel
     ) : ViewModel() {
         private val videoId: String = savedStateHandle[EditorialRoutes.ARG_VIDEO_ID] ?: ""
 
+        /**
+         * Optional deep-link cue position (seconds) — the Search jump-to-timestamp
+         * link sets `?t=`, every other entry point leaves it null. Parsed once;
+         * a malformed value degrades to 0f (open at the top) rather than crashing.
+         */
+        private val startSeconds: Float =
+            (savedStateHandle.get<String>(EditorialRoutes.ARG_START_SECONDS))
+                ?.toFloatOrNull()
+                ?.coerceAtLeast(0f)
+                ?: 0f
+
         @Volatile private var resolvedPlaylistId: String = ""
 
         /**
          * The one shared controller for this video — the same instance the Player
          * holds if the reader came from there (playback continues), or a freshly
-         * cued one on a deep-link entry. Read by the UI for the position stream,
-         * the pill's play/pause, and tap-to-seek.
+         * cued one on a deep-link entry. A Search deep link cues at [startSeconds]
+         * (paused — the existing follow-scroll then lands and marks the matched
+         * paragraph active, no faked playing state); every other entry cues at 0.
+         * Read by the UI for the position stream, the pill's play/pause, and
+         * tap-to-seek.
          */
         val controller: PlaybackController =
             playbackSession.controllerFor(
                 videoId = videoId,
-                startPositionSeconds = 0f,
+                startPositionSeconds = startSeconds,
                 isOffline = { isDeviceOffline(appContext) },
             )
 

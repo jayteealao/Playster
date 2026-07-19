@@ -96,6 +96,9 @@ class EditorialSessionGateTest {
                     authContent = { AuthCoverPage(state = AuthUiState.Idle, onSignIn = {}) },
                     homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
                     playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
+                    // Search is a real Hilt screen now; the mid-session route hop
+                    // uses a Hilt-free stand-in to keep the gate JVM-testable.
+                    searchContent = { Box(Modifier.fillMaxSize().testTag("search-content")) },
                 )
             }
         }

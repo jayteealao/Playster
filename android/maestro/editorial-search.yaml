@@ -1,0 +1,48 @@
+appId: com.github.jayteealao.playster
+name: editorial-search (search-screen AC1/AC2/AC5)
+# Drives the hybrid Search over the seeded corpus + Firebase emulator:
+#   AC1 — typing a title fragment yields instant results with ZERO callable hits
+#         (assert against the functions-emulator request log: no `searchTranscripts`
+#         call for the client half — read off the accompanying log capture).
+#   AC2 — a transcript query ("paint bucket", the seeded unique needle @ t=78s)
+#         renders a snippet + JUMP TO, and tapping it lands in the Transcript with
+#         the matched paragraph active (screencap the landing).
+#   AC5 — with the functions emulator STOPPED, the transcript group shows the
+#         editorial error while title results keep rendering, and the
+#         `transcript_search_error` line fires (assert via lazylogcat on
+#         `playster.search`).
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces match with `id:`.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`):
+#   1. firebase emulators:start --only auth,firestore,functions
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (carries the "paint bucket" needle @ t=78)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+---
+- launchApp
+# Reach Search from the home app-bar search action.
+- tapOn:
+    id: "search-input"
+- assertVisible:
+    id: "search-content"
+# AC1 — instant title match, no round-trip (the functions log proves zero calls).
+- inputText: "Tokens"
+- assertVisible:
+    id: "search-result-video-.*"
+# AC2 — transcript needle: the seeded "paint bucket" @ t=78 renders + jumps to T.
+- tapOn:
+    id: "search-clear"
+- inputText: "paint bucket"
+- assertVisible:
+    id: "search-result-transcript-.*"
+- tapOn:
+    id: "search-result-transcript-.*"
+- assertVisible:
+    id: "transcript-content"
+# The landing paragraph active-at-T is the pixel/motion evidence read off the
+# screen recording (Maestro cannot assert the active line itself).
+- assertVisible:
+    id: "transcript-list"

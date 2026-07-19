@@ -21,8 +21,8 @@ import com.github.jayteealao.playster.screens.auth.AuthScreen
 import com.github.jayteealao.playster.screens.home.HomeScreen
 import com.github.jayteealao.playster.screens.player.PlayerScreen
 import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
+import com.github.jayteealao.playster.screens.search.SearchScreen
 import com.github.jayteealao.playster.screens.transcript.TranscriptScreen
-import com.github.jayteealao.playster.ui.editorial.chrome.SearchRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SettingsRouteSkeleton
 
 /** The mock's `edFade`: 250ms ease-out, entering screen only. */
@@ -100,6 +100,19 @@ fun EditorialNavGraph(
             },
         )
     },
+    searchContent: @Composable () -> Unit = {
+        SearchScreen(
+            onOpenTranscriptAt = { videoId, startSeconds ->
+                navController.navigate(EditorialRoutes.transcript(videoId, startSeconds))
+            },
+            onOpenPlayer = { videoId ->
+                navController.navigate(EditorialRoutes.player(videoId))
+            },
+            onOpenPlaylist = { playlistId ->
+                navController.navigate(EditorialRoutes.playlist(playlistId))
+            },
+        )
+    },
 ) {
     val riseOffsetPx = with(LocalDensity.current) { ED_FADE_RISE.roundToPx() }
     val edFadeEnter =
@@ -165,12 +178,17 @@ fun EditorialNavGraph(
             arguments =
                 listOf(
                     navArgument(EditorialRoutes.ARG_VIDEO_ID) { type = NavType.StringType },
+                    navArgument(EditorialRoutes.ARG_START_SECONDS) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
                 ),
         ) { entry ->
             transcriptContent(entry.arguments?.getString(EditorialRoutes.ARG_VIDEO_ID).orEmpty())
         }
         composable(EditorialRoutes.SEARCH) {
-            SearchRouteSkeleton()
+            searchContent()
         }
         composable(EditorialRoutes.SETTINGS) {
             SettingsRouteSkeleton()

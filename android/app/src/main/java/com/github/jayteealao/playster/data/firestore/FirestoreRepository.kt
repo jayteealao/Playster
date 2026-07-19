@@ -77,6 +77,27 @@ class FirestoreRepository
                         .filter { it.title.isNotBlank() }
                 }
 
+        /**
+         * Every video across every playlist, each paired with the playlist it
+         * lives under (path-derived, like [videoContextFlow]). Backs the Search
+         * screen's instant, as-you-type title match — the filter runs in-memory
+         * over this flow with zero network round-trip (AC1). Blank-title orphan
+         * rows are hidden, exactly as [videosFlow] hides them. At this app's
+         * personal-corpus scale a full collection-group read is the same cost
+         * model the backend search itself assumes.
+         */
+        fun allVideosWithContextFlow(): Flow<List<VideoWithContext>> =
+            firestore.collectionGroup("videos").asCollectionFlow(
+                tag = TAG,
+                logLabel = "allVideosWithContextFlow",
+            ) { snap ->
+                snap.documents.mapNotNull { doc ->
+                    val video = doc.toObject(VideoDoc::class.java) ?: return@mapNotNull null
+                    if (video.title.isBlank()) return@mapNotNull null
+                    VideoWithContext(video, doc.reference.parent.parent?.id ?: "")
+                }
+            }
+
         fun videoFlow(videoId: String): Flow<VideoDoc?> =
             callbackFlow {
                 val listener =
