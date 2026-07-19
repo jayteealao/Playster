@@ -19,20 +19,6 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialLoadingNo
  * screen took over its route.
  */
 
-/** Transcript placeholder. */
-@Composable
-fun TranscriptRouteSkeleton(
-    videoId: String,
-    modifier: Modifier = Modifier,
-) {
-    RouteSkeleton(
-        routeTag = "transcript",
-        kicker = "Transcript · $videoId",
-        waitingLine = "The transcript is being set, line by line.",
-        modifier = modifier,
-    )
-}
-
 /** Search placeholder. */
 @Composable
 fun SearchRouteSkeleton(modifier: Modifier = Modifier) {

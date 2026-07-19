@@ -13,6 +13,7 @@ import com.github.jayteealao.playster.data.youtube.YouTubeDescriptionSource
 import com.github.jayteealao.playster.functions.SummaryFunctions
 import com.github.jayteealao.playster.navigation.EditorialRoutes
 import com.github.jayteealao.playster.screens.player.chapters.ChaptersResolver
+import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.screens.videoDetail.summary.mapSummaryDocToState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +57,13 @@ class PlayerViewModel
         private val notesRepository: NotesRepository,
         private val descriptionSource: YouTubeDescriptionSource,
         private val summaryFunctions: SummaryFunctions,
+        /**
+         * The activity-shared embed. Exposed so the screen can render the one
+         * retained player and so it is the *same* instance the Transcript route
+         * consumes — the mechanism behind a continuously visible mini-embed that
+         * survives Player→Transcript navigation.
+         */
+        val playbackSession: PlaybackSession,
     ) : ViewModel() {
         private val videoId: String = savedStateHandle[EditorialRoutes.ARG_VIDEO_ID] ?: ""
         private val navPlaylistId: String? = savedStateHandle[EditorialRoutes.ARG_PLAYLIST_ID]

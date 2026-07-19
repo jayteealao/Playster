@@ -5,71 +5,39 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.getSystemService
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 
 /**
- * The playback surface: an [AndroidView] hosting a [YouTubePlayerView], the
- * only ToS-compliant path (the official IFrame embed in a WebView). The view is
- * `remember`ed keyed on the videoId so it survives recomposition — including the
- * panel's collapse/expand height animation — and the WebView is never
- * detached/re-inited across those changes (the continuity the Masthead-band
- * panel contract requires).
+ * The playback surface: an [AndroidView] rendering the shared [PlaybackSession]'s
+ * single retained [com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView]
+ * — the only ToS-compliant path (the official IFrame embed in a WebView). The
+ * view is created and initialized once by the session and *re-parented* here
+ * across recomposition and across routes, so the WebView is never detached or
+ * re-inited on a mere route change (the continuity the Masthead-band panel and
+ * the Transcript mini-embed both require, and the mechanism that lets one embed
+ * survive Player→Transcript navigation).
  *
- * Automatic initialization is disabled so we can pass [IFramePlayerOptions] with
- * the web UI turned off (`controls(0)` — the editorial controls are ours),
- * related-video and annotation chrome suppressed, and the fullscreen button
- * hidden. `handleNetworkEvents = true` lets the library register its own
- * reconnection receiver; the origin defaults to `https://<packageName>`, and the
- * library serves the player from a bundled HTML asset with hardware
- * acceleration, which together keep the REQUEST_MISSING_HTTP_REFERER (153) path
- * from firing under normal conditions (source:
- * .scratch/sources/ayp/core/.../options/IFramePlayerOptions.kt at tag 13.0.0 —
- * `origin` defaults to `https://${context.packageName}`).
- *
- * The view is registered as a lifecycle observer so it pauses on `ON_STOP` and
- * releases on `ON_DESTROY`; the [DisposableEffect] also releases it when the
- * host leaves composition.
+ * The [DisposableEffect] tells the session a playback surface is on screen
+ * ([PlaybackSession.attach] / [PlaybackSession.detach]); the session pauses the
+ * embed when the last surface leaves and none re-attaches, so nothing plays off
+ * a visible surface (C5). Initialization options (`controls(0)`, no related
+ * videos, no fullscreen) and the lifecycle/network wiring now live on the
+ * session.
  */
 @Composable
 fun YouTubePlayerHost(
-    controller: PlaybackController,
-    videoId: String,
+    session: PlaybackSession,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    val playerView =
-        remember(videoId) {
-            YouTubePlayerView(context).apply {
-                enableAutomaticInitialization = false
-            }
-        }
-
-    DisposableEffect(playerView, controller) {
-        val options =
-            IFramePlayerOptions.Builder(context)
-                .controls(0)
-                .rel(0)
-                .ivLoadPolicy(3)
-                .fullscreen(0)
-                .build()
-        playerView.initialize(controller.listener, handleNetworkEvents = true, playerOptions = options)
-        lifecycleOwner.lifecycle.addObserver(playerView)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(playerView)
-            playerView.release()
-        }
+    DisposableEffect(session) {
+        session.attach()
+        onDispose { session.detach() }
     }
-
-    AndroidView(factory = { playerView }, modifier = modifier)
+    AndroidView(factory = { session.view(context) }, modifier = modifier)
 }
 
 /**

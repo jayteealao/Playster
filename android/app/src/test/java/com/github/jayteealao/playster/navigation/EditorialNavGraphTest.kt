@@ -46,7 +46,9 @@ class EditorialNavGraphTest {
         listOf(
             EditorialRoutes.playlist("PL_1") to "playlist-content",
             EditorialRoutes.player("VID_1") to "player-content",
-            EditorialRoutes.transcript("VID_1") to "route-skeleton-transcript",
+            // Transcript is a real screen now (not a skeleton), hosted behind the
+            // Hilt-free transcriptContent slot, tagged here for the route-resolves check.
+            EditorialRoutes.transcript("VID_1") to "transcript-content",
             EditorialRoutes.SEARCH to "route-skeleton-search",
             EditorialRoutes.SETTINGS to "route-skeleton-settings",
             EditorialRoutes.AUTH to "auth-cover",
@@ -144,6 +146,7 @@ class EditorialNavGraphTest {
                     homeContent = { Box(Modifier.fillMaxSize().testTag("home-content")) },
                     playlistContent = { Box(Modifier.fillMaxSize().testTag("playlist-content")) },
                     playerContent = { Box(Modifier.fillMaxSize().testTag("player-content")) },
+                    transcriptContent = { Box(Modifier.fillMaxSize().testTag("transcript-content")) },
                 )
             }
         }

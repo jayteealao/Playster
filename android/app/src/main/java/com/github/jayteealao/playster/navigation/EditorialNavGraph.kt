@@ -21,9 +21,9 @@ import com.github.jayteealao.playster.screens.auth.AuthScreen
 import com.github.jayteealao.playster.screens.home.HomeScreen
 import com.github.jayteealao.playster.screens.player.PlayerScreen
 import com.github.jayteealao.playster.screens.playlist.PlaylistScreen
+import com.github.jayteealao.playster.screens.transcript.TranscriptScreen
 import com.github.jayteealao.playster.ui.editorial.chrome.SearchRouteSkeleton
 import com.github.jayteealao.playster.ui.editorial.chrome.SettingsRouteSkeleton
-import com.github.jayteealao.playster.ui.editorial.chrome.TranscriptRouteSkeleton
 
 /** The mock's `edFade`: 250ms ease-out, entering screen only. */
 private const val ED_FADE_DURATION_MS = 250
@@ -87,6 +87,16 @@ fun EditorialNavGraph(
                 navController.navigate(
                     EditorialRoutes.transcript(videoId.ifEmpty { SAMPLE_VIDEO_ID }),
                 )
+            },
+        )
+    },
+    transcriptContent: @Composable (String) -> Unit = { videoId ->
+        TranscriptScreen(
+            onBack = { navController.popBackStack() },
+            onOpenPlayer = {
+                navController.navigate(EditorialRoutes.player(videoId)) {
+                    launchSingleTop = true
+                }
             },
         )
     },
@@ -157,9 +167,7 @@ fun EditorialNavGraph(
                     navArgument(EditorialRoutes.ARG_VIDEO_ID) { type = NavType.StringType },
                 ),
         ) { entry ->
-            TranscriptRouteSkeleton(
-                videoId = entry.arguments?.getString(EditorialRoutes.ARG_VIDEO_ID).orEmpty(),
-            )
+            transcriptContent(entry.arguments?.getString(EditorialRoutes.ARG_VIDEO_ID).orEmpty())
         }
         composable(EditorialRoutes.SEARCH) {
             SearchRouteSkeleton()

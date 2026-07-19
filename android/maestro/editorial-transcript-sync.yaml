@@ -1,0 +1,63 @@
+appId: com.github.jayteealao.playster
+name: editorial-transcript-sync (AC1/AC4)
+# Drives the Transcript over the shared, still-live embed: the Masthead-strip
+# mini-embed stays visible while reading (Option 1 / C5 — read off the recording),
+# auto-scroll follows the active line, tapping a paragraph seeks playback (AC1),
+# and the mini-player pill toggles play/pause with its readout tracking the
+# stream (AC4). The active-line advance and the pill readout are live-embed
+# behavior — this flow asserts the driven surfaces; the visible sync + the
+# continuously-visible band are read off the accompanying screen recording (the
+# pixel/motion evidence Maestro can't assert).
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces match with `id:`.
+#
+# Fixture (verify-pinned — Assumption 2): the seeded episode carries a CURATED,
+# EMBEDDABLE public videoId and a seeded transcript with timestamped segments;
+# concrete ids pinned at the verify run and recorded in
+# verify-evidence/transcript-screen/.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`):
+#   1. firebase emulators:start --only auth,firestore
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (with the curated real videoIds + transcript)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+---
+- launchApp
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "player-content"
+# Start playback on the player, then open the standalone Transcript route — the
+# embed must survive the nav and keep playing (recording proves visible + live).
+- tapOn:
+    id: "player-play-pause"
+- tapOn:
+    text: "Transcript"
+- assertVisible:
+    id: "transcript-content"
+- assertVisible:
+    id: "transcript-embed"
+- assertVisible:
+    id: "transcript-list"
+- assertVisible:
+    id: "transcript-mini-player"
+# AC1 — tap a paragraph to seek; the active line + playback jump (recording).
+- tapOn:
+    id: "transcript-list"
+# Manual scroll pauses following; "Resume following" re-arms it (Assumption 3).
+- swipe:
+    from:
+      id: "transcript-list"
+    direction: UP
+- assertVisible:
+    id: "transcript-resume-following"
+- tapOn:
+    id: "transcript-resume-following"
+# AC4 — the pill's glyph toggles play/pause with the readout tracking the stream
+# (on the recording); tapping the pill body returns to the Player (mock behavior).
+- tapOn:
+    id: "transcript-mini-player"
+- assertVisible:
+    id: "player-content"

@@ -9,11 +9,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.github.jayteealao.playster.navigation.EditorialNavGraph
 import com.github.jayteealao.playster.screens.auth.AuthViewModel
+import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import com.github.jayteealao.playster.ui.editorial.EditorialThemeGate
 import com.github.jayteealao.playster.ui.editorial.chrome.EditorialAppScaffold
 import com.github.jayteealao.playster.ui.editorial.chrome.applyEditorialSystemBars
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * The single activity behind the editorial reader. The theme gate resolves
@@ -27,6 +29,14 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    /**
+     * The activity-shared embed, injected here only so it is torn down when the
+     * activity truly finishes (not on config-change recreation, when the
+     * `@ActivityRetainedScoped` session must survive to keep playback going).
+     */
+    @Inject
+    lateinit var playbackSession: PlaybackSession
+
     override fun onCreate(savedInstanceState: Bundle?) {
         EditorialThemeGate.applyPreSetContent(this)
         EditorialThemeGate.syncSplashTheme(this)
@@ -46,5 +56,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        // Release the retained embed only on a real finish; a config-change
+        // recreation keeps the session (and its playback) alive.
+        if (isFinishing) playbackSession.release()
+        super.onDestroy()
     }
 }

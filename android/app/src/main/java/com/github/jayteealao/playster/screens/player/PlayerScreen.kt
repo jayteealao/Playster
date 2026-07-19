@@ -119,7 +119,9 @@ private fun LivePlayer(
     val context = LocalContext.current
     val controller =
         remember(content.videoId) {
-            PlaybackController(
+            // The controller is owned by the activity-shared session, not this
+            // composition — so the still-live embed survives Player→Transcript nav.
+            viewModel.playbackSession.controllerFor(
                 videoId = content.videoId,
                 startPositionSeconds = content.resumeSeconds,
                 isOffline = { isDeviceOffline(context) },
@@ -179,7 +181,7 @@ private fun LivePlayer(
         onBack = onBack,
         onOpenTranscript = { onOpenTranscript(content.videoId) },
         onRetry = viewModel::retry,
-        videoSlot = { m -> YouTubePlayerHost(controller = controller, videoId = content.videoId, modifier = m) },
+        videoSlot = { m -> YouTubePlayerHost(session = viewModel.playbackSession, modifier = m) },
         modifier = modifier,
     )
 }
