@@ -24,7 +24,10 @@ name: editorial-search (search-screen AC1-AC2-AC5)
 #   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
 ---
 - launchApp
-# Reach Search from the home app-bar search action.
+# Reach Search first — launchApp lands on Home, where search-input does not
+# exist (it lives on the Search screen); enter via the bottom-nav Search root.
+- tapOn:
+    text: "Search"
 - tapOn:
     id: "search-input"
 - assertVisible:

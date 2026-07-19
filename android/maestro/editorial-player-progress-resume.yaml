@@ -39,6 +39,10 @@ name: editorial-player-progress-resume (AC5-AC8)
 - tapOn:
     id: "player-note-input"
 - inputText: "Resume-loop probe note."
+# The soft keyboard covers the save affordance; dismiss it first. Maestro's
+# hideKeyboard is a system back press — safe here because the keyboard is
+# provably up (inputText just ran).
+- hideKeyboard
 - tapOn:
     id: "player-note-save"
 - assertVisible:

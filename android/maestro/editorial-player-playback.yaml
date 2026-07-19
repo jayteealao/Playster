@@ -45,12 +45,14 @@ name: editorial-player-playback (AC1-AC2-AC6)
 # AC1 — each speed 0.25×–2× (the row scrolls horizontally).
 - tapOn:
     id: "player-speed-0_5"
+# Whole-number rates keep their decimal in the tag: speedTag(1.0f) renders
+# "1_0" (rate.toString() is "1.0"), so the ids are player-speed-1_0 / 2_0.
 - tapOn:
-    id: "player-speed-1"
+    id: "player-speed-1_0"
 - tapOn:
     id: "player-speed-1_5"
 - tapOn:
-    id: "player-speed-2"
+    id: "player-speed-2_0"
 # AC1 — scrub the seek bar (a horizontal swipe across the bar).
 - swipe:
     from:
