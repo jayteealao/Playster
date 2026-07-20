@@ -4,7 +4,7 @@
 # maintainer has looked at the uploaded android-screenshot-diffs artifact and
 # confirmed the deltas are environmental noise, not a real regression — this
 # workflow re-records the ~116 Roborazzi goldens *inside the same pinned CI
-# environment* (ubuntu-24.04, temurin 21.0.9+10) that verify now runs in, and
+# environment* (ubuntu-24.04, temurin 21.0.9+10.0.LTS) that verify now runs in, and
 # uploads the result as a build artifact.
 #
 # This workflow never commits anything on its own. Recovery is: run it by hand,
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21.0.9+10' # matches pr-quality.yml's android-screenshot-test pin
+          java-version: '21.0.9+10.0.LTS' # matches pr-quality.yml's android-screenshot-test pin
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:

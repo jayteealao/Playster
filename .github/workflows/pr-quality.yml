@@ -189,7 +189,7 @@ jobs:
           retention-days: 7
 
   # CI-2 (2026-07-20): verifyRoborazziDebug compares Compose renders against ~116
-  # goldens recorded locally on Windows (JDK temurin 21.0.9+10, Robolectric 4.16
+  # goldens recorded locally on Windows (JDK temurin 21.0.9+10.0.LTS, Robolectric 4.16
   # NATIVE graphics mode / Skia) — this job has never executed on ubuntu-latest.
   # Roborazzi's own README/FAQ (github.com/takahirom/roborazzi, checked live for
   # this fix) states plainly: "there are no guarantees for identical rendering
@@ -203,11 +203,11 @@ jobs:
   #    golden churn layered on top of the Windows-vs-Linux gap this job already
   #    carries, and it's the one actually within a workflow file's control.
   #  - JDK pinned to the exact local patch the goldens were recorded under
-  #    (temurin 21.0.9+10), removing JDK-patch drift as a variable. Low expected
+  #    (temurin 21.0.9+10.0.LTS), removing JDK-patch drift as a variable. Low expected
   #    payoff on its own — NATIVE mode renders through Skia's native binary, not
   #    Java2D, so the JDK patch shouldn't touch pixel output — but free to fix
   #    while pinning everything else, and directly matches this finding's ask.
-  #    If Adoptium ever stops serving 21.0.9+10, bump to the next Temurin 21 LTS
+  #    If Adoptium ever stops serving 21.0.9+10.0.LTS, bump to the next Temurin 21 LTS
   #    patch and re-verify `java -version` against the dev machine.
   #  - No compareOptions.changeThreshold / tolerance was added. Checked against
   #    roborazzi-core's RoborazziOptions.common.kt (tag 1.68.0, the version this
@@ -240,7 +240,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21.0.9+10' # exact patch match to the goldens' recording machine
+          java-version: '21.0.9+10.0.LTS' # exact patch match to the goldens' recording machine
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:
