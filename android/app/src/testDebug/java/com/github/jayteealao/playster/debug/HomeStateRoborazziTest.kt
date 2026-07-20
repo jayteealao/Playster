@@ -79,6 +79,7 @@ class HomeStateRoborazziTest {
                 filePath = "src/test/snapshots/images/home_state_${stateKey}_${nextPalette.key}.png",
             )
             assertNoPurePixels(composeTestRule, "home_state/$stateKey/${nextPalette.key}")
+            assertRootBackground(composeTestRule, "home_state/$stateKey/${nextPalette.key}", nextPalette.paper)
         }
     }
 

@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -74,10 +76,12 @@ fun SettingsContent(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = LocalEditorialTokens.current
     Column(
         modifier =
             modifier
                 .fillMaxSize()
+                .background(tokens.palette.paper)
                 .verticalScroll(rememberScrollState())
                 .testTag("settings-content"),
     ) {
@@ -300,7 +304,7 @@ private fun OptionPills(
     content: @Composable () -> Unit,
 ) {
     FlowRow(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -337,7 +341,7 @@ private fun OptionPill(
                     color = if (selected) tokens.palette.ink else tokens.palette.rule,
                     shape = CircleShape,
                 )
-                .clickable(role = Role.Button, onClick = onClick)
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
     ) {
         Text(text = label, style = style, color = if (selected) tokens.palette.paper else tokens.palette.ink)

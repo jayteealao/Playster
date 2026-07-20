@@ -7,9 +7,7 @@ import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -27,10 +25,11 @@ private const val HEX_RADIX = 16
  *
  * Runs exactly the indexed query the backend deployed — filter by `videoId`,
  * order by `segmentStart` asc, backed by the `highlights(videoId ASC,
- * segmentStart ASC)` composite index. The flow mirrors [NotesRepository]'s
- * snapshot-listener idiom (a listener error closes the flow so a collector sees
- * a terminal error rather than a frozen screen). A missing uid short-circuits to
- * an empty emission — the signed-out window before the session gate redirects.
+ * segmentStart ASC)` composite index. The flow reuses [FirestoreRepository]'s
+ * shared `asCollectionFlow` snapshot-listener helper (a listener error closes
+ * the flow so a collector sees a terminal error rather than a frozen screen).
+ * A missing uid short-circuits to an empty emission — the signed-out window
+ * before the session gate redirects.
  *
  * A highlight rides a **deterministic doc-id** (`${videoId}_${segmentStartMillis}`)
  * so toggling is an idempotent set/delete on a known id — no read-then-write
@@ -149,17 +148,8 @@ class HighlightsRepository
         }
 
         private fun Query.highlightsFlow(): Flow<List<HighlightDoc>> =
-            callbackFlow {
-                val listener =
-                    addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            Log.w(TAG, "highlightsByVideoFlow listen error", error)
-                            close(error)
-                            return@addSnapshotListener
-                        }
-                        trySend(snapshot?.documents?.mapNotNull { it.toHighlightDoc() } ?: emptyList())
-                    }
-                awaitClose { listener.remove() }
+            asCollectionFlow(TAG, "highlightsByVideoFlow") { snap ->
+                snap.documents.mapNotNull { it.toHighlightDoc() }
             }
 
         internal companion object {

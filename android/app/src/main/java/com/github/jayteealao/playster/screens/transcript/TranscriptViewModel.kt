@@ -14,6 +14,7 @@ import com.github.jayteealao.playster.navigation.EditorialRoutes
 import com.github.jayteealao.playster.screens.player.playback.PlaybackController
 import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.screens.player.playback.isDeviceOffline
+import com.github.jayteealao.playster.screens.player.playback.withOfflineFallback
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
@@ -132,7 +132,15 @@ class TranscriptViewModel
                     notes = notes,
                     fetchError = resolution.fetchError,
                 )
-            }.catch { emit(TranscriptUiState.Error(LISTEN_ERROR_MESSAGE)) }
+            }.withOfflineFallback(
+                // REL-7: the transcript-doc listener only errors on a genuine
+                // fault, never on cold-start-offline silence (no cache, no
+                // server ack) — without this the article sits on Loading
+                // forever. Reuses this screen's own existing Error state; the
+                // online loading timeline is untouched.
+                isOffline = { isDeviceOffline(appContext) },
+                fallback = { TranscriptUiState.Error(OFFLINE_MESSAGE) },
+            ).catch { emit(TranscriptUiState.Error(LISTEN_ERROR_MESSAGE)) }
                 .stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -177,6 +185,11 @@ class TranscriptViewModel
             firestoreRepository.videoContextFlow(videoId).flatMapLatest { context ->
                 val playlistId = context?.playlistId.orEmpty()
                 resolvedPlaylistId = playlistId
+                // BC-1: the shared session's own progress-write throttle needs
+                // the playlist context too — Transcript is now a first-class
+                // producer of that write (previously the Player screen was the
+                // only site, so listening here accrued no persisted position).
+                playbackSession.bindPlaylistId(videoId, playlistId)
                 if (playlistId.isBlank()) {
                     flowOf(emptyList())
                 } else {
@@ -190,8 +203,14 @@ class TranscriptViewModel
          * directly; a large transcript stored out-of-doc behind a `signedUrl`
          * (Assumption 6) is fetched best-effort — a failure or an expired URL
          * surfaces as [Resolution.fetchError], which the assembler maps to the
-         * editorial error (AC6), never a blank screen. A backend re-sign re-emits
-         * the doc through the listener and re-drives this fetch.
+         * editorial error (AC6), never a blank screen.
+         *
+         * REL-8 (sdlc-debt, triaged copy-only): there is no backend re-sign job
+         * today — a fixed 7-day signed-URL expiry with nothing that re-issues
+         * it (`backend/functions/src/transcript/fetch.ts`, explicitly deferred
+         * there). This never self-heals; only a fresh transcript write would
+         * change `signedUrl` and re-drive this fetch. The error copy this
+         * resolves to reflects that honestly (retry-later, not "it'll refresh").
          */
         @OptIn(ExperimentalCoroutinesApi::class)
         private fun resolvedTranscriptFlow(): Flow<Resolution> =
@@ -229,22 +248,12 @@ class TranscriptViewModel
                         connection.readTimeout = FETCH_TIMEOUT_MS
                         if (connection.responseCode != HttpURLConnection.HTTP_OK) return@runCatching null
                         val body = connection.inputStream.bufferedReader().use { it.readText() }
-                        parseSegments(body)
+                        TranscriptSegmentParser.parse(body)
                     } finally {
                         connection.disconnect()
                     }
                 }.getOrNull()
             }
-
-        private fun parseSegments(body: String): List<TranscriptSegment> {
-            val array = JSONArray(body)
-            return (0 until array.length()).mapNotNull { index ->
-                val obj = array.optJSONObject(index) ?: return@mapNotNull null
-                val text = obj.optString("text", "")
-                if (text.isEmpty()) return@mapNotNull null
-                TranscriptSegment(start = obj.optDouble("start", 0.0), text = text)
-            }
-        }
 
         private data class Resolution(
             val doc: TranscriptDoc?,
@@ -257,5 +266,8 @@ class TranscriptViewModel
             const val FETCH_TIMEOUT_MS = 8_000
             const val LISTEN_ERROR_MESSAGE =
                 "The transcript could not be reached. Try the recording instead."
+            const val OFFLINE_MESSAGE =
+                "You're offline, so this transcript hasn't loaded yet. " +
+                    "Reconnect and reopen it to pick up where it left off."
         }
     }

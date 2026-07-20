@@ -72,7 +72,14 @@ fun SearchContent(
     onOpenPlaylist: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize().testTag("search-content")) {
+    val tokens = LocalEditorialTokens.current
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(tokens.palette.paper)
+                .testTag("search-content"),
+    ) {
         EditorialAppBar(kicker = "Find anywhere")
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

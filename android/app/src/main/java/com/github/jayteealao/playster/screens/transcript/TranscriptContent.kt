@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
@@ -79,7 +79,14 @@ fun TranscriptContent(
 ) {
     var following by remember { mutableStateOf(true) }
     var composing by remember { mutableStateOf(false) }
-    Column(modifier = modifier.fillMaxSize().testTag("transcript-content")) {
+    val tokens = LocalEditorialTokens.current
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(tokens.palette.paper)
+                .testTag("transcript-content"),
+    ) {
         EditorialAppBar(
             kicker = "Transcript · " + if (following) "Following" else "Paused",
             left = {
@@ -149,7 +156,7 @@ fun TranscriptContent(
 }
 
 @Composable
-@Suppress("LongParameterList", "LongMethod")
+@Suppress("LongParameterList") // Stateless screen glue: state + the embed slot + the playback plumbing.
 private fun AvailableBody(
     paragraphs: List<TranscriptParagraph>,
     header: TranscriptHeader?,
@@ -167,6 +174,56 @@ private fun AvailableBody(
     embedSlot: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            embedSlot()
+            header?.let { TranscriptDateline(it) }
+            TranscriptList(
+                paragraphs = paragraphs,
+                position = position,
+                following = following,
+                onFollowingChange = onFollowingChange,
+                onSeek = onSeek,
+                onToggleHighlight = onToggleHighlight,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        }
+
+        FloatingControls(
+            header = header,
+            position = position,
+            playing = playing,
+            following = following,
+            onFollowingChange = onFollowingChange,
+            composing = composing,
+            onComposingChange = onComposingChange,
+            onOpenPlayer = onOpenPlayer,
+            onPlayPause = onPlayPause,
+            onCreateNote = onCreateNote,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+        )
+    }
+}
+
+/**
+ * The keyed paragraph list — owns its own list state, the active-line derivation
+ * over [position], and the auto-scroll-while-following effect (a self-contained
+ * concern the overlay in [FloatingControls] has no part in).
+ */
+@Composable
+@Suppress("LongParameterList") // Stateless glue: the list needs every row callback.
+private fun TranscriptList(
+    paragraphs: List<TranscriptParagraph>,
+    position: State<Float>,
+    following: Boolean,
+    onFollowingChange: (Boolean) -> Unit,
+    onSeek: (Double) -> Unit,
+    onToggleHighlight: (TranscriptParagraph) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val listState = rememberLazyListState()
     val starts = remember(paragraphs) { paragraphs.map { it.segmentStart } }
     val activeIndexState = remember(starts) { derivedStateOf { ActiveLineIndex.activeIndex(position.value, starts) } }
@@ -179,82 +236,102 @@ private fun AvailableBody(
         }
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            embedSlot()
-            header?.let { TranscriptDateline(it) }
-            LazyColumn(
-                state = listState,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        // A user drag anywhere on the list pauses following (Assumption 3).
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                onFollowingChange(false)
-                            }
-                        }
-                        .testTag("transcript-list"),
-                contentPadding = PaddingValues(horizontal = SCREEN_HORIZONTAL, vertical = 8.dp),
-            ) {
-                items(paragraphs, key = { it.segmentStart }) { paragraph ->
-                    val index = starts.indexOf(paragraph.segmentStart)
-                    val active by remember(index) { derivedStateOf { activeIndexState.value == index } }
-                    TranscriptRow(
-                        paragraph = paragraph,
-                        active = active,
-                        onSeek = { onSeek(paragraph.segmentStart) },
-                        onToggleHighlight = { onToggleHighlight(paragraph) },
-                    )
+    LazyColumn(
+        state = listState,
+        modifier =
+            modifier
+                // A user drag anywhere on the list pauses following (Assumption 3).
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        onFollowingChange(false)
+                    }
                 }
-                item {
-                    Text(
-                        text = "— transcript continues —",
-                        style = LocalEditorialTokens.current.type.deck.copy(fontStyle = FontStyle.Italic),
-                        color = LocalEditorialTokens.current.palette.inkFaint,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                    )
-                }
-            }
-        }
-
-        Column(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (composing) {
-                TranscriptNoteComposer(
-                    timeLabel = formatClock(position.value),
-                    onSave = {
-                        onCreateNote(it)
-                        onComposingChange(false)
-                    },
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            }
-            if (!following) {
-                EditorialTextAction(
-                    text = "Resume following",
-                    onClick = { onFollowingChange(true) },
-                    icon = EditorialIcons.Next,
-                    modifier = Modifier.padding(bottom = 8.dp).testTag("transcript-resume-following"),
-                )
-            }
-            MiniPlayerPill(
-                title = header?.kicker ?: "Now playing",
-                position = remember { derivedStateOf { formatClock(position.value) } }.value,
-                playing = playing,
-                onClick = onOpenPlayer,
-                onPlayPause = onPlayPause,
-                modifier = Modifier.testTag("transcript-mini-player"),
+                .testTag("transcript-list"),
+        contentPadding = PaddingValues(horizontal = SCREEN_HORIZONTAL, vertical = 8.dp),
+    ) {
+        // Keyed by the segment's own position (index-qualified), not the raw
+        // `segmentStart` alone: malformed/low-quality-ASR data can carry
+        // duplicate timestamps, and `items(key = segmentStart)` crashes the
+        // LazyColumn on a duplicate key (CR-8). The index is the paragraph's
+        // stable identity within one assembled list, so well-formed data (all
+        // `segmentStart`s distinct) keeps exactly the same per-row identity —
+        // and recomposition — as before; this also drops the previous
+        // `starts.indexOf(...)` O(n) lookup, which itself was wrong when
+        // `segmentStart` values repeat.
+        itemsIndexed(
+            paragraphs,
+            key = { index, paragraph -> "$index-${paragraph.segmentStart}" },
+        ) { index, paragraph ->
+            val active by remember(index) { derivedStateOf { activeIndexState.value == index } }
+            TranscriptRow(
+                paragraph = paragraph,
+                active = active,
+                onSeek = { onSeek(paragraph.segmentStart) },
+                onToggleHighlight = { onToggleHighlight(paragraph) },
             )
         }
+        item {
+            Text(
+                text = "— transcript continues —",
+                style = LocalEditorialTokens.current.type.deck.copy(fontStyle = FontStyle.Italic),
+                color = LocalEditorialTokens.current.palette.inkFaint,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The floating note composer / "Resume following" / mini-player pill overlay,
+ * bottom-anchored over the transcript list by the caller's [modifier].
+ */
+@Composable
+@Suppress("LongParameterList") // Stateless glue: the overlay needs every row's worth of callbacks.
+private fun FloatingControls(
+    header: TranscriptHeader?,
+    position: State<Float>,
+    playing: Boolean,
+    following: Boolean,
+    onFollowingChange: (Boolean) -> Unit,
+    composing: Boolean,
+    onComposingChange: (Boolean) -> Unit,
+    onOpenPlayer: () -> Unit,
+    onPlayPause: () -> Unit,
+    onCreateNote: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (composing) {
+            TranscriptNoteComposer(
+                timeLabel = formatClock(position.value),
+                onSave = {
+                    onCreateNote(it)
+                    onComposingChange(false)
+                },
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+        }
+        if (!following) {
+            EditorialTextAction(
+                text = "Resume following",
+                onClick = { onFollowingChange(true) },
+                icon = EditorialIcons.Next,
+                modifier = Modifier.padding(bottom = 8.dp).testTag("transcript-resume-following"),
+            )
+        }
+        MiniPlayerPill(
+            title = header?.kicker ?: "Now playing",
+            position = remember { derivedStateOf { formatClock(position.value) } }.value,
+            playing = playing,
+            onClick = onOpenPlayer,
+            onPlayPause = onPlayPause,
+            modifier = Modifier.testTag("transcript-mini-player"),
+        )
     }
 }
 

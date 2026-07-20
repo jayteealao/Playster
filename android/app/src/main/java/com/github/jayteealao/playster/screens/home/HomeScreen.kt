@@ -90,7 +90,8 @@ fun HomeContent(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    val tokens = LocalEditorialTokens.current
+    Column(modifier = modifier.fillMaxSize().background(tokens.palette.paper)) {
         EditorialAppBar(
             kicker = "Playster · Reading Room",
             left = {

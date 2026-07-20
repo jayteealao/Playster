@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -24,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.screens.player.playback.PlaybackState
 import com.github.jayteealao.playster.screens.player.playback.YouTubePlayerHost
+import com.github.jayteealao.playster.ui.editorial.EditorialPalettes
 import com.github.jayteealao.playster.ui.editorial.LocalEditorialTokens
 import com.github.jayteealao.playster.ui.editorial.components.EditorialErrorNotice
 import com.github.jayteealao.playster.ui.editorial.components.EditorialRule
@@ -125,10 +125,17 @@ fun TranscriptEmbed(
     }
 }
 
-/** Warm near-black placeholder until the WebView paints (never pure #000). */
-private val BAND_PLACEHOLDER = Color(0xFF15130F)
+/**
+ * Warm near-black placeholder until the WebView paints (never pure #000). The
+ * video band intentionally pins Night's paper regardless of the active
+ * palette, so this reads Night directly rather than the ambient tokens.
+ */
+private val BAND_PLACEHOLDER = EditorialPalettes.Night.paperDeep
 
-/** Warm off-white for on-band furniture (never pure #FFF). */
-private val WARM_ON_BAND = Color(0xFFECE6D6)
+/**
+ * Warm off-white for on-band furniture (never pure #FFF). Pinned to Night's
+ * ink for the same reason as [BAND_PLACEHOLDER].
+ */
+private val WARM_ON_BAND = EditorialPalettes.Night.ink
 
 private const val PANEL_RATIO = 9f / 16f

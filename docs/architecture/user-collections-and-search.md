@@ -22,13 +22,25 @@ One collection holds two data kinds behind a `kind` discriminator:
 
 Deterministic doc ids make progress writes idempotent upserts: two devices
 writing position for the same video converge on one doc, last write wins.
+Both kinds are written by the Android client: `video`-kind docs by the
+shared `PlaybackSession`'s throttled write (on pause/exit plus a periodic
+tick while playing — see the Player/Transcript's shared playback session);
+`playlist`-kind docs by a fire-and-forget write when a playlist is opened.
+Both go through `ProgressRepository`'s deterministic-id upsert.
 
 ### `users/{uid}/notes/{autoId}`
 
 Timestamped note anchored to a video moment: `videoId`, `playlistId`,
 `t` (seconds), `text` (≤ 5000 chars, rules-enforced), `createdAt`, `updatedAt`.
-Queried by `videoId` ordered by `t` asc (player/transcript margins) and by
-`playlistId` ordered by `createdAt` desc (playlist Notes tab).
+The only query the client issues against this collection is by `playlistId`
+ordered by `createdAt` desc (the playlist Notes tab, Q4 below). The Player
+and Transcript note margins reuse that same playlist-scoped stream and
+filter it to one `videoId` in Kotlin rather than issuing a second,
+`videoId`-filtered query — so margin notes render in `createdAt` desc order
+(inherited from the playlist query), not re-sorted by anchor time `t`. A
+`notes(videoId ASC, t ASC)` composite index is deployed for exactly that
+`videoId`-scoped, `t`-ordered query (Q3 below), but no consumer currently
+issues it.
 
 ### `users/{uid}/highlights/{autoId}`
 
@@ -50,20 +62,28 @@ collection keeps its existing read-only-for-clients posture.
 
 ## Documented query set and indexes
 
-The queries the app runs, and the composite index that serves each
-(`backend/firestore.indexes.json`). The static coverage test
-(`backend/functions/tests/query-index-coverage.test.ts`) asserts this table
-against the index file — the Firestore **emulator does not enforce composite
-indexes**, so emulator-green is not index-proof; the test is.
+Two kinds of rows below: queries the Android client actually issues today
+(Q1, Q2, Q4, Q5) and queries the schema was provisioned for but that no
+client code currently runs (Q3, Q6) — their indexes exist and are asserted
+by the coverage test below, but nothing in the app performs them. Treat
+those rows as forward-looking, not current behavior.
 
-| # | Consumer | Query | Composite index |
-|---|----------|-------|-----------------|
-| Q1 | Home shelf | `progress` where `kind == "playlist"` orderBy `lastOpenedAt` desc | progress(kind ASC, lastOpenedAt DESC) |
-| Q2 | Continue headliner | `progress` where `kind == "video"` orderBy `updatedAt` desc limit 1 | progress(kind ASC, updatedAt DESC) |
-| Q3 | Player/Transcript notes | `notes` where `videoId == X` orderBy `t` asc | notes(videoId ASC, t ASC) |
-| Q4 | Playlist Notes tab | `notes` where `playlistId == X` orderBy `createdAt` desc | notes(playlistId ASC, createdAt DESC) |
-| Q5 | Transcript highlights | `highlights` where `videoId == X` orderBy `segmentStart` asc | highlights(videoId ASC, segmentStart ASC) |
-| Q6 | Settings stats | `progress` where `updatedAt >= t0`; `highlights` where `createdAt >= t0` | single-field (automatic) |
+The composite index that serves each query lives in
+`backend/firestore.indexes.json`. The static coverage test
+(`backend/functions/tests/query-index-coverage.test.ts`) asserts every row
+in this table — live or forward-looking — against the index file (and, for
+the composite ones, against seeded emulator data) — the Firestore
+**emulator does not enforce composite indexes**, so emulator-green is not
+index-proof; the static leg is.
+
+| # | Consumer | Query | Composite index | Status |
+|---|----------|-------|-----------------|--------|
+| Q1 | Home shelf | `progress` where `kind == "playlist"` orderBy `lastOpenedAt` desc | progress(kind ASC, lastOpenedAt DESC) | live — written on playlist open |
+| Q2 | Continue headliner | `progress` where `kind == "video"` orderBy `updatedAt` desc limit 1 | progress(kind ASC, updatedAt DESC) | live — written by the shared playback session's progress throttle |
+| Q3 | *(not issued)* | `notes` where `videoId == X` orderBy `t` asc | notes(videoId ASC, t ASC) | forward-looking — index deployed, no caller; Player/Transcript margins filter Q4's playlist-scoped stream client-side instead |
+| Q4 | Playlist Notes tab | `notes` where `playlistId == X` orderBy `createdAt` desc | notes(playlistId ASC, createdAt DESC) | live |
+| Q5 | Transcript highlights | `highlights` where `videoId == X` orderBy `segmentStart` asc | highlights(videoId ASC, segmentStart ASC) | live |
+| Q6 | *(not issued)* | `progress` where `updatedAt >= t0`; `highlights` where `createdAt >= t0` | single-field (automatic) | forward-looking — no Firestore range query exists in the client; Settings fetches the full `progress`/`highlights` streams and windows them client-side |
 
 All five composite indexes are COLLECTION scope (subcollection layout — no
 collection-group queries). Production index build is asserted post-deploy by

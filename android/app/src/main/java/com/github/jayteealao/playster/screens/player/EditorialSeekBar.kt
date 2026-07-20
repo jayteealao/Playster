@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +76,10 @@ fun EditorialSeekBar(
                     .semantics {
                         contentDescription = "Seek bar"
                         progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
+                        setProgress { targetFraction ->
+                            onScrub(targetFraction.coerceIn(0f, 1f))
+                            true
+                        }
                     },
             contentAlignment = Alignment.Center,
         ) {

@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.getSystemService
 
@@ -37,7 +39,10 @@ fun YouTubePlayerHost(
         session.attach()
         onDispose { session.detach() }
     }
-    AndroidView(factory = { session.view(context) }, modifier = modifier)
+    AndroidView(
+        factory = { session.view(context) },
+        modifier = modifier.semantics { contentDescription = "Video player" },
+    )
 }
 
 /**

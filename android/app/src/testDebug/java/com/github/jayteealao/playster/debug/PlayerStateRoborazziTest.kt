@@ -100,6 +100,7 @@ class PlayerStateRoborazziTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/player_state_$key.png")
         assertNoPurePixels(composeTestRule, "player_state/$key")
+        assertRootBackground(composeTestRule, "player_state/$key", EditorialPalettes.Cream.paper)
     }
 
     private fun captureOnCream(
@@ -117,6 +118,7 @@ class PlayerStateRoborazziTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/player_state_$key.png")
         assertNoPurePixels(composeTestRule, "player_state/$key")
+        assertRootBackground(composeTestRule, "player_state/$key", EditorialPalettes.Cream.paper)
     }
 
     private fun captureOnAllPalettes(
@@ -138,6 +140,7 @@ class PlayerStateRoborazziTest {
                 filePath = "src/test/snapshots/images/player_state_${key}_${nextPalette.key}.png",
             )
             assertNoPurePixels(composeTestRule, "player_state/$key/${nextPalette.key}")
+            assertRootBackground(composeTestRule, "player_state/$key/${nextPalette.key}", nextPalette.paper)
         }
     }
 

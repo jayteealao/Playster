@@ -1,0 +1,250 @@
+# TST-6 (07-review-testing.md): the 9 Maestro E2E flows under android/maestro
+# are the only end-to-end proof the redesigned reading loop works on-device.
+# They had run exactly once, by hand, before this workflow existed — that
+# single run already found 3 latent flow-file defects (stale speed-selector
+# ids, a missing hideKeyboard, a missing Search nav step; see
+# .ai/workflows/editorial-reader-redesign/00-index.md, commit 59fbf02d).
+#
+# This workflow is EXPERIMENTAL and intentionally NOT a required check (see
+# `jobs.maestro-e2e` below): it has never executed in GitHub Actions before
+# this file, only ever locally against a hand-run AVD. Do not add it to
+# branch protection until it has a track record of green runs here.
+#
+# Known, deliberately-not-solved gaps (documented rather than hidden):
+#   - editorial-auth-signin.yaml drives a signed-out -> signed-in transition
+#     mid-flow, timed by a SIGN_IN broadcast its own header describes as
+#     issued "outside the flow immediately before this step" by a human/
+#     harness operator — not a scriptable pre-flow setup step like every
+#     other flow. This job approximates that timing with a delayed
+#     background broadcast (see the `script:` block below); it is the
+#     single most likely flow to flake here.
+#   - editorial-player-playback.yaml and editorial-transcript-sync.yaml
+#     drive REAL YouTube video ids through the actual embedded IFrame
+#     player (android/maestro/fixtures/editorial-fixtures.json realIds).
+#     That needs live network egress to youtube.com from the runner and a
+#     working embedded player inside a freshly-booted AVD — the single
+#     most likely source of environment-dependent flakiness in this job.
+#   - manual-summary-fresh.yaml needs Functions-emulator secrets
+#     (SUMMARIZER_URL/SUMMARIZER_API_KEY). No real secret material is
+#     needed — backend/functions/.secret.local.example already points them
+#     at a trivial local mock server, which this job starts on 127.0.0.1.
+name: Maestro E2E (experimental)
+
+on:
+  workflow_dispatch: {}
+  # Nightly, off-peak UTC hour. Remove if this proves too flaky to be worth
+  # the runner minutes before it has a track record.
+  schedule:
+    - cron: '17 3 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Non-required, informational-only job — mirrors pr-quality.yml's
+  # `integration-test` posture (emulator-backed + env-dependent, runs for
+  # visibility, never gates merge). This one additionally has NEVER run
+  # green in CI even once, unlike that job, hence "experimental" not just
+  # "non-required".
+  maestro-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-34 build-tools;34.0.0
+
+      # Ubuntu GitHub-hosted runners support hardware-accelerated emulation
+      # via KVM, but /dev/kvm needs group perms opened first (documented
+      # setup step for reactivecircus/android-emulator-runner).
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # PINNED at 2.2.0 — do NOT upgrade. This repo's own flow files were
+      # renamed (slashes stripped from flow names) to work around a
+      # report-path bug in this exact CLI version; upgrading may resolve it
+      # but also may reintroduce other selector/parsing regressions this
+      # suite hasn't been re-verified against (see
+      # .ai/workflows/editorial-reader-redesign/00-index.md: "six slash-
+      # carrying flow names renamed (Maestro report-path bug, upstream fix
+      # unreleased at 2.2.0)"; and 04-plan-chrome-navigation.md's
+      # testTagsAsResourceId note on the `id:` selector convention this
+      # version requires). Re-verify the upstream changelog deliberately
+      # before ever bumping this pin.
+      - name: Install Maestro CLI 2.2.0
+        run: |
+          export MAESTRO_VERSION=2.2.0
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fix gradlew perms & line endings
+        working-directory: android
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+
+      - name: Decode google-services.json
+        working-directory: android
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | tr -d '\r\n\t ' | base64 -d > app/google-services.json
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      # No secret material here: SUMMARIZER_URL only ever points at the
+      # loopback mock server started below (see manual-summary-fresh.yaml's
+      # own prerequisites comment and .secret.local.example). The Functions
+      # emulator binds secrets at suite START, so this file must exist
+      # before the emulator step runs.
+      - name: Prepare local mock-summarizer secret
+        working-directory: backend/functions
+        run: cp .secret.local.example .secret.local
+
+      - name: Start mock summarizer dispatch target
+        run: |
+          node -e "require('http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({id:'mock-job-1'}))}).listen(18080)" &
+          disown
+          echo "mock summarizer dispatch target listening on 127.0.0.1:18080"
+
+      # Started directly with `emulators:start` (backgrounded), NOT the
+      # `emulators:exec "<cmd>"` wrapper pr-quality.yml's integration-test
+      # job uses — that wrapper tears the suite down the moment its inner
+      # command exits, but these flows need ONE suite to outlive many
+      # sequential `maestro test` invocations across the whole job, exactly
+      # the constraint seed-editorial-corpus.sh's own header documents
+      # ("Requires a RUNNING emulator suite — it must outlive this script").
+      - name: Start Firebase emulators (auth, firestore, functions)
+        working-directory: backend
+        run: |
+          pnpm dlx firebase-tools@13 emulators:start \
+            --only auth,firestore,functions --project playster-406121 \
+            > "$GITHUB_WORKSPACE/firebase-emulators.log" 2>&1 &
+          disown
+          echo "waiting for the firestore emulator on 127.0.0.1:8080..."
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null 2>&1; then
+              echo "firestore emulator is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "firestore emulator did not come up in time"
+          cat "$GITHUB_WORKSPACE/firebase-emulators.log" || true
+          exit 1
+
+      # The AVD boots and every `maestro test` invocation runs inside this
+      # one action step (same runner/job, so it can see the APK just built
+      # and the emulator suite already backgrounded above). Flows are
+      # grouped by the seed state they need — each seed helper's own header
+      # documents that seed-quota-exhausted.sh / seed-fresh-state.sh both
+      # re-run seed-editorial-corpus.sh first, so re-seeding between groups
+      # always starts from the same known base corpus rather than
+      # compounding state across groups.
+      - name: Boot AVD and run Maestro flows
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-boot-timeout: 900
+          disable-animations: true
+          script: |
+            set -euo pipefail
+
+            export FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
+            export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+
+            enable_emulator_gate() {
+              adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \
+                -a com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR --ez enabled true
+              adb shell am force-stop com.github.jayteealao.playster
+            }
+            sign_in() {
+              adb shell am broadcast -n com.github.jayteealao.playster/.debug.DebugAuthReceiver \
+                -a com.github.jayteealao.playster.debug.SIGN_IN
+            }
+
+            # --- Group 1: no editorial corpus needed ----------------------
+            bash android/maestro/helpers/seed-auth-emulator.sh
+            enable_emulator_gate
+            sign_in
+            maestro test android/maestro/editorial-navigation-skeleton.yaml
+
+            # --- Group 2: base editorial corpus ----------------------------
+            bash android/maestro/helpers/seed-editorial-corpus.sh
+            enable_emulator_gate
+            sign_in
+            maestro test \
+              android/maestro/editorial-home-shelf.yaml \
+              android/maestro/editorial-player-playback.yaml \
+              android/maestro/editorial-player-progress-resume.yaml \
+              android/maestro/editorial-search.yaml \
+              android/maestro/editorial-settings.yaml \
+              android/maestro/editorial-transcript-highlight.yaml \
+              android/maestro/editorial-transcript-sync.yaml \
+              android/maestro/cached-summary-navigation.yaml
+
+            # --- Group 3: quota exhausted ------------------------------------
+            bash android/maestro/helpers/seed-quota-exhausted.sh
+            enable_emulator_gate
+            sign_in
+            maestro test android/maestro/quota-exhausted-banner.yaml
+
+            # --- Group 4: fresh state (no summary/quota doc yet) --------------
+            bash android/maestro/helpers/seed-fresh-state.sh
+            enable_emulator_gate
+            sign_in
+            maestro test android/maestro/manual-summary-fresh.yaml
+
+            # --- editorial-auth-signin.yaml: see the workflow header's -------
+            # documented gap. Approximating the harness's manually-timed
+            # SIGN_IN broadcast with a delayed background one; retune the
+            # sleep (or rewrite the flow around Maestro's own wait
+            # primitives) if this is consistently the flaky one.
+            bash android/maestro/helpers/seed-auth-emulator.sh
+            enable_emulator_gate
+            ( sleep 8 && sign_in ) &
+            maestro test android/maestro/editorial-auth-signin.yaml
+
+      - name: Upload Maestro + emulator logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: maestro-e2e-reports
+          path: |
+            ~/.maestro/tests/
+            firebase-emulators.log
+          retention-days: 7
+          if-no-files-found: ignore

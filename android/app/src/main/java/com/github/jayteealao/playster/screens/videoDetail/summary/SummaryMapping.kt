@@ -4,8 +4,8 @@ import com.github.jayteealao.playster.data.firestore.SummaryDoc
 import com.github.jayteealao.playster.screens.common.state.SummaryStatus
 
 /**
- * The single wire → [SummaryUiState] mapping, extracted so every consumer — the
- * per-video [SummaryViewModel] and the Playlist Summary tab — maps a
+ * The single wire → [SummaryUiState] mapping, extracted so every consumer —
+ * the Player Summary tab and the Playlist Summary tab — maps a
  * `summaries/{videoId}` doc identically. Re-implementing it anywhere would risk
  * drifting the product semantics the cached-summary / quota regression flows
  * guard, so both call this one function.

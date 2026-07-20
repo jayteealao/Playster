@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.navigation.NavHostController
@@ -24,11 +23,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.github.jayteealao.playster.navigation.EditorialRoutes
 import com.github.jayteealao.playster.navigation.EditorialTab
 import com.github.jayteealao.playster.navigation.navigateToEditorialRoot
-import com.github.jayteealao.playster.screens.common.rememberQuotaState
-import com.github.jayteealao.playster.screens.common.state.QuotaState
 import com.github.jayteealao.playster.ui.editorial.LocalEditorialTokens
 import com.github.jayteealao.playster.ui.editorial.components.EditorialBottomNav
-import com.github.jayteealao.playster.ui.editorial.components.EditorialQuotaNotice
 
 /**
  * The editorial app chrome: a full-bleed paper field with the quota band at
@@ -46,12 +42,20 @@ import com.github.jayteealao.playster.ui.editorial.components.EditorialQuotaNoti
  * The root carries `testTagsAsResourceId` so every `Modifier.testTag` in
  * the tree surfaces as a resource-id for UI-automation `id:` selectors —
  * the selector convention the repo's flows standardize on.
+ *
+ * `quotaBand` is a slot, not a hard dependency: `ui.editorial` is the
+ * screens-agnostic design-system/chrome layer and must stay composable
+ * without Hilt, so the scaffold itself never reaches into `screens.*` for
+ * quota state. The composition root supplies the real, Hilt-backed band
+ * (see [com.github.jayteealao.playster.screens.common.QuotaNoticeBand]);
+ * the neutral empty default keeps the scaffold renderable on its own.
  */
 @OptIn(ExperimentalComposeUiApi::class) // testTagsAsResourceId — the documented UiAutomator/Maestro interop seam
 @Composable
 fun EditorialAppScaffold(
     navController: NavHostController,
     modifier: Modifier = Modifier,
+    quotaBand: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val tokens = LocalEditorialTokens.current
@@ -69,7 +73,7 @@ fun EditorialAppScaffold(
     ) {
         Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
         if (!chromeHidden) {
-            QuotaNoticeBand()
+            quotaBand()
         }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             content()
@@ -88,29 +92,6 @@ fun EditorialAppScaffold(
         } else {
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
-    }
-}
-
-/**
- * The quota banner idiom carried into the editorial chrome: the same
- * `quota/openrouter` listener every Summarize CTA derives from (via
- * [rememberQuotaState]), rendered as the rule-bounded paperDeep band.
- * Healthy renders nothing. Keeps the `quota-banner` test tag so existing
- * quota flows re-target without a selector change.
- */
-@Composable
-private fun QuotaNoticeBand() {
-    val message =
-        when (rememberQuotaState()) {
-            is QuotaState.Healthy -> null
-            is QuotaState.DailyExhausted -> "Daily summary limit reached. Resets at midnight UTC."
-            is QuotaState.PerMinuteExhausted -> "Rate limited — try again in a moment."
-        }
-    if (message != null) {
-        EditorialQuotaNotice(
-            message = message,
-            modifier = Modifier.testTag("quota-banner"),
-        )
     }
 }
 

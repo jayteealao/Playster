@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -28,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.jayteealao.playster.ui.editorial.EditorialPalettes
 import com.github.jayteealao.playster.ui.editorial.LocalEditorialTokens
 
 /**
@@ -79,16 +79,26 @@ fun VideoPanel(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val expandedHeight = maxWidth * PANEL_RATIO
-            val bandHeight by animateDpAsState(
-                targetValue = if (expanded) expandedHeight else COLLAPSED_HEIGHT,
-                animationSpec = tween(PANEL_MOTION_MS, easing = EaseOut),
-                label = "panel-height",
-            )
+            // Read as a State<Dp> (not `by`-delegated) so the animated value is
+            // consumed inside the layout phase below, not the composition phase —
+            // an animation frame then invalidates only this node's layout, not the
+            // whole VideoPanel composition (see MOT-1).
+            val bandHeightState =
+                animateDpAsState(
+                    targetValue = if (expanded) expandedHeight else COLLAPSED_HEIGHT,
+                    animationSpec = tween(PANEL_MOTION_MS, easing = EaseOut),
+                    label = "panel-height",
+                )
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(bandHeight)
+                        .layout { measurable, constraints ->
+                            val heightPx = bandHeightState.value.roundToPx()
+                            val placeable =
+                                measurable.measure(constraints.copy(minHeight = 0, maxHeight = heightPx))
+                            layout(placeable.width, heightPx) { placeable.placeRelative(0, 0) }
+                        }
                         .clipToBounds(),
                 contentAlignment = Alignment.Center,
             ) {
@@ -135,11 +145,18 @@ fun VideoPanel(
     }
 }
 
-/** Warm near-black placeholder until the WebView paints (never pure #000). */
-private val BAND_PLACEHOLDER = Color(0xFF15130F)
+/**
+ * Warm near-black placeholder until the WebView paints (never pure #000). The
+ * video band intentionally pins Night's paper regardless of the active
+ * palette, so this reads Night directly rather than the ambient tokens.
+ */
+private val BAND_PLACEHOLDER = EditorialPalettes.Night.paperDeep
 
-/** Warm off-white for on-band furniture (never pure #FFF). */
-private val WARM_ON_BAND = Color(0xFFECE6D6)
+/**
+ * Warm off-white for on-band furniture (never pure #FFF). Pinned to Night's
+ * ink for the same reason as [BAND_PLACEHOLDER].
+ */
+private val WARM_ON_BAND = EditorialPalettes.Night.ink
 
 private const val CONTROL_ALPHA = 0.7f
 private const val PANEL_RATIO = 9f / 16f

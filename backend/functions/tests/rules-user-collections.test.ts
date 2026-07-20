@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -10,6 +11,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -350,5 +352,143 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
       const { createdAt: _c, ...noCreatedAt } = highlightDoc();
       await assertFails(setDoc(target, noCreatedAt));
     });
+  });
+
+  // TST-2: the tests above only prove the rules ACCEPT/REJECT a hand-built
+  // fixture — they never write-then-read, and never exercise the write
+  // MODE (merge vs. full overwrite vs. add()) each Android repository
+  // actually uses. A field rename or a merge->full-overwrite regression in
+  // either the rules or the Kotlin repo would pass every test above while
+  // silently breaking the real app. This block closes that gap: each case
+  // performs the client's exact operation (same field map, same
+  // setDoc/addDoc call shape, same merge option) against the emulator, then
+  // reads the document BACK and asserts on the persisted values — a true
+  // round trip, not just a permission check. Source of truth for each
+  // shape (re-check these line numbers if the Kotlin repos change):
+  //   ProgressRepository.kt:141-149 upsertVideoProgress's `data` map,
+  //     written via `collection.document(videoId).set(data, SetOptions.merge())`
+  //   ProgressRepository.kt:185-191 upsertPlaylistOpened's `data` map,
+  //     written via `collection.document(playlistId).set(data, SetOptions.merge())`
+  //   NotesRepository.kt:73-81 createNote's `data` map,
+  //     written via `.collection("notes").add(data)` (auto-id, no merge)
+  //   HighlightsRepository.kt:95-101 addHighlight's `data` map,
+  //     written via `.document(highlightId(videoId, segmentStart)).set(data)`
+  //     (deterministic id, full overwrite, no merge)
+  describe("write-shape round trips (literal client payloads)", () => {
+    it("upsertVideoProgress: merge-write round-trips and a second tick's merge-write wins", async () => {
+      const env = await getTestEnv();
+      const db = env.authenticatedContext(OWNER).firestore();
+      const ref = doc(db, `users/${OWNER}/progress/vid-rt`);
+
+      // First tick — mirrors ProgressRepository's exact
+      // `.set(data, SetOptions.merge())` call.
+      await assertSucceeds(setDoc(ref, progressVideoDoc(), { merge: true }));
+      const first = await getDoc(ref);
+      expect(first.exists()).toBe(true);
+      expect(first.data()?.kind).toBe("video");
+      expect(first.data()?.videoId).toBe("vid-1");
+      expect(first.data()?.playlistId).toBe("pl-1");
+      expect(first.data()?.positionSeconds).toBe(767);
+      expect(first.data()?.durationSeconds).toBe(1394);
+      expect(first.data()?.updatedAt).toBeInstanceOf(Timestamp);
+
+      // A later playback tick for the same video — the idempotent-upsert
+      // path a real throttle cadence takes. The new position must win and
+      // no sibling field must be dropped by the merge.
+      await assertSucceeds(
+        setDoc(
+          ref,
+          { ...progressVideoDoc(), positionSeconds: 900 },
+          { merge: true },
+        ),
+      );
+      const second = await getDoc(ref);
+      expect(second.data()?.positionSeconds).toBe(900);
+      expect(second.data()?.playlistId).toBe("pl-1");
+    });
+
+    it("upsertPlaylistOpened: merge-write round-trips the kind=playlist shape", async () => {
+      const env = await getTestEnv();
+      const db = env.authenticatedContext(OWNER).firestore();
+      // Deterministic doc id = playlistId, exactly as
+      // `collection.document(playlistId)` in ProgressRepository.
+      const ref = doc(db, `users/${OWNER}/progress/pl-rt`);
+
+      await assertSucceeds(
+        setDoc(ref, progressPlaylistDoc(), { merge: true }),
+      );
+      const snap = await getDoc(ref);
+      expect(snap.exists()).toBe(true);
+      expect(snap.data()?.kind).toBe("playlist");
+      expect(snap.data()?.playlistId).toBe("pl-1");
+      expect(snap.data()?.lastOpenedAt).toBeInstanceOf(Timestamp);
+      expect(snap.data()?.updatedAt).toBeInstanceOf(Timestamp);
+
+      // Re-opening the same playlist later re-stamps lastOpenedAt — the
+      // shelf-order query (Q1) depends on this actually advancing.
+      await assertSucceeds(
+        setDoc(ref, progressPlaylistDoc(), { merge: true }),
+      );
+      const reopened = await getDoc(ref);
+      expect(reopened.data()?.kind).toBe("playlist");
+    });
+
+    it("createNote: add()-shape round-trips as an auto-id document", async () => {
+      const env = await getTestEnv();
+      const db = env.authenticatedContext(OWNER).firestore();
+      // addDoc mirrors NotesRepository's `.collection("notes").add(data)` —
+      // auto-generated id, full document, no merge option in play.
+      const written = await assertSucceeds(
+        addDoc(collection(db, `users/${OWNER}/notes`), noteDoc()),
+      );
+      const snap = await getDoc(written);
+      expect(snap.exists()).toBe(true);
+      expect(snap.data()?.videoId).toBe("vid-1");
+      expect(snap.data()?.playlistId).toBe("pl-1");
+      expect(snap.data()?.t).toBe(222);
+      expect(snap.data()?.text).toBe("The 5-line contract idea.");
+      expect(snap.data()?.createdAt).toBeInstanceOf(Timestamp);
+      expect(snap.data()?.updatedAt).toBeInstanceOf(Timestamp);
+    });
+
+    it("addHighlight: deterministic-id set()-shape round-trips (no merge, full overwrite)", async () => {
+      const env = await getTestEnv();
+      const db = env.authenticatedContext(OWNER).firestore();
+      // Mirrors HighlightsRepository.highlightId(videoId, segmentStart):
+      // "${videoId}_${(segmentStart * 1000).toLong()}".
+      const ref = doc(db, `users/${OWNER}/highlights/vid-1_43000`);
+
+      await assertSucceeds(setDoc(ref, highlightDoc()));
+      const snap = await getDoc(ref);
+      expect(snap.exists()).toBe(true);
+      expect(snap.data()?.videoId).toBe("vid-1");
+      expect(snap.data()?.segmentStart).toBe(43);
+      expect(snap.data()?.text).toBe(
+        "I think the problem is that we built a library.",
+      );
+      expect(snap.data()?.createdAt).toBeInstanceOf(Timestamp);
+
+      // The toggle-off path (removeHighlight): same deterministic id,
+      // plain delete — proves the id scheme really is idempotent both ways.
+      await assertSucceeds(deleteDoc(ref));
+      const afterDelete = await getDoc(ref);
+      expect(afterDelete.exists()).toBe(false);
+    });
+
+    // NOT covered here, deliberately: ProgressRepository's
+    // `lastWriteCaptureMillis` monotonic guard (ProgressRepository.kt:62,
+    // 135-139) is an in-process, session-lifetime `ConcurrentHashMap` check
+    // that runs BEFORE the Firestore call — a late-arriving, older-captured
+    // write is dropped client-side and never reaches the network. Nothing
+    // about `capturedAtMillis` is part of the written document (only
+    // `updatedAt`'s server timestamp is), so there is no Firestore-visible
+    // artifact for a rules/emulator test to assert on — the guard is
+    // structurally invisible to this suite. Verifying it requires a JVM-
+    // level test that calls `upsertVideoProgress` twice with out-of-order
+    // `capturedAtMillis` and asserts the second call is a no-op; per this
+    // redesign's D2 test-scope decision (00-index.md, TST-1/TST-19) that
+    // repository is not unit-tested directly (final class, live-Firebase
+    // init, no mockk/coroutines-test on the classpath) — a real gap, left
+    // open rather than papered over.
   });
 });

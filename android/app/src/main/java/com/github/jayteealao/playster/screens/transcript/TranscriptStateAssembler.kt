@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.screens.transcript
 
+import com.github.jayteealao.playster.data.editorial.EditorialDressing
 import com.github.jayteealao.playster.data.firestore.HighlightDoc
 import com.github.jayteealao.playster.data.firestore.NoteDoc
 import com.github.jayteealao.playster.data.firestore.TranscriptDoc
@@ -63,7 +64,7 @@ object TranscriptStateAssembler {
         return sorted.mapIndexed { index, segment ->
             TranscriptParagraph(
                 segmentStart = segment.start,
-                timestampLabel = formatClock(segment.start),
+                timestampLabel = EditorialDressing.clockLabel(segment.start.toLong()),
                 text = segment.text,
                 highlighted = segment.start in highlightedStarts,
                 note = noteForSegment(index, starts, notes),
@@ -86,14 +87,12 @@ object TranscriptStateAssembler {
             ?.text
     }
 
-    private fun formatClock(seconds: Double): String {
-        val total = seconds.toLong().coerceAtLeast(0L)
-        return "%d:%02d".format(total / SECONDS_PER_MINUTE, total % SECONDS_PER_MINUTE)
-    }
-
-    private const val SECONDS_PER_MINUTE = 60L
+    // REL-8 (triaged copy-only): no backend re-sign path exists for an expired
+    // signed URL, so the copy no longer promises one — it names what's true
+    // (this attempt failed) and what the reader can actually do (come back
+    // later; a fresh transcript write is what changes the URL).
     private const val FETCH_ERROR_MESSAGE =
-        "The full transcript couldn't be loaded just now. It will return when the link refreshes."
+        "The full transcript couldn't be loaded just now. Try reopening it in a little while."
     private const val UNAVAILABLE_MESSAGE =
         "This episode's transcript could not be set. Try the recording instead."
     private val PENDING_STATUSES = setOf("pending", "processing", "in_progress", "queued")

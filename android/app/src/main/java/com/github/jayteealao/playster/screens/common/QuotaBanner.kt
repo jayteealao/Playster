@@ -1,74 +1,14 @@
 package com.github.jayteealao.playster.screens.common
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.jayteealao.playster.screens.common.state.QuotaState
 import com.github.jayteealao.playster.screens.common.state.toQuotaState
-
-/**
- * Top-of-app banner. Observes `quota/openrouter` via [QuotaBannerViewModel]
- * and renders nothing when [QuotaState.Healthy], a sticky banner with copy
- * appropriate to the variant otherwise. All Summarize CTAs across the app
- * derive their enabled state from the same listener (see
- * `rememberQuotaState()` below) so the banner and the controls move together.
- */
-@Composable
-fun QuotaBanner(
-    modifier: Modifier = Modifier,
-    viewModel: QuotaBannerViewModel = hiltViewModel(),
-) {
-    val quotaDoc by viewModel.quotaDoc.collectAsStateWithLifecycle()
-    val state = quotaDoc.toQuotaState()
-
-    when (state) {
-        is QuotaState.Healthy -> Box(modifier = modifier.height(0.dp))
-        is QuotaState.DailyExhausted ->
-            BannerBox(
-                modifier = modifier,
-                text = "Daily summary limit reached. Resets at midnight UTC.",
-            )
-        is QuotaState.PerMinuteExhausted ->
-            BannerBox(
-                modifier = modifier,
-                text = "Rate limited — try again in a moment.",
-            )
-    }
-}
-
-@Composable
-private fun BannerBox(
-    modifier: Modifier,
-    text: String,
-) {
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.errorContainer)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .testTag("quota-banner"),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-        )
-    }
-}
+import com.github.jayteealao.playster.ui.editorial.components.EditorialQuotaNotice
 
 /**
  * Shared Composable accessor so any screen can derive [QuotaState] from the
@@ -78,4 +18,35 @@ private fun BannerBox(
 fun rememberQuotaState(viewModel: QuotaBannerViewModel = hiltViewModel()): QuotaState {
     val quotaDoc by viewModel.quotaDoc.collectAsStateWithLifecycle()
     return quotaDoc.toQuotaState()
+}
+
+/**
+ * The quota banner idiom carried into the editorial chrome: the same
+ * `quota/openrouter` listener every Summarize CTA derives from (via
+ * [rememberQuotaState]), rendered as the rule-bounded paperDeep band.
+ * Healthy renders nothing. Keeps the `quota-banner` test tag so existing
+ * quota flows re-target without a selector change.
+ *
+ * Lives here (not in `ui.editorial.chrome`) because it is
+ * Hilt-ViewModel-backed: `ui.editorial` is the screens-agnostic
+ * design-system/chrome layer and must stay composable without Hilt. The
+ * composition root ([com.github.jayteealao.playster.MainActivity]) supplies
+ * this as the `quotaBand` slot to
+ * [com.github.jayteealao.playster.ui.editorial.chrome.EditorialAppScaffold],
+ * keeping that dependency out of the chrome layer itself.
+ */
+@Composable
+fun QuotaNoticeBand() {
+    val message =
+        when (rememberQuotaState()) {
+            is QuotaState.Healthy -> null
+            is QuotaState.DailyExhausted -> "Daily summary limit reached. Resets at midnight UTC."
+            is QuotaState.PerMinuteExhausted -> "Rate limited — try again in a moment."
+        }
+    if (message != null) {
+        EditorialQuotaNotice(
+            message = message,
+            modifier = Modifier.testTag("quota-banner"),
+        )
+    }
 }

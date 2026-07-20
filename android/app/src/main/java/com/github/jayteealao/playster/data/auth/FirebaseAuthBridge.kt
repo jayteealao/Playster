@@ -1,5 +1,8 @@
 package com.github.jayteealao.playster.data.auth
 
+import android.util.Log
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -14,6 +17,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "playster.auth"
+
 /**
  * Bridges a Google Sign-In ID token into a Firebase Auth session. Exposes the
  * current uid as a `StateFlow` so view models can react to sign-in / sign-out
@@ -24,6 +29,7 @@ class FirebaseAuthBridge
     @Inject
     constructor(
         private val firebaseAuth: FirebaseAuth,
+        private val credentialManager: CredentialManager,
     ) {
         private val _currentUid = MutableStateFlow(firebaseAuth.currentUser?.uid)
         val currentUid: StateFlow<String?> = _currentUid.asStateFlow()
@@ -64,8 +70,19 @@ class FirebaseAuthBridge
             return uid
         }
 
+        /**
+         * SEC-1: end the Firebase Auth session, then best-effort forget the
+         * on-device Credential Manager authorization for this app. A
+         * `clearCredentialState` failure (e.g. no provider configured) must
+         * never block sign-out itself — the Firebase session is already torn
+         * down by the time we attempt it — so it's caught and logged, not
+         * propagated.
+         */
         suspend fun signOut() {
             firebaseAuth.signOut()
+            runCatching {
+                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            }.onFailure { e -> Log.w(TAG, "clearCredentialState failed", e) }
         }
 
         /** Cold flow form of the auth state, for non-injected consumers. */

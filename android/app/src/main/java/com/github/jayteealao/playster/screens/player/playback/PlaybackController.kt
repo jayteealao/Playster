@@ -59,6 +59,13 @@ class PlaybackController(
     private var player: YouTubePlayer? = null
     private var sawError = false
 
+    /**
+     * A play/pause request made while [player] was still null (BC-2) — applied
+     * once [onReady] assigns the player, so a tap during the Loading window is
+     * queued rather than silently dropped. `null` means no pending request.
+     */
+    private var pendingPlayIntent: Boolean? = null
+
     /** The single listener [YouTubePlayerHost] attaches to the view. */
     val listener: YouTubePlayerListener =
         object : AbstractYouTubePlayerListener() {
@@ -66,9 +73,19 @@ class PlaybackController(
                 player = youTubePlayer
                 // Cue (not load) so playback doesn't start unprompted — RMF
                 // autoplay compliance + the editorial "press to listen" beat.
-                youTubePlayer.cueVideo(videoId, startPositionSeconds.coerceAtLeast(0f))
+                // Cue from the live position when this is a rebuild (a config
+                // change re-initializes the same controller and fires onReady
+                // a second time) rather than the constructor-fixed
+                // startPositionSeconds, so rotation never silently rewinds
+                // progress already made (REL-4).
+                val cuePosition = maxOf(startPositionSeconds, _positionSeconds.value).coerceAtLeast(0f)
+                youTubePlayer.cueVideo(videoId, cuePosition)
                 if (_state.value is PlaybackState.Loading) {
                     _state.value = PlaybackState.Ready
+                }
+                pendingPlayIntent?.let { wantsPlay ->
+                    pendingPlayIntent = null
+                    if (wantsPlay) youTubePlayer.play() else youTubePlayer.pause()
                 }
             }
 
@@ -149,16 +166,63 @@ class PlaybackController(
     }
 
     fun play() {
-        player?.play()
+        val p = player
+        if (p == null) {
+            pendingPlayIntent = true
+            return
+        }
+        p.play()
     }
 
     fun pause() {
-        player?.pause()
+        val p = player
+        if (p == null) {
+            pendingPlayIntent = false
+            return
+        }
+        p.pause()
     }
 
     /** Absolute seek in seconds (used by resume and the chapters jump). */
     fun seekTo(seconds: Float) {
         player?.seekTo(seconds.coerceAtLeast(0f))
+    }
+
+    /**
+     * Re-target an already-live controller to [seconds] — used by
+     * [PlaybackSession.controllerFor] when it reuses this controller for the
+     * same video instead of constructing a fresh one, so a `?t=` deep link or
+     * a search jump-to-timestamp hit is never silently dropped just because
+     * the controller was already live (CR-2). Mirrors the existing cue-vs-seek
+     * split: while actively playing, `seekTo` jumps without interrupting
+     * playback; otherwise `cueVideo` re-cues paused at the new point, matching
+     * a fresh open's "press to listen" beat. A no-op if the player isn't ready
+     * yet (rare — the controller is only reused once it's already live).
+     */
+    fun seekOrCueTo(seconds: Float) {
+        val p = player ?: return
+        val target = seconds.coerceAtLeast(0f)
+        if (_state.value is PlaybackState.Playing) {
+            p.seekTo(target)
+        } else {
+            p.cueVideo(videoId, target)
+        }
+    }
+
+    /**
+     * Re-cue the current video from the last known position — the target of a
+     * retryable [PlaybackError]'s "Try the video again" affordance (REL-3),
+     * previously inert because no reload path existed and [PlaybackSession]
+     * simply returned the cached, still-broken controller. Resets to
+     * [PlaybackState.Loading] so the load watchdog re-arms and the existing
+     * error mapping applies again if the retry itself fails; a no-op unless
+     * the controller is currently in an error state.
+     */
+    fun retry() {
+        if (_state.value !is PlaybackState.Error) return
+        sawError = false
+        _state.value = PlaybackState.Loading
+        player?.cueVideo(videoId, _positionSeconds.value.coerceAtLeast(0f))
     }
 
     /** Fractional seek [0,1] — the seek bar's drag maps here against the duration. */

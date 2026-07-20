@@ -53,6 +53,7 @@ class SettingsStateRoborazziTest {
             composeTestRule.onRoot()
                 .captureRoboImage(filePath = "src/test/snapshots/images/settings_state_${next.key}.png")
             assertNoPurePixels(composeTestRule, "settings_state/${next.key}")
+            assertRootBackground(composeTestRule, "settings_state/${next.key}", next.paper)
         }
     }
 
@@ -68,6 +69,7 @@ class SettingsStateRoborazziTest {
             composeTestRule.onRoot()
                 .captureRoboImage(filePath = "src/test/snapshots/images/settings_state_face_${next.key}.png")
             assertNoPurePixels(composeTestRule, "settings_state/face/${next.key}")
+            assertRootBackground(composeTestRule, "settings_state/face/${next.key}", EditorialPalettes.Cream.paper)
         }
     }
 
@@ -83,6 +85,7 @@ class SettingsStateRoborazziTest {
             composeTestRule.onRoot()
                 .captureRoboImage(filePath = "src/test/snapshots/images/settings_state_size_${next.key}.png")
             assertNoPurePixels(composeTestRule, "settings_state/size/${next.key}")
+            assertRootBackground(composeTestRule, "settings_state/size/${next.key}", EditorialPalettes.Cream.paper)
         }
     }
 

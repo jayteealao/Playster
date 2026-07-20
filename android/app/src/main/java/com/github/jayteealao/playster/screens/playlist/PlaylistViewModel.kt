@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Clock
 import javax.inject.Inject
 
@@ -61,6 +62,19 @@ class PlaylistViewModel
 
         /** Bumping this re-subscribes every source — the error-notice retry path. */
         private val retryTrigger = MutableStateFlow(0)
+
+        init {
+            // DI-2: this is the shipped app's one "playlist opened" write —
+            // without it, Home's `shelfProgressFlow` (kind == "playlist" order
+            // by lastOpenedAt) has no producer in a real account and the shelf
+            // stays permanently empty. Best-effort/fire-and-forget, mirroring
+            // the other write sides here (a failure degrades quietly).
+            if (playlistId.isNotBlank()) {
+                viewModelScope.launch {
+                    progressRepository.upsertPlaylistOpened(playlistId)
+                }
+            }
+        }
 
         @OptIn(ExperimentalCoroutinesApi::class)
         val uiState: StateFlow<PlaylistUiState> =

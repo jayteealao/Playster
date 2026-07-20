@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.github.jayteealao.playster.screens.player.playback.PlaybackError
 import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.screens.player.playback.PlaybackState
+import com.github.jayteealao.playster.screens.player.playback.ProgressWriteSink
 import com.github.jayteealao.playster.screens.transcript.TranscriptContent
 import com.github.jayteealao.playster.screens.transcript.TranscriptEmbed
 import com.github.jayteealao.playster.screens.transcript.TranscriptHeader
@@ -70,7 +71,13 @@ class TranscriptStateRoborazziTest {
         composeTestRule.setContent {
             EditorialTheme(palette = EditorialPalettes.Cream) {
                 TranscriptEmbed(
-                    session = PlaybackSession(),
+                    // Rendering-only: the error branch never touches this
+                    // session (no controllerFor/YouTubePlayerHost call in
+                    // this path), so the progress-write sink BC-1 added to
+                    // PlaybackSession is never exercised here — a no-op
+                    // satisfies the constructor without a live Firestore/
+                    // FirebaseApp dependency this test has no other need for.
+                    session = PlaybackSession(progressWriteSink = ProgressWriteSink { _, _, _, _, _ -> }),
                     playbackState = PlaybackState.Error(PlaybackError.EmbedDisabled),
                     positionLabel = "10:27",
                     onOpenPlayer = {},
@@ -92,6 +99,7 @@ class TranscriptStateRoborazziTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/transcript_state_$key.png")
         assertNoPurePixels(composeTestRule, "transcript_state/$key")
+        assertRootBackground(composeTestRule, "transcript_state/$key", EditorialPalettes.Cream.paper)
     }
 
     private fun captureContentAllPalettes(
@@ -107,6 +115,7 @@ class TranscriptStateRoborazziTest {
             composeTestRule.waitForIdle()
             composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/transcript_state_${key}_${next.key}.png")
             assertNoPurePixels(composeTestRule, "transcript_state/$key/${next.key}")
+            assertRootBackground(composeTestRule, "transcript_state/$key/${next.key}", next.paper)
         }
     }
 

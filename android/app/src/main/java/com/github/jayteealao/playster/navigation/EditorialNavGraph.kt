@@ -38,6 +38,53 @@ private val ED_FADE_RISE = 4.dp
  */
 internal const val SAMPLE_VIDEO_ID = "sample-episode"
 
+// Single-sourced navigation lambdas — every defaulted `*Content` slot below
+// calls these instead of re-writing its own `navController.navigate(...)`,
+// so a route-shape change or a `launchSingleTop` policy change is one edit,
+// not a hunt across seven slot defaults (MNT-1). Kept as private extension
+// functions (not a remembered holder) because default parameter expressions
+// are evaluated at the call site and can only see the function's own
+// parameters — not composable-scoped locals.
+
+private fun NavHostController.openPlaylist(playlistId: String) {
+    navigate(EditorialRoutes.playlist(playlistId))
+}
+
+/**
+ * Navigate to a player route. Always `launchSingleTop`: Home, Playlist,
+ * Transcript, and Search can all open the same episode repeatedly, and
+ * repeated opens of the same route must not stack duplicate player
+ * destinations on the back stack.
+ */
+private fun NavHostController.openPlayer(videoId: String) {
+    navigate(EditorialRoutes.player(videoId)) { launchSingleTop = true }
+}
+
+/** Player → Transcript: falls back to the skeleton's sample id when unset. */
+private fun NavHostController.openTranscriptFromPlayer(videoId: String) {
+    navigate(EditorialRoutes.transcript(videoId.ifEmpty { SAMPLE_VIDEO_ID }))
+}
+
+/** Search's jump-to-timestamp deep link into Transcript. */
+private fun NavHostController.openTranscriptAt(
+    videoId: String,
+    startSeconds: Double?,
+) {
+    navigate(EditorialRoutes.transcript(videoId, startSeconds))
+}
+
+private fun NavHostController.openSearch() {
+    navigate(EditorialRoutes.SEARCH)
+}
+
+private fun NavHostController.openSettings() {
+    navigate(EditorialRoutes.SETTINGS)
+}
+
+private fun NavHostController.goBack() {
+    popBackStack()
+}
+
 /**
  * The editorial navigation graph: all seven routes resolve to editorial
  * skeletons until their screen slices land, with the mock's `edFade`
@@ -62,55 +109,37 @@ fun EditorialNavGraph(
     authContent: @Composable () -> Unit = { AuthScreen() },
     homeContent: @Composable () -> Unit = {
         HomeScreen(
-            onOpenPlaylist = { playlistId ->
-                navController.navigate(EditorialRoutes.playlist(playlistId))
-            },
-            onOpenPlayer = { videoId ->
-                navController.navigate(EditorialRoutes.player(videoId))
-            },
-            onOpenSearch = { navController.navigate(EditorialRoutes.SEARCH) },
-            onOpenSettings = { navController.navigate(EditorialRoutes.SETTINGS) },
+            onOpenPlaylist = { playlistId -> navController.openPlaylist(playlistId) },
+            onOpenPlayer = { videoId -> navController.openPlayer(videoId) },
+            onOpenSearch = { navController.openSearch() },
+            onOpenSettings = { navController.openSettings() },
         )
     },
     playlistContent: @Composable () -> Unit = {
         PlaylistScreen(
-            onOpenPlayer = { videoId ->
-                navController.navigate(EditorialRoutes.player(videoId))
-            },
-            onBack = { navController.popBackStack() },
+            onOpenPlayer = { videoId -> navController.openPlayer(videoId) },
+            onBack = { navController.goBack() },
         )
     },
     playerContent: @Composable () -> Unit = {
         PlayerScreen(
-            onBack = { navController.popBackStack() },
-            onOpenTranscript = { videoId ->
-                navController.navigate(
-                    EditorialRoutes.transcript(videoId.ifEmpty { SAMPLE_VIDEO_ID }),
-                )
-            },
+            onBack = { navController.goBack() },
+            onOpenTranscript = { videoId -> navController.openTranscriptFromPlayer(videoId) },
         )
     },
     transcriptContent: @Composable (String) -> Unit = { videoId ->
         TranscriptScreen(
-            onBack = { navController.popBackStack() },
-            onOpenPlayer = {
-                navController.navigate(EditorialRoutes.player(videoId)) {
-                    launchSingleTop = true
-                }
-            },
+            onBack = { navController.goBack() },
+            onOpenPlayer = { navController.openPlayer(videoId) },
         )
     },
     searchContent: @Composable () -> Unit = {
         SearchScreen(
             onOpenTranscriptAt = { videoId, startSeconds ->
-                navController.navigate(EditorialRoutes.transcript(videoId, startSeconds))
+                navController.openTranscriptAt(videoId, startSeconds)
             },
-            onOpenPlayer = { videoId ->
-                navController.navigate(EditorialRoutes.player(videoId))
-            },
-            onOpenPlaylist = { playlistId ->
-                navController.navigate(EditorialRoutes.playlist(playlistId))
-            },
+            onOpenPlayer = { videoId -> navController.openPlayer(videoId) },
+            onOpenPlaylist = { playlistId -> navController.openPlaylist(playlistId) },
         )
     },
     // Sign-out needs no nav callback here: the session gate above redirects to

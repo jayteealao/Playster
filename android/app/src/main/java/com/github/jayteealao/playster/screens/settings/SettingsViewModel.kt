@@ -1,6 +1,7 @@
 package com.github.jayteealao.playster.screens.settings
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.jayteealao.playster.SettingsManager
@@ -12,6 +13,7 @@ import com.github.jayteealao.playster.data.firestore.PlaylistDoc
 import com.github.jayteealao.playster.data.firestore.ProgressDoc
 import com.github.jayteealao.playster.data.firestore.ProgressRepository
 import com.github.jayteealao.playster.data.firestore.VideoWithContext
+import com.github.jayteealao.playster.data.search.RecentSearchesRepository
 import com.github.jayteealao.playster.ui.editorial.EditorialFace
 import com.github.jayteealao.playster.ui.editorial.EditorialFaces
 import com.github.jayteealao.playster.ui.editorial.EditorialPalettes
@@ -53,6 +55,7 @@ class SettingsViewModel
         private val firestoreRepository: FirestoreRepository,
         private val progressRepository: ProgressRepository,
         private val highlightsRepository: HighlightsRepository,
+        private val recentSearchesRepository: RecentSearchesRepository,
     ) : ViewModel() {
         // A plain systemDefaultZone clock rather than a Hilt binding (this slice
         // adds no AppModule provider, matching Home/Playlist); the stat
@@ -211,12 +214,39 @@ class SettingsViewModel
 
         fun onSetDefaultSpeed(rate: Float) = store.setDefaultSpeed(rate)
 
-        /** Sign out — the graph's `LaunchedEffect(loggedIn)` redirects to Auth over a cleared stack. */
+        /**
+         * Sign out — the graph's `LaunchedEffect(loggedIn)` redirects to Auth
+         * over a cleared stack once [FirebaseAuthBridge.signOut] flips the
+         * auth state. PRV-2: recent searches are local behavioral data with
+         * no server-side owner scoping, so they're wiped here — *before* the
+         * auth flip — so the clear is guaranteed to run before nav can tear
+         * this ViewModel down; a DataStore failure is caught and logged
+         * rather than blocking the sign-out itself.
+         *
+         * The Firestore offline cache (notes/highlights/progress) is *not*
+         * cleared here: `FirebaseFirestore` is a single app-wide `@Singleton`
+         * (`AppModule.provideFirebaseFirestore`) shared by every repository.
+         * Its documented `clearPersistence()` contract requires `terminate()`
+         * first (verified against the installed firebase-firestore 26.4.1
+         * sources) — but `terminate()` permanently retires that one cached
+         * instance for the rest of the process; every repository still holds
+         * the same now-dead reference, so a later sign-*in* in the same
+         * session would break every Firestore read/write app-wide until the
+         * process restarts. Safely recovering from that needs the Firestore
+         * singleton to become re-creatable (e.g. an app-wide DI change to a
+         * `Provider<FirebaseFirestore>` the repositories re-resolve after
+         * sign-in) — out of scope for this minimal fix.
+         */
         fun onSignOut() {
-            viewModelScope.launch { authBridge.signOut() }
+            viewModelScope.launch {
+                runCatching { recentSearchesRepository.clear() }
+                    .onFailure { e -> Log.w(TAG, "Failed to clear recent searches on sign-out", e) }
+                authBridge.signOut()
+            }
         }
 
         private companion object {
+            const val TAG = "playster.settings"
             const val STOP_TIMEOUT_MS = 5_000L
             val SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
             val SINCE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)

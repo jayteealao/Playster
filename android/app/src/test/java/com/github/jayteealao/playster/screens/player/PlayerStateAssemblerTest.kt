@@ -5,6 +5,7 @@ import com.github.jayteealao.playster.data.firestore.PlaylistDoc
 import com.github.jayteealao.playster.data.firestore.ProgressDoc
 import com.github.jayteealao.playster.data.firestore.SummaryChapter
 import com.github.jayteealao.playster.data.firestore.VideoDoc
+import com.github.jayteealao.playster.screens.player.playback.PlaybackState
 import com.github.jayteealao.playster.screens.videoDetail.summary.SummaryUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -131,6 +132,25 @@ class PlayerStateAssemblerTest {
         assertFalse(throttle.onTick(17_000L, isPlaying = true))
         // A play→pause transition writes immediately.
         assertTrue(throttle.onTick(18_000L, isPlaying = false))
+    }
+
+    @Test
+    fun throttle_bufferingReentry_isNotScoredAsAPause() {
+        // CR-1: a Playing → Buffering → Playing flap (a flaky connection
+        // re-buffering mid-episode) must never read as a pause-edge and force
+        // a write outside the periodic cadence.
+        val throttle = ProgressWriteThrottle(periodMillis = 15_000L)
+        assertFalse(throttle.onTick(1_000L, PlaybackState.Playing)) // baseline
+        assertFalse(throttle.onTick(2_000L, PlaybackState.Buffering)) // re-buffers
+        assertFalse(throttle.onTick(3_000L, PlaybackState.Buffering)) // still stalled
+        assertFalse(throttle.onTick(4_000L, PlaybackState.Playing)) // recovers
+        // A genuine pause is still scored correctly after the flap.
+        assertTrue(throttle.onTick(5_000L, PlaybackState.Paused))
+        // ...and the periodic cadence still fires across a buffering stretch.
+        val resumed = ProgressWriteThrottle(periodMillis = 15_000L)
+        assertFalse(resumed.onTick(0L, PlaybackState.Playing))
+        assertFalse(resumed.onTick(10_000L, PlaybackState.Buffering))
+        assertTrue(resumed.onTick(15_000L, PlaybackState.Playing))
     }
 
     private fun progress(

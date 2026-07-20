@@ -108,9 +108,27 @@ reason = "Transitive/vendored dependency; no first-party fix at adoption; tracke
 id = "GHSA-6v67-2wr5-gvf4"
 reason = "Transitive/vendored dependency; no first-party fix at adoption; tracked via Dependabot"
 
-[[IgnoredVulns]]
-id = "GHSA-735f-pc8j-v9w8"
-reason = "CVE-2024-7254 (protobuf): fixed in the app runtime by Firebase BOM 34.16.0 (protobuf-javalite 3.25.5). The remaining protobuf-java/kotlin 3.24.4 entries in the Android verification-metadata come from AGP 8.13's own isolated plugin/toolchain resolution (merged build classpath resolves 3.25.5); build-time only, never in the APK/AAB. Retire on the AGP 9 upgrade."
+# CVE-2024-7254 (GHSA-735f-pc8j-v9w8, protobuf) is NOT globally ignored here — the
+# runtime-shipped protobuf-javalite is already patched (3.25.5, via Firebase BOM
+# 34.16.0). Only the AGP 8.13 build/toolchain classpath still resolves the
+# vulnerable protobuf-java/protobuf-kotlin 3.24.4, so the suppression is scoped to
+# those exact build-time packages via PackageOverrides instead of a global
+# [[IgnoredVulns]] id match — a future runtime reintroduction of this CVE (e.g. a
+# dependency bump that pulls vulnerable protobuf-java/kotlin into the app
+# classpath) will NOT be masked by this entry. Retire on the AGP 9 upgrade.
+[[PackageOverrides]]
+name = "com.google.protobuf:protobuf-java"
+ecosystem = "Maven"
+version = "3.24.4"
+ignore = true
+reason = "CVE-2024-7254 (GHSA-735f-pc8j-v9w8): build-time only — resolved solely on AGP 8.13's isolated plugin/toolchain classpath, never in the APK/AAB (runtime uses protobuf-javalite 3.25.5, already patched). Scoped to this exact version so a runtime regression on this CVE still fails the gate."
+
+[[PackageOverrides]]
+name = "com.google.protobuf:protobuf-kotlin"
+ecosystem = "Maven"
+version = "3.24.4"
+ignore = true
+reason = "CVE-2024-7254 (GHSA-735f-pc8j-v9w8): build-time only — resolved solely on AGP 8.13's isolated plugin/toolchain classpath, never in the APK/AAB (runtime uses protobuf-javalite 3.25.5, already patched). Scoped to this exact version so a runtime regression on this CVE still fails the gate."
 
 [[IgnoredVulns]]
 id = "GHSA-7r82-7xv7-xcpj"

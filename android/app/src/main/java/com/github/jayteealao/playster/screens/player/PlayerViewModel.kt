@@ -39,11 +39,13 @@ import javax.inject.Inject
  * `flatMapLatest` onto the video's notes, map through the assembler, surface a
  * terminal error as [PlayerUiState.Error], start at [PlayerUiState.Loading].
  *
- * It also owns the two write sides the screen drives: the throttled progress
- * write ([onPlaybackTick] / [onPlayerStopped], never per-second — AC5) and
- * note creation ([createNote] — AC8). Chapters fetch the description client-side
- * (Assumption 1) and degrade to the summarizer/empty source, so the Chapters tab
- * never blocks on the network.
+ * It also owns note creation ([createNote] — AC8) and, once the playlist
+ * context resolves, hands it to [PlaybackSession] ([PlaybackSession.bindPlaylistId])
+ * — the throttled progress write itself now lives on the shared session (BC-1),
+ * so it keeps running across Player↔Transcript navigation rather than stopping
+ * whenever this screen leaves composition. Chapters fetch the description
+ * client-side (Assumption 1) and degrade to the summarizer/empty source, so the
+ * Chapters tab never blocks on the network.
  */
 @HiltViewModel
 // Each source/write-side is an injected collaborator; none bundleable without a wrapper.
@@ -83,7 +85,6 @@ class PlayerViewModel
             )
 
         private val retryTrigger = MutableStateFlow(0)
-        private val throttle = ProgressWriteThrottle()
 
         @Volatile private var resolvedPlaylistId: String = navPlaylistId.orEmpty()
 
@@ -131,6 +132,12 @@ class PlayerViewModel
                 val context = sources.context ?: return@flatMapLatest flowOf(PlayerUiState.Loading)
                 val playlistId = navPlaylistId?.takeIf { it.isNotBlank() } ?: context.playlistId
                 resolvedPlaylistId = playlistId
+                // BC-1: the shared session only ever sees a bare videoId at
+                // controllerFor time — hand it the resolved playlistId as soon
+                // as it's known so its own progress-write throttle (which now
+                // runs for as long as playback continues, across Player↔
+                // Transcript nav) can satisfy isValidProgress's playlistId field.
+                playbackSession.bindPlaylistId(videoId, playlistId)
                 notesRepository.notesByPlaylistFlow(playlistId).map { notes ->
                     assemble(sources, context, playlistId, notes.filter { it.videoId == videoId })
                 }
@@ -161,45 +168,6 @@ class PlayerViewModel
                 notes = videoNotes,
                 summary = mapSummaryDocToState(sources.summaryDoc),
             )
-        }
-
-        /**
-         * A playback position tick. The throttle decides whether this tick is
-         * due (periodic while playing, or on the play→pause transition); only a
-         * due tick writes — never per-second (AC5).
-         */
-        fun onPlaybackTick(
-            positionSeconds: Float,
-            durationSeconds: Float,
-            isPlaying: Boolean,
-        ) {
-            if (throttle.onTick(System.currentTimeMillis(), isPlaying)) {
-                writeProgress(positionSeconds, durationSeconds)
-            }
-        }
-
-        /** Force a final write on exit (`onStop`) so the resume point is captured. */
-        fun onPlayerStopped(
-            positionSeconds: Float,
-            durationSeconds: Float,
-        ) {
-            throttle.markWritten(System.currentTimeMillis())
-            writeProgress(positionSeconds, durationSeconds)
-        }
-
-        private fun writeProgress(
-            positionSeconds: Float,
-            durationSeconds: Float,
-        ) {
-            if (videoId.isBlank() || positionSeconds <= 0f) return
-            viewModelScope.launch {
-                progressRepository.upsertVideoProgress(
-                    videoId = videoId,
-                    playlistId = resolvedPlaylistId,
-                    positionSeconds = positionSeconds.toLong(),
-                    durationSeconds = durationSeconds.toLong(),
-                )
-            }
         }
 
         /** Create a note stamped at [atSeconds] — appears in both Notes tabs (AC8). */

@@ -13,14 +13,17 @@ import javax.inject.Singleton
 
 private const val TAG = "FirestoreRepository"
 private const val SUMMARY_TAG = "playster.summary"
+private const val HEX_RADIX = 16
 
 /**
  * Shared helper: attaches a snapshot listener to a [Query], maps each
  * [QuerySnapshot] via [map], and propagates listener errors by closing the
  * flow with the exception (so downstream collectors see a terminal error
- * rather than freezing).
+ * rather than freezing). Internal (not private) so sibling repositories in
+ * this package reuse this single listener-wiring implementation instead of
+ * hand-rolling their own `callbackFlow`.
  */
-private inline fun <T> Query.asCollectionFlow(
+internal inline fun <T> Query.asCollectionFlow(
     tag: String,
     logLabel: String,
     crossinline map: (QuerySnapshot) -> List<T>,
@@ -131,7 +134,8 @@ class FirestoreRepository
                         .limit(1)
                         .addSnapshotListener { snapshot, error ->
                             if (error != null) {
-                                Log.w(TAG, "videoContextFlow listen error for $videoId", error)
+                                val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
+                                Log.w(TAG, "videoContextFlow listen error for $vidHash", error)
                                 close(error)
                                 return@addSnapshotListener
                             }
@@ -156,8 +160,9 @@ data class VideoWithContext(
 /**
  * Firestore listener over `summaries/{videoId}`. Emits null when the doc
  * doesn't exist (initial NoSummary state), the mapped DTO otherwise. Used by
- * the SummaryViewModel. Listener errors close the flow with the exception so
- * the ViewModel can surface a terminal error rather than freezing in-progress.
+ * PlayerViewModel and PlaylistViewModel. Listener errors close the flow with
+ * the exception so the ViewModel can surface a terminal error rather than
+ * freezing in-progress.
  */
 @Singleton
 class SummaryRepository

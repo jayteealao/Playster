@@ -6,6 +6,7 @@ import com.github.jayteealao.playster.data.firestore.PlaylistDoc
 import com.github.jayteealao.playster.data.firestore.ProgressDoc
 import com.github.jayteealao.playster.data.firestore.SummaryChapter
 import com.github.jayteealao.playster.data.firestore.VideoDoc
+import com.github.jayteealao.playster.screens.player.playback.PlaybackState
 import com.github.jayteealao.playster.screens.videoDetail.summary.SummaryUiState
 import java.time.Instant
 import java.time.ZoneId
@@ -126,7 +127,17 @@ class ProgressWriteThrottle(
     private var lastWriteMillis: Long = Long.MIN_VALUE
     private var lastWasPlaying: Boolean = false
 
-    /** Returns true when this tick should trigger a progress write. */
+    /**
+     * Returns true when this tick should trigger a progress write.
+     *
+     * @param isPlaying whether playback is actively continuing right now.
+     * Buffering counts as still-playing here (CR-1): a network stall mid-play
+     * is not a user pause, and scoring it as one forces a write on every
+     * buffering re-entry — well past the intended periodic cadence. Callers
+     * should pass `true` for both Playing and Buffering, and only `false` for
+     * a genuine Paused/Ended/Error/exit; the [PlaybackState] overload below
+     * applies that mapping for callers that already have the raw state.
+     */
     fun onTick(
         nowMillis: Long,
         isPlaying: Boolean,
@@ -143,6 +154,21 @@ class ProgressWriteThrottle(
         val due = pausedTransition || periodic
         if (due) lastWriteMillis = nowMillis
         return due
+    }
+
+    /**
+     * Convenience overload keyed on the actual [PlaybackState] (CR-1): scores
+     * [PlaybackState.Playing] and [PlaybackState.Buffering] as "still playing"
+     * for the pause-edge check, so a `Playing → Buffering` flip on a flaky
+     * connection never reads as a pause and forces a write. Every other state
+     * (Loading/Ready/Paused/Ended/Error) reads as "not playing".
+     */
+    fun onTick(
+        nowMillis: Long,
+        playbackState: PlaybackState,
+    ): Boolean {
+        val isPlaying = playbackState is PlaybackState.Playing || playbackState is PlaybackState.Buffering
+        return onTick(nowMillis, isPlaying)
     }
 
     /** Record that a write happened at [nowMillis] (e.g. a forced exit write). */

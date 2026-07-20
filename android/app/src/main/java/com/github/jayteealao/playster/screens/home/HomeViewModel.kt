@@ -1,10 +1,14 @@
 package com.github.jayteealao.playster.screens.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
 import com.github.jayteealao.playster.data.firestore.ProgressRepository
+import com.github.jayteealao.playster.screens.player.playback.isDeviceOffline
+import com.github.jayteealao.playster.screens.player.playback.withOfflineFallback
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +40,7 @@ class HomeViewModel
     constructor(
         private val firestoreRepository: FirestoreRepository,
         private val progressRepository: ProgressRepository,
+        @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         private val clock: Clock = Clock.systemDefaultZone()
 
@@ -46,6 +51,13 @@ class HomeViewModel
         val uiState: StateFlow<HomeUiState> =
             retryTrigger
                 .flatMapLatest { homeFlow() }
+                // REL-5: a cold-start-offline launch (no cache, no server ack)
+                // never trips the listeners' error callback, so without this the
+                // shelf sits on Loading forever. Reuses the Player's own offline
+                // detection and this screen's own existing Error notice — the
+                // online loading timeline is untouched (the watchdog only fires
+                // when nothing has arrived by the deadline).
+                .withOfflineFallback(isOffline = { isDeviceOffline(appContext) }, fallback = { HomeUiState.Error })
                 .catch { emit(HomeUiState.Error) }
                 .stateIn(
                     scope = viewModelScope,

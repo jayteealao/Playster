@@ -2,18 +2,19 @@ package com.github.jayteealao.playster.data.firestore
 
 import android.util.Log
 import com.github.jayteealao.playster.data.auth.FirebaseAuthBridge
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "playster.notes"
+private const val HEX_RADIX = 16
 
 /**
  * Read side of the reading-notes collection (`users/{uid}/notes`), the Playlist
@@ -23,11 +24,12 @@ private const val TAG = "playster.notes"
  *
  * Runs exactly the indexed query the backend doc-comment names — filter by
  * `playlistId`, order by `createdAt` desc — backed by the deployed
- * `notes(playlistId ASC, createdAt DESC)` composite index. The flow mirrors
- * [FirestoreRepository]'s snapshot-listener idiom (a listener error closes the
- * flow with the exception so a collector sees a terminal error rather than a
- * frozen screen). A missing uid short-circuits to an empty emission — the
- * signed-out window before the session gate redirects.
+ * `notes(playlistId ASC, createdAt DESC)` composite index. The flow reuses
+ * [FirestoreRepository]'s shared `asCollectionFlow` snapshot-listener helper
+ * (a listener error closes the flow with the exception so a collector sees a
+ * terminal error rather than a frozen screen). A missing uid short-circuits
+ * to an empty emission — the signed-out window before the session gate
+ * redirects.
  */
 @Singleton
 class NotesRepository
@@ -77,26 +79,28 @@ class NotesRepository
                     "createdAt" to FieldValue.serverTimestamp(),
                     "updatedAt" to FieldValue.serverTimestamp(),
                 )
-            firestore
-                .collection("users")
-                .document(uid)
-                .collection("notes")
-                .add(data)
-                .await()
+            try {
+                firestore
+                    .collection("users")
+                    .document(uid)
+                    .collection("notes")
+                    .add(data)
+                    .await()
+            } catch (e: Exception) {
+                val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
+                Log.w(TAG, "writeFailed{collection=notes,videoId=$vidHash}", e)
+                Firebase.crashlytics.apply {
+                    setCustomKey("collection", "notes")
+                    setCustomKey("op", "add")
+                    setCustomKey("video_id_hash", vidHash)
+                    recordException(e)
+                }
+            }
         }
 
         private fun Query.notesFlow(): Flow<List<NoteDoc>> =
-            callbackFlow {
-                val listener =
-                    addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            Log.w(TAG, "notesByPlaylistFlow listen error", error)
-                            close(error)
-                            return@addSnapshotListener
-                        }
-                        trySend(snapshot?.documents?.mapNotNull { it.toNoteDoc() } ?: emptyList())
-                    }
-                awaitClose { listener.remove() }
+            asCollectionFlow(TAG, "notesByPlaylistFlow") { snap ->
+                snap.documents.mapNotNull { it.toNoteDoc() }
             }
 
         private companion object {

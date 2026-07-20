@@ -152,6 +152,9 @@ jobs:
 
   android-unit-test:
     runs-on: ubuntu-latest
+    # CI-1: hangs previously defaulted to GitHub's 360min job timeout. Sized to
+    # ~2-3x the observed local run time.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -185,14 +188,59 @@ jobs:
           path: android/app/build/reports/tests/
           retention-days: 7
 
+  # CI-2 (2026-07-20): verifyRoborazziDebug compares Compose renders against ~116
+  # goldens recorded locally on Windows (JDK temurin 21.0.9+10, Robolectric 4.16
+  # NATIVE graphics mode / Skia) — this job has never executed on ubuntu-latest.
+  # Roborazzi's own README/FAQ (github.com/takahirom/roborazzi, checked live for
+  # this fix) states plainly: "there are no guarantees for identical rendering
+  # across all environments" for cross-OS runs, and recommends recording and
+  # verifying screenshots in the same environment. Determinism measures below —
+  # none require re-recording goldens:
+  #  - `runs-on` pinned to an exact Ubuntu LTS label instead of `-latest`, so the
+  #    runner image's OS/library stack (glibc, fontconfig, freetype, harfbuzz —
+  #    all things Skia's native rendering path can link against) can't silently
+  #    change between two CI runs. This is a *second*, independent source of
+  #    golden churn layered on top of the Windows-vs-Linux gap this job already
+  #    carries, and it's the one actually within a workflow file's control.
+  #  - JDK pinned to the exact local patch the goldens were recorded under
+  #    (temurin 21.0.9+10), removing JDK-patch drift as a variable. Low expected
+  #    payoff on its own — NATIVE mode renders through Skia's native binary, not
+  #    Java2D, so the JDK patch shouldn't touch pixel output — but free to fix
+  #    while pinning everything else, and directly matches this finding's ask.
+  #    If Adoptium ever stops serving 21.0.9+10, bump to the next Temurin 21 LTS
+  #    patch and re-verify `java -version` against the dev machine.
+  #  - No compareOptions.changeThreshold / tolerance was added. Checked against
+  #    roborazzi-core's RoborazziOptions.common.kt (tag 1.68.0, the version this
+  #    repo pins): changeThreshold is not exposed as a gradle.properties/-P
+  #    switch — it is only settable in Kotlin via
+  #    RoborazziOptions.CompareOptions(changeThreshold = ...), passed per-call to
+  #    captureRoboImage(). None of this repo's 9 Roborazzi suites pass a custom
+  #    RoborazziOptions today, so introducing a threshold would mean editing
+  #    every test's capture call — out of this finding's scope, and it would
+  #    weaken the project's byte-exact local gate for a "might help" cross-OS
+  #    hedge. Left as the library default (SimpleImageComparator maxDistance
+  #    0.007, changeThreshold 0) locally and in CI.
+  #  - Recovery path if this job's first real PR run still shows drift:
+  #    .github/workflows/roborazzi-record.yml (workflow_dispatch-only) re-records
+  #    goldens inside this exact pinned CI environment and uploads them as a
+  #    build artifact. Nothing is auto-committed — a maintainer downloads,
+  #    reviews, and commits the diffs by hand.
+  # Residual risk this workflow file cannot fix: Home/Player/Playlist/Search/
+  # Settings/Auth screens use Material Typography (ui/theme/Type.kt), which sets
+  # fontFamily = FontFamily.Default rather than one of the app's five bundled
+  # variable families (ui/editorial/EditorialTypography.kt, used only by the
+  # reader screens). Those goldens resolve through Robolectric's default font
+  # path instead of a self-contained bundled asset and are the most exposed to
+  # any cross-platform font-metric drift, if it turns out to exist.
   android-screenshot-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25 # CI-1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '21.0.9+10' # exact patch match to the goldens' recording machine
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:

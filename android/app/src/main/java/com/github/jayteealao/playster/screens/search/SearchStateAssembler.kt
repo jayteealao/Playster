@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.screens.search
 
+import com.github.jayteealao.playster.data.editorial.EditorialDressing
 import com.github.jayteealao.playster.data.firestore.PlaylistDoc
 import com.github.jayteealao.playster.data.firestore.VideoWithContext
 import com.github.jayteealao.playster.functions.TranscriptSearchHit
@@ -69,7 +70,7 @@ object SearchStateAssembler {
                 videoId = hit.videoId,
                 title = titleById[hit.videoId]?.takeIf { it.isNotBlank() } ?: "In this transcript",
                 snippet = hit.snippet,
-                jumpLabel = "JUMP TO ${formatTimestamp(hit.start)}",
+                jumpLabel = "JUMP TO ${EditorialDressing.clockLabel(hit.start.toLong())}",
                 startSeconds = hit.start,
             )
         }
@@ -129,14 +130,6 @@ object SearchStateAssembler {
             "${playlist.videoCount} videos",
             playlist.description.takeIf { it.isNotBlank() },
         ).joinToString(" · ")
-
-    private const val SECONDS_PER_MINUTE = 60
-
-    /** M:SS for the jump-to line — matches the transcript gutter format. */
-    private fun formatTimestamp(seconds: Double): String {
-        val total = seconds.toLong().coerceAtLeast(0L)
-        return "%d:%02d".format(total / SECONDS_PER_MINUTE, total % SECONDS_PER_MINUTE)
-    }
 }
 
 /** The two instant title groups. */

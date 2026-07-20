@@ -291,19 +291,32 @@ export const searchTranscripts = allowlistedCall<
   const limit = validateLimit(req.data?.limit);
 
   const startedAt = Date.now();
-  const corpus = await loadCorpus(startedAt);
-  const { results, truncated } = searchCorpus(corpus.entries, query, limit);
+  try {
+    const corpus = await loadCorpus(startedAt);
+    const { results, truncated } = searchCorpus(corpus.entries, query, limit);
 
-  // Structured completion line — the query TEXT is never logged (PII rule).
-  logger.info("searchTranscripts: completed", {
-    tokens: tokenize(query).length,
-    scannedVideos: corpus.scannedVideos,
-    skippedVideos: corpus.skippedVideos,
-    results: results.length,
-    ms: Date.now() - startedAt,
-  });
+    // Structured completion line — the query TEXT is never logged (PII rule).
+    logger.info("searchTranscripts: completed", {
+      tokens: tokenize(query).length,
+      scannedVideos: corpus.scannedVideos,
+      skippedVideos: corpus.skippedVideos,
+      results: results.length,
+      ms: Date.now() - startedAt,
+    });
 
-  return { results, scannedVideos: corpus.scannedVideos, truncated };
+    return { results, scannedVideos: corpus.scannedVideos, truncated };
+  } catch (err) {
+    // Structured failure line — mirrors webhook.ts/dispatch.ts. The query
+    // TEXT and transcript content are never logged (PII rule); a token
+    // count is fine, matching the completion line above.
+    logger.error("searchTranscripts: failed", {
+      errorCode: err instanceof HttpsError ? err.code : "internal",
+      errorMessage: err instanceof Error ? err.message : String(err),
+      tokens: tokenize(query).length,
+      ms: Date.now() - startedAt,
+    });
+    throw err;
+  }
 });
 
 /** Test seams. */

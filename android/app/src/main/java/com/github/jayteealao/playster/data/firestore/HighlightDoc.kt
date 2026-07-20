@@ -30,6 +30,10 @@ fun DocumentSnapshot.toHighlightDoc(): HighlightDoc? {
         videoId = getString("videoId") ?: "",
         segmentStart = getDouble("segmentStart") ?: 0.0,
         text = getString("text") ?: "",
-        createdAt = getTimestamp("createdAt"),
+        // ESTIMATE (not the SDK default NONE): a just-written, not-yet-acked
+        // `createdAt` serverTimestamp() would otherwise deserialize null and
+        // silently drop out of the "highlights this week" stat (CR-4) until the
+        // server ack round-trips.
+        createdAt = getTimestamp("createdAt", DocumentSnapshot.ServerTimestampBehavior.ESTIMATE),
     )
 }

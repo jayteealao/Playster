@@ -117,6 +117,7 @@ class PlaylistStateRoborazziTest {
             filePath = "src/test/snapshots/images/playlist_state_$key.png",
         )
         assertNoPurePixels(composeTestRule, "playlist_state/$key")
+        assertRootBackground(composeTestRule, "playlist_state/$key", EditorialPalettes.Cream.paper)
     }
 
     private fun captureOnAllPalettes(
@@ -143,6 +144,7 @@ class PlaylistStateRoborazziTest {
                 filePath = "src/test/snapshots/images/playlist_state_${key}_${nextPalette.key}.png",
             )
             assertNoPurePixels(composeTestRule, "playlist_state/$key/${nextPalette.key}")
+            assertRootBackground(composeTestRule, "playlist_state/$key/${nextPalette.key}", nextPalette.paper)
         }
     }
 

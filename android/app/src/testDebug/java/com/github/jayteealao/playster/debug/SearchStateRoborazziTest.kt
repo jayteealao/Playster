@@ -60,6 +60,7 @@ class SearchStateRoborazziTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/search_state_$key.png")
         assertNoPurePixels(composeTestRule, "search_state/$key")
+        assertRootBackground(composeTestRule, "search_state/$key", EditorialPalettes.Cream.paper)
     }
 
     private fun captureAllPalettes(
@@ -75,6 +76,7 @@ class SearchStateRoborazziTest {
             composeTestRule.waitForIdle()
             composeTestRule.onRoot().captureRoboImage(filePath = "src/test/snapshots/images/search_state_${key}_${next.key}.png")
             assertNoPurePixels(composeTestRule, "search_state/$key/${next.key}")
+            assertRootBackground(composeTestRule, "search_state/$key/${next.key}", next.paper)
         }
     }
 

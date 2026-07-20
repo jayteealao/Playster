@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.screens.player
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -152,20 +152,12 @@ private fun LivePlayer(
         }
     }
 
-    // Forward every position tick to the VM; the throttle inside prevents any
-    // per-second write (AC5). A play→pause transition writes immediately.
-    LaunchedEffect(position, playbackState) {
-        viewModel.onPlaybackTick(position, duration, playbackState is PlaybackState.Playing)
-    }
-    // Force a final write when the player leaves composition (exit → resume point).
-    DisposableEffect(controller) {
-        onDispose {
-            viewModel.onPlayerStopped(
-                controller.positionSeconds.value,
-                controller.durationSeconds.value,
-            )
-        }
-    }
+    // BC-1: the throttled progress write (periodic + pause/exit, AC5) now runs
+    // inside the shared PlaybackSession itself — it observes the same
+    // controller for as long as playback continues, including on the
+    // Transcript route, not just while this composable is on screen. No
+    // per-screen write trigger is wired here anymore (removed rather than
+    // doubled, so the same tick is never written twice).
 
     PlayerContent(
         state = content,
@@ -183,7 +175,14 @@ private fun LivePlayer(
         onCreateNote = { text -> viewModel.createNote(controller.positionSeconds.value, text) },
         onBack = onBack,
         onOpenTranscript = { onOpenTranscript(content.videoId) },
-        onRetry = viewModel::retry,
+        // A retryable embed error reloads the live embed (REL-3); anything
+        // else (including a non-retryable error's mislabeled "Back" button —
+        // REL-2, out of scope here) falls back to the prior data-refetch
+        // behavior, unchanged.
+        onRetry = {
+            val error = (playbackState as? PlaybackState.Error)?.error
+            if (error?.retryLabel != null) controller.retry() else viewModel.retry()
+        },
         videoSlot = { m -> YouTubePlayerHost(session = viewModel.playbackSession, modifier = m) },
         initialSpeed = initialSpeed,
         modifier = modifier,
@@ -229,7 +228,14 @@ fun PlayerContent(
     initialTab: Int = TAB_SUMMARY,
     initialSpeed: Float = 1f,
 ) {
-    Column(modifier = modifier.fillMaxSize().testTag("player-content")) {
+    val tokens = LocalEditorialTokens.current
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(tokens.palette.paper)
+                .testTag("player-content"),
+    ) {
         EditorialAppBar(
             kicker = (state as? PlayerUiState.Content)?.header?.kicker ?: "Now Playing",
             left = {
@@ -280,7 +286,7 @@ fun PlayerContent(
 }
 
 @Composable
-@Suppress("LongParameterList", "LongMethod")
+@Suppress("LongParameterList") // Stateless screen glue: playback plumbing + the video slot, each load-bearing.
 private fun LoadedBody(
     content: PlayerUiState.Content,
     playbackState: PlaybackState,
@@ -302,40 +308,18 @@ private fun LoadedBody(
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(initialTab) }
     var speed by rememberSaveable { mutableFloatStateOf(initialSpeed) }
-    // AC5: apply the Settings default speed once, the first time the embed leaves
-    // Loading — the controller then snaps it to the nearest supported rate. Guarded
-    // so a later manual speed pick is never overridden by a state re-emission.
-    var appliedInitialSpeed by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(playbackState) {
-        if (!appliedInitialSpeed && playbackState !is PlaybackState.Loading) {
-            if (initialSpeed != 1f) onSetSpeed(initialSpeed)
-            appliedInitialSpeed = true
-        }
-    }
+    ApplyInitialSpeedEffect(playbackState = playbackState, initialSpeed = initialSpeed, onSetSpeed = onSetSpeed)
     val playbackError = (playbackState as? PlaybackState.Error)?.error
 
     Column(modifier = modifier) {
-        if (playbackError != null) {
-            // AC3/AC4: the error surface replaces the player area — no seek bar
-            // or fake mini-player pretends playback; the tabs below stay usable.
-            EditorialErrorNotice(
-                message = playbackError.editorialMessage,
-                actionLabel = playbackError.retryLabel ?: "Back",
-                onAction = onRetry,
-                modifier =
-                    Modifier
-                        .padding(horizontal = SCREEN_HORIZONTAL, vertical = 16.dp)
-                        .testTag("player-error-surface"),
-            )
-        } else {
-            VideoPanel(
-                expanded = panelExpanded,
-                playing = playbackState is PlaybackState.Playing,
-                loading = playbackState is PlaybackState.Loading,
-                onToggle = onTogglePanel,
-                player = videoSlot,
-            )
-        }
+        PlayerPanelRegion(
+            playbackError = playbackError,
+            panelExpanded = panelExpanded,
+            playbackState = playbackState,
+            onTogglePanel = onTogglePanel,
+            onRetry = onRetry,
+            videoSlot = videoSlot,
+        )
 
         Column(
             modifier =
@@ -347,53 +331,151 @@ private fun LoadedBody(
             Spacer(Modifier.height(14.dp))
             ArticleHeader(content.header)
             if (playbackError == null) {
-                Spacer(Modifier.height(14.dp))
-                EditorialSeekBar(
+                PlayerSeekAndControls(
                     positionSeconds = positionSeconds,
                     durationSeconds = durationSeconds,
                     onScrub = onScrub,
-                )
-                Spacer(Modifier.height(10.dp))
-                PlaybackControls(
                     playing = playbackState is PlaybackState.Playing,
-                    selectedSpeed = speed,
-                    onPlayPause = onPlayPause,
+                    speed = speed,
                     onSelectSpeed = {
                         speed = it
                         onSetSpeed(it)
                     },
+                    onPlayPause = onPlayPause,
                 )
             }
             Spacer(Modifier.height(16.dp))
-            EditorialTabs(
-                tabs = TABS,
-                selectedIndex = selectedTab,
-                onSelect = { index ->
-                    if (index == TAB_TRANSCRIPT) onOpenTranscript() else selectedTab = index
-                },
+            PlayerTabsSection(
+                content = content,
+                selectedTab = selectedTab,
+                onSelectTab = { selectedTab = it },
+                onOpenTranscript = onOpenTranscript,
+                positionSeconds = positionSeconds,
+                onJumpToChapter = onJumpToChapter,
+                onCreateNote = onCreateNote,
             )
-            Spacer(Modifier.height(4.dp))
-            when (selectedTab) {
-                TAB_SUMMARY -> SummaryTab(content.summary)
-                TAB_CHAPTERS ->
-                    ChaptersTab(
-                        chapters = content.chapters,
-                        nowIndex = ChaptersResolver.nowIndex(chaptersStarts(content), positionSeconds),
-                        onJump = onJumpToChapter,
-                    )
-                TAB_NOTES ->
-                    NotesTab(
-                        notes = content.notes,
-                        currentTimeLabel = EditorialDressing.clockLabel(positionSeconds.toLong()),
-                        onCreateNote = onCreateNote,
-                    )
-                else -> Unit
-            }
-            Spacer(Modifier.height(16.dp))
         }
 
         Folio(left = content.folioLeft, right = content.folioRight, topRule = true)
     }
+}
+
+/**
+ * AC5: apply the Settings default speed once, the first time the embed leaves
+ * Loading — the controller then snaps it to the nearest supported rate. Guarded
+ * so a later manual speed pick is never overridden by a state re-emission.
+ */
+@Composable
+private fun ApplyInitialSpeedEffect(
+    playbackState: PlaybackState,
+    initialSpeed: Float,
+    onSetSpeed: (Float) -> Unit,
+) {
+    var appliedInitialSpeed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(playbackState) {
+        if (!appliedInitialSpeed && playbackState !is PlaybackState.Loading) {
+            if (initialSpeed != 1f) onSetSpeed(initialSpeed)
+            appliedInitialSpeed = true
+        }
+    }
+}
+
+/** The panel region: the live [VideoPanel] embed, or the error surface in its place. */
+@Composable
+private fun PlayerPanelRegion(
+    playbackError: PlaybackError?,
+    panelExpanded: Boolean,
+    playbackState: PlaybackState,
+    onTogglePanel: () -> Unit,
+    onRetry: () -> Unit,
+    videoSlot: @Composable (Modifier) -> Unit,
+) {
+    if (playbackError != null) {
+        // AC3/AC4: the error surface replaces the player area — no seek bar
+        // or fake mini-player pretends playback; the tabs below stay usable.
+        EditorialErrorNotice(
+            message = playbackError.editorialMessage,
+            actionLabel = playbackError.retryLabel ?: "Back",
+            onAction = onRetry,
+            modifier =
+                Modifier
+                    .padding(horizontal = SCREEN_HORIZONTAL, vertical = 16.dp)
+                    .testTag("player-error-surface"),
+        )
+    } else {
+        VideoPanel(
+            expanded = panelExpanded,
+            playing = playbackState is PlaybackState.Playing,
+            loading = playbackState is PlaybackState.Loading,
+            onToggle = onTogglePanel,
+            player = videoSlot,
+        )
+    }
+}
+
+/** The seek bar + play/pause + speed row, hidden while the panel shows an error. */
+@Composable
+private fun PlayerSeekAndControls(
+    positionSeconds: Float,
+    durationSeconds: Float,
+    onScrub: (Float) -> Unit,
+    playing: Boolean,
+    speed: Float,
+    onSelectSpeed: (Float) -> Unit,
+    onPlayPause: () -> Unit,
+) {
+    Spacer(Modifier.height(14.dp))
+    EditorialSeekBar(
+        positionSeconds = positionSeconds,
+        durationSeconds = durationSeconds,
+        onScrub = onScrub,
+    )
+    Spacer(Modifier.height(10.dp))
+    PlaybackControls(
+        playing = playing,
+        selectedSpeed = speed,
+        onPlayPause = onPlayPause,
+        onSelectSpeed = onSelectSpeed,
+    )
+}
+
+/** The tab strip and the tab content host (Summary / Chapters / Notes; Transcript navigates away). */
+@Composable
+@Suppress("LongParameterList") // Stateless glue: the tab dispatch needs every tab's own callbacks.
+private fun PlayerTabsSection(
+    content: PlayerUiState.Content,
+    selectedTab: Int,
+    onSelectTab: (Int) -> Unit,
+    onOpenTranscript: () -> Unit,
+    positionSeconds: Float,
+    onJumpToChapter: (Float) -> Unit,
+    onCreateNote: (String) -> Unit,
+) {
+    EditorialTabs(
+        tabs = TABS,
+        selectedIndex = selectedTab,
+        onSelect = { index ->
+            if (index == TAB_TRANSCRIPT) onOpenTranscript() else onSelectTab(index)
+        },
+    )
+    Spacer(Modifier.height(4.dp))
+    when (selectedTab) {
+        TAB_SUMMARY -> SummaryTab(content.summary)
+        TAB_CHAPTERS ->
+            ChaptersTab(
+                chapters = content.chapters,
+                nowIndex = ChaptersResolver.nowIndex(chaptersStarts(content), positionSeconds),
+                onJump = onJumpToChapter,
+            )
+        TAB_NOTES ->
+            NotesTab(
+                notes = content.notes,
+                currentTimeLabel = EditorialDressing.clockLabel(positionSeconds.toLong()),
+                onCreateNote = onCreateNote,
+            )
+        else -> Unit
+    }
+    Spacer(Modifier.height(16.dp))
 }
 
 /** Adapt the display chapters back to their start seconds for the NOW-index probe. */

@@ -1,5 +1,6 @@
 package com.github.jayteealao.playster.screens.playlist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -85,7 +86,14 @@ fun PlaylistContent(
     initialTab: Int = TAB_EPISODES,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(initialTab) }
-    Column(modifier = modifier.fillMaxSize().testTag("playlist-content")) {
+    val tokens = LocalEditorialTokens.current
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(tokens.palette.paper)
+                .testTag("playlist-content"),
+    ) {
         EditorialAppBar(
             kicker = coverKicker(state),
             left = {

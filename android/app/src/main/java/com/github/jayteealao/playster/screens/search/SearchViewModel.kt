@@ -1,11 +1,15 @@
 package com.github.jayteealao.playster.screens.search
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.jayteealao.playster.data.firestore.FirestoreRepository
 import com.github.jayteealao.playster.data.search.RecentSearchesRepository
 import com.github.jayteealao.playster.functions.SearchFunctions
+import com.github.jayteealao.playster.screens.player.playback.isDeviceOffline
+import com.github.jayteealao.playster.screens.player.playback.withOfflineFallback
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +43,7 @@ class SearchViewModel
         private val firestoreRepository: FirestoreRepository,
         private val searchFunctions: SearchFunctions,
         private val recentSearchesRepository: RecentSearchesRepository,
+        @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         private val queryFlow = MutableStateFlow("")
 
@@ -69,8 +74,13 @@ class SearchViewModel
 
         val uiState: StateFlow<SearchUiState> =
             combine(
-                firestoreRepository.playlistsFlow(),
-                firestoreRepository.allVideosWithContextFlow(),
+                // CR-3: each corpus leg catches its own listener fault and
+                // degrades to an empty corpus rather than throwing into the
+                // shared `combine` — a prior top-level `.catch` here let one
+                // leg's transient error terminate the whole upstream, which
+                // `stateIn(WhileSubscribed)` then froze on indefinitely.
+                firestoreRepository.playlistsFlow().catch { emit(emptyList()) },
+                firestoreRepository.allVideosWithContextFlow().catch { emit(emptyList()) },
                 queryFlow,
                 transcriptLegFlow,
                 recentSearchesRepository.recent,
@@ -83,9 +93,23 @@ class SearchViewModel
                     playlists = titles.playlists,
                     recents = recents,
                 )
-            }.catch {
-                // A corpus-listener failure must not blank the screen: keep the
-                // query + a transcript-group error, drop the title half.
+            }.withOfflineFallback(
+                // REL-6: with both corpus legs now silent-not-throwing offline
+                // (no cache, no server ack — the exact gap a listener error
+                // callback never sees), `combine` would otherwise never
+                // produce its first value at all. Reuses the transcript
+                // group's existing error sub-state as the offline surface.
+                isOffline = { isDeviceOffline(appContext) },
+                fallback = {
+                    SearchUiState.Initial.copy(
+                        query = queryFlow.value,
+                        transcript = TranscriptSearchState.Error(OFFLINE_MESSAGE),
+                    )
+                },
+            ).catch {
+                // A last-resort net for anything not already isolated above
+                // (e.g. an assembler bug): keep the query + a transcript-group
+                // error, drop the title half, rather than freezing the screen.
                 emit(
                     SearchUiState.Initial.copy(
                         query = queryFlow.value,
@@ -119,5 +143,7 @@ class SearchViewModel
             const val MIN_QUERY_CHARS = 2
             const val TRANSCRIPT_ERROR_MESSAGE =
                 "Transcript search is unavailable right now. Title results are still shown."
+            const val OFFLINE_MESSAGE =
+                "You're offline, so search can't reach your library yet. Reconnect and try again."
         }
     }

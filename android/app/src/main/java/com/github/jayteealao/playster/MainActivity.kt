@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.github.jayteealao.playster.navigation.EditorialNavGraph
 import com.github.jayteealao.playster.screens.auth.AuthViewModel
+import com.github.jayteealao.playster.screens.common.QuotaNoticeBand
 import com.github.jayteealao.playster.screens.player.playback.PlaybackSession
 import com.github.jayteealao.playster.ui.editorial.EditorialTheme
 import com.github.jayteealao.playster.ui.editorial.EditorialThemeGate
@@ -75,7 +76,10 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = hiltViewModel()
                 val loggedIn by authViewModel.loggedIn.collectAsStateWithLifecycle()
-                EditorialAppScaffold(navController = navController) {
+                EditorialAppScaffold(
+                    navController = navController,
+                    quotaBand = { QuotaNoticeBand() },
+                ) {
                     EditorialNavGraph(
                         navController = navController,
                         loggedIn = loggedIn,

@@ -14,6 +14,12 @@ complexity:
     # Theme-root composables legitimately take one parameter per design axis
     # (palette/accent/face/size/line-height/density), like MaterialTheme itself.
     ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    # Decomposing a screen's top-level composable into focused private
+    # sub-composables (the encouraged Compose idiom) grows the file's function
+    # count without growing any single function's complexity; only the
+    # public API surface — the screen entry points — should count here.
+    ignorePrivate: true
 
 style:
   MagicNumber:
