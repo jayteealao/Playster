@@ -183,40 +183,55 @@ describe("AC4 leg 2 — documented queries order as specified on the emulator", 
 
     // Progress: three playlists with distinct lastOpenedAt, three videos
     // with distinct updatedAt.
-    await base.collection("progress").doc("pl-old").set({
-      kind: "playlist",
-      playlistId: "pl-old",
-      lastOpenedAt: ts(300),
-      updatedAt: ts(300),
-    });
-    await base.collection("progress").doc("pl-new").set({
-      kind: "playlist",
-      playlistId: "pl-new",
-      lastOpenedAt: ts(5),
-      updatedAt: ts(5),
-    });
-    await base.collection("progress").doc("pl-mid").set({
-      kind: "playlist",
-      playlistId: "pl-mid",
-      lastOpenedAt: ts(60),
-      updatedAt: ts(60),
-    });
-    await base.collection("progress").doc("vid-old").set({
-      kind: "video",
-      videoId: "vid-old",
-      playlistId: "pl-old",
-      positionSeconds: 10,
-      durationSeconds: 100,
-      updatedAt: ts(200),
-    });
-    await base.collection("progress").doc("vid-new").set({
-      kind: "video",
-      videoId: "vid-new",
-      playlistId: "pl-new",
-      positionSeconds: 20,
-      durationSeconds: 100,
-      updatedAt: ts(1),
-    });
+    await base
+      .collection("progress")
+      .doc("pl-old")
+      .set({
+        kind: "playlist",
+        playlistId: "pl-old",
+        lastOpenedAt: ts(300),
+        updatedAt: ts(300),
+      });
+    await base
+      .collection("progress")
+      .doc("pl-new")
+      .set({
+        kind: "playlist",
+        playlistId: "pl-new",
+        lastOpenedAt: ts(5),
+        updatedAt: ts(5),
+      });
+    await base
+      .collection("progress")
+      .doc("pl-mid")
+      .set({
+        kind: "playlist",
+        playlistId: "pl-mid",
+        lastOpenedAt: ts(60),
+        updatedAt: ts(60),
+      });
+    await base
+      .collection("progress")
+      .doc("vid-old")
+      .set({
+        kind: "video",
+        videoId: "vid-old",
+        playlistId: "pl-old",
+        positionSeconds: 10,
+        durationSeconds: 100,
+        updatedAt: ts(200),
+      });
+    await base
+      .collection("progress")
+      .doc("vid-new")
+      .set({
+        kind: "video",
+        videoId: "vid-new",
+        playlistId: "pl-new",
+        positionSeconds: 20,
+        durationSeconds: 100,
+        updatedAt: ts(1),
+      });
 
     // Notes: on one video with shuffled anchor times; across playlists with
     // distinct createdAt.

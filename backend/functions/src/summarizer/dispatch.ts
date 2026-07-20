@@ -121,8 +121,7 @@ export async function dispatchSummary(
       videoId,
       status: "pending",
       model: dispatchModel,
-      requestedAt:
-        prior?.requestedAt ?? FieldValue.serverTimestamp(),
+      requestedAt: prior?.requestedAt ?? FieldValue.serverTimestamp(),
     };
     // Reserve doc: transactional read-then-set keeps auto-enqueue,
     // dispatcher, and the manual callable collision-safe.

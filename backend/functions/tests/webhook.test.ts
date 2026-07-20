@@ -398,17 +398,20 @@ describe("processSummaryWebhook — emulator-backed", () => {
     const { processSummaryWebhook } =
       await import("../src/summarizer/webhook.js");
     await seedRunningSummary();
-    await admin.firestore().doc(`transcripts/${VIDEO_ID}`).set({
-      videoId: VIDEO_ID,
-      status: "available",
-      segments: [
-        { start: 0, text: "intro" },
-        { start: 700.5, text: "middle" },
-        { start: 1394, text: "outro" },
-      ],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore()
+      .doc(`transcripts/${VIDEO_ID}`)
+      .set({
+        videoId: VIDEO_ID,
+        status: "available",
+        segments: [
+          { start: 0, text: "intro" },
+          { start: 700.5, text: "middle" },
+          { start: 1394, text: "outro" },
+        ],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     const summaryWithMoments = [
       LONG_SUMMARY,
       "",

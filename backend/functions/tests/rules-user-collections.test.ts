@@ -139,9 +139,7 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
           updatedAt: serverTimestamp(),
         }),
       );
-      await assertSucceeds(
-        deleteDoc(doc(db, `users/${OWNER}/progress/vid-1`)),
-      );
+      await assertSucceeds(deleteDoc(doc(db, `users/${OWNER}/progress/vid-1`)));
     });
 
     it("notes: get, list ordered by t, create, update, delete", async () => {
@@ -168,9 +166,7 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
     it("highlights: get, list, create, delete", async () => {
       const env = await getTestEnv();
       const db = env.authenticatedContext(OWNER).firestore();
-      await assertSucceeds(
-        getDoc(doc(db, `users/${OWNER}/highlights/hl-1`)),
-      );
+      await assertSucceeds(getDoc(doc(db, `users/${OWNER}/highlights/hl-1`)));
       await assertSucceeds(
         getDocs(
           query(
@@ -234,18 +230,14 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
         updateDoc(doc(db, `users/${OWNER}/notes/note-1`), { text: "hijack" }),
       );
       await assertFails(getDoc(doc(db, `users/${OWNER}/highlights/hl-1`)));
-      await assertFails(
-        deleteDoc(doc(db, `users/${OWNER}/highlights/hl-1`)),
-      );
+      await assertFails(deleteDoc(doc(db, `users/${OWNER}/highlights/hl-1`)));
     });
   });
 
   it("denies the ALLOWLISTED user on someone else's path (owner gate holds independently)", async () => {
     const env = await getTestEnv();
     const db = env.authenticatedContext(OWNER).firestore();
-    await assertFails(
-      getDoc(doc(db, `users/${STRANGER_UID}/progress/vid-1`)),
-    );
+    await assertFails(getDoc(doc(db, `users/${STRANGER_UID}/progress/vid-1`)));
     await assertFails(
       setDoc(
         doc(db, `users/${STRANGER_UID}/progress/vid-2`),
@@ -256,9 +248,7 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
     await assertFails(
       setDoc(doc(db, `users/${STRANGER_UID}/notes/note-2`), noteDoc()),
     );
-    await assertFails(
-      getDoc(doc(db, `users/${STRANGER_UID}/highlights/hl-1`)),
-    );
+    await assertFails(getDoc(doc(db, `users/${STRANGER_UID}/highlights/hl-1`)));
     await assertFails(
       deleteDoc(doc(db, `users/${STRANGER_UID}/highlights/hl-1`)),
     );
@@ -414,9 +404,7 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
       // `collection.document(playlistId)` in ProgressRepository.
       const ref = doc(db, `users/${OWNER}/progress/pl-rt`);
 
-      await assertSucceeds(
-        setDoc(ref, progressPlaylistDoc(), { merge: true }),
-      );
+      await assertSucceeds(setDoc(ref, progressPlaylistDoc(), { merge: true }));
       const snap = await getDoc(ref);
       expect(snap.exists()).toBe(true);
       expect(snap.data()?.kind).toBe("playlist");
@@ -426,9 +414,7 @@ describe("firestore.rules — users/{uid} progress/notes/highlights", () => {
 
       // Re-opening the same playlist later re-stamps lastOpenedAt — the
       // shelf-order query (Q1) depends on this actually advancing.
-      await assertSucceeds(
-        setDoc(ref, progressPlaylistDoc(), { merge: true }),
-      );
+      await assertSucceeds(setDoc(ref, progressPlaylistDoc(), { merge: true }));
       const reopened = await getDoc(ref);
       expect(reopened.data()?.kind).toBe("playlist");
     });

@@ -131,7 +131,10 @@ async function seedCorpus(): Promise<void> {
     status: "available",
     language: "en",
     segments: [
-      { start: 12, text: "We repainted the studio with an actual paint roller." },
+      {
+        start: 12,
+        text: "We repainted the studio with an actual paint roller.",
+      },
     ],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -259,9 +262,7 @@ describe("searchTranscripts callable — emulator-backed (AC2)", () => {
       code: "invalid-argument",
       message: __searchInternals.ERR_QUERY_LENGTH,
     });
-    await expect(
-      asOwner({ query: "y".repeat(201) }),
-    ).rejects.toMatchObject({
+    await expect(asOwner({ query: "y".repeat(201) })).rejects.toMatchObject({
       code: "invalid-argument",
       message: __searchInternals.ERR_QUERY_LENGTH,
     });
@@ -308,13 +309,16 @@ describe("searchTranscripts callable — emulator-backed (AC2)", () => {
     })) as import("../src/search/transcriptSearch").SearchTranscriptsOutput;
     expect(before.results).toEqual([]);
 
-    await admin.firestore().doc("transcripts/vid-fresh").set({
-      videoId: "vid-fresh",
-      status: "available",
-      segments: [{ start: 3, text: "an unmistakable fresh needle appears" }],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    await admin
+      .firestore()
+      .doc("transcripts/vid-fresh")
+      .set({
+        videoId: "vid-fresh",
+        status: "available",
+        segments: [{ start: 3, text: "an unmistakable fresh needle appears" }],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
     // Same instance, warm cache: still invisible.
     const warm = (await asOwner({
