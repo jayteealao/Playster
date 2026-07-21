@@ -71,10 +71,8 @@ class YouTubeDescriptionSource
                 "https://www.googleapis.com/youtube/v3/videos" +
                     "?part=snippet&id=$encodedId&key=$key"
             val request = Request.Builder().url(url).get().build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val body = response.body?.string() ?: return null
-                return parseDescription(body)
+            return client.newCall(request).execute().use { response ->
+                response.takeIf { it.isSuccessful }?.body?.string()?.let(::parseDescription)
             }
         }
 
