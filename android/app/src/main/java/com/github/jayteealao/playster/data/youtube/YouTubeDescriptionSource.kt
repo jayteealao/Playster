@@ -5,11 +5,12 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,6 +41,12 @@ class YouTubeDescriptionSource
     ) {
         private val cache = ConcurrentHashMap<String, String>()
 
+        private val client =
+            OkHttpClient.Builder()
+                .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .build()
+
         /** The description for [videoId], or null when unavailable (degrade to fallback). */
         @Suppress("ReturnCount") // Best-effort guards degrade to null through clear early returns.
         suspend fun descriptionFor(videoId: String): String? {
@@ -61,22 +68,13 @@ class YouTubeDescriptionSource
         ): String? {
             val encodedId = URLEncoder.encode(videoId, Charsets.UTF_8.name())
             val url =
-                URL(
-                    "https://www.googleapis.com/youtube/v3/videos" +
-                        "?part=snippet&id=$encodedId&key=$key",
-                )
-            val connection =
-                (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = CONNECT_TIMEOUT_MS
-                    readTimeout = READ_TIMEOUT_MS
-                }
-            return try {
-                if (connection.responseCode != HttpURLConnection.HTTP_OK) return null
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
-                parseDescription(body)
-            } finally {
-                connection.disconnect()
+                "https://www.googleapis.com/youtube/v3/videos" +
+                    "?part=snippet&id=$encodedId&key=$key"
+            val request = Request.Builder().url(url).get().build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body?.string() ?: return null
+                return parseDescription(body)
             }
         }
 
@@ -96,8 +94,8 @@ class YouTubeDescriptionSource
         }
 
         private companion object {
-            const val CONNECT_TIMEOUT_MS = 5_000
-            const val READ_TIMEOUT_MS = 5_000
+            const val CONNECT_TIMEOUT_MS = 5_000L
+            const val READ_TIMEOUT_MS = 5_000L
             const val HEX_RADIX = 16
         }
     }

@@ -213,6 +213,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // OkHttp — declared directly (matches the version Coil already pulls transitively)
+    // so callers outside coil-network-okhttp don't rely on an implicit transitive edge.
+    implementation(libs.okhttp)
+
     testImplementation(libs.junit)
     testImplementation(libs.androidx.navigation.testing)
     testImplementation(libs.robolectric)
