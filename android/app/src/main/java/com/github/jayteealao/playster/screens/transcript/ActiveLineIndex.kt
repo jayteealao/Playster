@@ -20,19 +20,12 @@ object ActiveLineIndex {
     ): Int {
         if (sortedStarts.isEmpty()) return -1
         val position = positionSeconds.toDouble()
-        // Binary search for the insertion point, then step back to the last start ≤ position.
-        var lo = 0
-        var hi = sortedStarts.size - 1
-        var answer = -1
-        while (lo <= hi) {
-            val mid = (lo + hi) ushr 1
-            if (sortedStarts[mid] <= position) {
-                answer = mid
-                lo = mid + 1
-            } else {
-                hi = mid - 1
-            }
-        }
-        return answer
+        // Custom comparison never returns 0, so stdlib binarySearch always falls into its
+        // "not found" branch and returns -(insertionPoint) - 1, where insertionPoint is the
+        // first index whose start is > position (the upper bound). Stepping back one from
+        // that upper bound gives the last start ≤ position — the same semantics as before.
+        val insertionPoint = sortedStarts.binarySearch { start -> if (start <= position) -1 else 1 }
+        val upperBound = -insertionPoint - 1
+        return upperBound - 1
     }
 }
