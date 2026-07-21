@@ -1,0 +1,68 @@
+appId: com.github.jayteealao.playster
+# NOTE: flow names must never contain "/" — Maestro interpolates the name into
+# its report filename unsanitized (ai-report-<name>.html), and a slash breaks
+# report writing on Windows (maestro #2017; fix merged upstream, unreleased at 2.2.0).
+name: editorial-transcript-highlight (AC2-AC3)
+# Drives the Transcript's two persistence loops against the Firebase emulator:
+#  - AC2: long-press a paragraph to highlight it; the highlighter renders
+#    immediately, and the write lands in users/{uid}/highlights (survives
+#    relaunch; the doc is inspected in the emulator, feeding Settings' stat).
+#  - AC3: add a note at the live position from the transcript; it persists
+#    timestamped, renders as marginalia here, and appears in the Player and
+#    Playlist Notes tabs (cross-surface).
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces match with `id:`.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`):
+#   1. firebase emulators:start --only auth,firestore
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (seeded account + transcript)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+---
+- launchApp
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "player-content"
+- tapOn:
+    text: "Transcript"
+- assertVisible:
+    id: "transcript-list"
+# AC2 — long-press a paragraph to underline it (highlighter renders immediately).
+- longPressOn:
+    id: "transcript-list"
+# AC2 — relaunch and reopen: the highlight persists (per-user Firestore).
+- launchApp:
+    clearState: false
+- tapOn:
+    id: "home-headliner"
+- tapOn:
+    text: "Transcript"
+- assertVisible:
+    id: "transcript-list"
+# AC3 — add a note at the current position from the transcript.
+- tapOn:
+    id: "transcript-add-note"   # AppBar note affordance opens the composer
+- tapOn:
+    id: "transcript-note-input"
+- inputText: "The whole thesis is in this line."
+# The soft keyboard covers the save affordance; dismiss it first. Maestro's
+# hideKeyboard is a system back press — safe here because the keyboard is
+# provably up (inputText just ran). If it ever proves flaky, the documented
+# fallback is tapping a non-interactive app-bar point instead.
+- hideKeyboard
+- tapOn:
+    id: "transcript-note-save"
+- assertVisible:
+    id: "transcript-mini-player"
+# AC3 — the note appears in the Player Notes tab (cross-surface).
+- tapOn:
+    id: "transcript-mini-player"
+- assertVisible:
+    id: "player-content"
+- tapOn:
+    text: "Notes"
+- assertVisible:
+    id: "player-notes"

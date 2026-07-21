@@ -13,14 +13,33 @@ import javax.inject.Singleton
 
 private const val TAG = "FirestoreRepository"
 private const val SUMMARY_TAG = "playster.summary"
+private const val HEX_RADIX = 16
+
+/**
+ * Deterministic tie-break for a candidate set that share a lookup key (e.g.
+ * every `videos` doc across playlists matching the same `videoId` in
+ * [FirestoreRepository.videoContextFlow]). Firestore does not guarantee
+ * snapshot order for a `limit`-less multi-match query, so picking
+ * `firstOrNull()` would flip arbitrarily between listens and silently swap
+ * the context (playlist id, episode count, next-episode) a caller depends
+ * on. Sorting on [pathOf] — the full document path — and taking the
+ * lexicographically smallest pins the choice to one value, stable for as
+ * long as the docs exist.
+ */
+internal fun <T> pickDeterministic(
+    candidates: List<T>,
+    pathOf: (T) -> String,
+): T? = candidates.minByOrNull(pathOf)
 
 /**
  * Shared helper: attaches a snapshot listener to a [Query], maps each
  * [QuerySnapshot] via [map], and propagates listener errors by closing the
  * flow with the exception (so downstream collectors see a terminal error
- * rather than freezing).
+ * rather than freezing). Internal (not private) so sibling repositories in
+ * this package reuse this single listener-wiring implementation instead of
+ * hand-rolling their own `callbackFlow`.
  */
-private inline fun <T> Query.asCollectionFlow(
+internal inline fun <T> Query.asCollectionFlow(
     tag: String,
     logLabel: String,
     crossinline map: (QuerySnapshot) -> List<T>,
@@ -77,6 +96,27 @@ class FirestoreRepository
                         .filter { it.title.isNotBlank() }
                 }
 
+        /**
+         * Every video across every playlist, each paired with the playlist it
+         * lives under (path-derived, like [videoContextFlow]). Backs the Search
+         * screen's instant, as-you-type title match — the filter runs in-memory
+         * over this flow with zero network round-trip (AC1). Blank-title orphan
+         * rows are hidden, exactly as [videosFlow] hides them. At this app's
+         * personal-corpus scale a full collection-group read is the same cost
+         * model the backend search itself assumes.
+         */
+        fun allVideosWithContextFlow(): Flow<List<VideoWithContext>> =
+            firestore.collectionGroup("videos").asCollectionFlow(
+                tag = TAG,
+                logLabel = "allVideosWithContextFlow",
+            ) { snap ->
+                snap.documents.mapNotNull { doc ->
+                    val video = doc.toObject(VideoDoc::class.java) ?: return@mapNotNull null
+                    if (video.title.isBlank()) return@mapNotNull null
+                    VideoWithContext(video, doc.reference.parent.parent?.id ?: "")
+                }
+            }
+
         fun videoFlow(videoId: String): Flow<VideoDoc?> =
             callbackFlow {
                 val listener =
@@ -93,13 +133,56 @@ class FirestoreRepository
                         }
                 awaitClose { listener.remove() }
             }
+
+        /**
+         * The video plus the playlist it lives under — the Player's header needs
+         * the volume context (kicker, note playlistId) and the route may carry
+         * only a videoId, so the playlist id is derived from the collection-group
+         * document's path (`playlists/{playlistId}/videos/{doc}` →
+         * `reference.parent.parent.id` — Assumption 8's path-derivation fallback).
+         * A caller with an explicit `?playlistId=` nav arg overrides this.
+         */
+        fun videoContextFlow(videoId: String): Flow<VideoWithContext?> =
+            callbackFlow {
+                val listener =
+                    firestore.collectionGroup("videos")
+                        .whereEqualTo("videoId", videoId)
+                        // No limit(1): the same video can live under more than
+                        // one playlist, so this can match several docs.
+                        // pickDeterministic (not firstOrNull on an arbitrarily
+                        // ordered snapshot) picks the same one every time.
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null) {
+                                val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
+                                Log.w(TAG, "videoContextFlow listen error for $vidHash", error)
+                                close(error)
+                                return@addSnapshotListener
+                            }
+                            val doc =
+                                pickDeterministic(snapshot?.documents.orEmpty()) { it.reference.path }
+                            val video = doc?.toObject(VideoDoc::class.java)
+                            trySend(
+                                video?.let {
+                                    VideoWithContext(it, doc.reference.parent.parent?.id ?: "")
+                                },
+                            )
+                        }
+                awaitClose { listener.remove() }
+            }
     }
+
+/** A video document with the playlist id derived from its collection-group path. */
+data class VideoWithContext(
+    val video: VideoDoc,
+    val playlistId: String,
+)
 
 /**
  * Firestore listener over `summaries/{videoId}`. Emits null when the doc
  * doesn't exist (initial NoSummary state), the mapped DTO otherwise. Used by
- * the SummaryViewModel. Listener errors close the flow with the exception so
- * the ViewModel can surface a terminal error rather than freezing in-progress.
+ * PlayerViewModel and PlaylistViewModel. Listener errors close the flow with
+ * the exception so the ViewModel can surface a terminal error rather than
+ * freezing in-progress.
  */
 @Singleton
 class SummaryRepository

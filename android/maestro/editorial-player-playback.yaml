@@ -1,0 +1,75 @@
+appId: com.github.jayteealao.playster
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-player-playback (AC1-AC2-AC6)
+# Drives real, compliant YouTube playback on the running Player: play / pause /
+# scrub / each speed with the embed visibly responding (AC1), the Masthead-band
+# panel collapsing and expanding while playback stays visible (AC2), and the
+# Chapters tab with the NOW badge following playback (AC6). The embed itself is a
+# live-emulator behavior — this flow asserts the driven surfaces; the visible
+# response + panel motion + NOW badge tracking are read off the accompanying
+# screen recording (the pixel/motion evidence Maestro can't assert).
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces match with `id:`.
+#
+# Fixture (verify-pinned — Assumption 2): the seeded playlist ed-p1's first
+# episode must carry a CURATED, EMBEDDABLE public videoId (a "normal" fixture)
+# and a description-chapters fixture; the concrete ids are pinned at the verify
+# run (a real embeddable id can rot) and recorded in verify-evidence/player-screen/.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; runScript is JS-only):
+#   1. firebase emulators:start --only auth,firestore
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (with the curated real videoIds)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+---
+- launchApp
+# Open the first seeded episode from the volume (home headliner → its playlist,
+# or straight from the shelf's continue target).
+- tapOn:
+    id: "home-headliner"
+- assertVisible:
+    id: "player-content"
+- assertVisible:
+    id: "player-video-panel"
+- assertVisible:
+    id: "player-header"
+# AC1 — play, then pause; the embed's visible response is on the recording.
+- tapOn:
+    id: "player-play-pause"
+- assertVisible:
+    id: "player-seek-bar"
+- tapOn:
+    id: "player-play-pause"
+# AC1 — each speed 0.25×–2× (the row scrolls horizontally).
+- tapOn:
+    id: "player-speed-0_5"
+# Whole-number rates keep their decimal in the tag: speedTag(1.0f) renders
+# "1_0" (rate.toString() is "1.0"), so the ids are player-speed-1_0 / 2_0.
+- tapOn:
+    id: "player-speed-1_0"
+- tapOn:
+    id: "player-speed-1_5"
+- tapOn:
+    id: "player-speed-2_0"
+# AC1 — scrub the seek bar (a horizontal swipe across the bar).
+- swipe:
+    from:
+      id: "player-seek-bar"
+    direction: RIGHT
+# AC2 — collapse the panel; playback stays visible in the strip (recording),
+# then expand it again. The panel never hides the embed.
+- tapOn:
+    id: "player-panel-collapse"
+- assertVisible:
+    id: "player-video-panel"
+- tapOn:
+    id: "player-panel-collapse"
+# AC6 — Chapters tab with the NOW badge tracking (badge position on recording).
+- tapOn:
+    text: "Chapters"
+- assertVisible:
+    id: "player-chapters"
+- assertVisible:
+    id: "player-chapter"

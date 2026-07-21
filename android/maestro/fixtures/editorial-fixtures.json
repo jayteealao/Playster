@@ -1,0 +1,46 @@
+{
+  "description": "Fixture ids seeded by android/maestro/helpers/seed-editorial-corpus.sh. Screen verification flows reference these ids instead of magic strings.",
+  "projects": {
+    "firestore": "playster-406121",
+    "firestoreNote": "The Android SDK addresses Firestore under the app's own project id (google-services.json) even against the emulator — seeds MUST live there.",
+    "authDefault": "playster-406121",
+    "authNote": "Key-based (client SDK) auth requests resolve to the emulator suite's DEFAULT project — playster-406121 per backend/.firebaserc — so the fixture account must live there. Override with AUTH_PROJECT_ID only if the suite is started with an explicit different --project."
+  },
+  "user": {
+    "email": "verify@playster.test",
+    "password": "playster-verify-fixture",
+    "uid": "pinned at seed time to the operator allowlist literal in backend/firestore.rules (never hardcoded here)"
+  },
+  "playlists": {
+    "featured": "ed-p1",
+    "all": ["ed-p1", "ed-p2", "ed-p3", "ed-p4", "ed-p5"],
+    "neverOpened": "ed-p5"
+  },
+  "videos": {
+    "featured": "ed-v09",
+    "realIds": {
+      "ed-v09": "jNQXAC9IVRw",
+      "ed-v02": "M7lc1UVf-VE",
+      "ed-v11": "aqz-KE-bpKQ"
+    },
+    "realIdsNote": "Curated REAL YouTube ids, probe-proven embeddable (2026-07-19). Seeded as the videoId FIELD and every videoId-keyed doc path (transcripts/, summaries/, users/*/progress/, notes+highlights body fields); playlist-episode doc paths keep the synthetic ed-vNN. If one rots (stops embedding), the featured episode shows the embed-error surface — replace the id here AND in write-editorial-corpus.js REAL_VIDEO_IDS.",
+    "kinds": {
+      "normal": ["ed-v01", "ed-v03", "ed-v04", "ed-v05", "ed-v06", "ed-v07", "ed-v08", "ed-v12"],
+      "long-transcript": "ed-v02",
+      "summarizer-chapters": "ed-v09",
+      "description-chapters": "ed-v11",
+      "no-transcript": "ed-v10"
+    }
+  },
+  "progress": {
+    "video": { "mid": "ed-v09", "nearlyDone": "ed-v03", "barelyStarted": "ed-v01" },
+    "playlistOrderNewestFirst": ["ed-p1", "ed-p2", "ed-p3", "ed-p4"]
+  },
+  "notes": { "videoId": "ed-v09", "count": 3 },
+  "highlights": { "videoId": "ed-v09", "segmentStarts": [43, 46] },
+  "transcripts": { "available": ["ed-v09", "ed-v02"], "longParagraphs": 2000 },
+  "summaries": { "withChapters": "ed-v09", "chapterCount": 6 },
+  "deferred": {
+    "special-case-live-ids": "An embed-DISABLED and a region-locked live id (for driving the error surfaces against real restrictions) remain unrecorded — the error paths are driven by forced bad ids / airplane mode instead. The embeddable curated set landed in videos.realIds (2026-07-19)."
+  }
+}

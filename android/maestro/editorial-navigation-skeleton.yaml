@@ -1,0 +1,66 @@
+appId: com.github.jayteealao.playster
+name: editorial-navigation-skeleton
+# Drives the seven-route editorial IA end to end on the route skeletons:
+# bottom-nav roots, the home -> playlist -> player -> transcript journey via
+# the temporary skeleton actions, and the back walk down the same stack.
+#
+# Selector convention (this flow is the reference for repairing the older
+# flows): Compose testTags surface as resource-ids via testTagsAsResourceId
+# on the scaffold root, so skeletons are matched with `id:` selectors —
+# Maestro has no `testTag:` selector. Bottom-nav items are tapped by their
+# visible labels.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; Maestro's
+# runScript executes JavaScript only, so shell/adb setup stays outside the
+# flow):
+#   1. firebase emulators:start --only auth,firestore --project playster-406121
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. ./gradlew :app:installDebug
+#   4. adb shell am broadcast -n com.github.jayteealao.playster/.debug.EmulatorPrefReceiver \
+#        -a com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR --ez enabled true
+#   5. adb shell am force-stop com.github.jayteealao.playster
+#   6. adb shell am broadcast -n com.github.jayteealao.playster/.debug.DebugAuthReceiver \
+#        -a com.github.jayteealao.playster.debug.SIGN_IN
+#      (assert `debugSignIn{status=success}` on the playster.debug logcat tag)
+---
+- launchApp
+- assertVisible:
+    id: "route-skeleton-home"
+# Bottom-nav roots resolve and repeated taps don't stack (the back walk at
+# the end would break if they did).
+- tapOn:
+    text: "Search"
+- assertVisible:
+    id: "route-skeleton-search"
+- tapOn:
+    text: "You"
+- assertVisible:
+    id: "route-skeleton-settings"
+- tapOn:
+    text: "Reading"
+- assertVisible:
+    id: "route-skeleton-home"
+# The reading journey over parameterized routes, via the temporary skeleton
+# actions (deleted as each screen slice lands).
+- tapOn:
+    id: "skeleton-action-home"
+- assertVisible:
+    id: "route-skeleton-playlist"
+- tapOn:
+    id: "skeleton-action-playlist"
+- assertVisible:
+    id: "route-skeleton-player"
+- tapOn:
+    id: "skeleton-action-player"
+- assertVisible:
+    id: "route-skeleton-transcript"
+# System back walks the stack: transcript -> player -> playlist -> home.
+- back
+- assertVisible:
+    id: "route-skeleton-player"
+- back
+- assertVisible:
+    id: "route-skeleton-playlist"
+- back
+- assertVisible:
+    id: "route-skeleton-home"

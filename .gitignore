@@ -11,3 +11,27 @@ backend/functions/.tmp/
 android/keystore/
 arc_diff_tmp.txt
 summarizer/deploy/verify-artifacts/
+design-handoff/playster/README.md
+design-handoff/playster/project/.design-canvas.state.json
+design-handoff/playster/project/.thumbnail
+design-handoff/playster/project/android-frame.jsx
+design-handoff/playster/project/chrome.jsx
+design-handoff/playster/project/data.jsx
+design-handoff/playster/project/design-canvas.jsx
+design-handoff/playster/project/Playster - Android UI Variants.html
+design-handoff/playster/project/Playster - Editorial Reader.html
+design-handoff/playster/project/tweaks-panel.jsx
+design-handoff/playster/project/variant1.jsx
+design-handoff/playster/project/variant2.jsx
+design-handoff/playster/project/variant3.jsx
+design-handoff/playster/project/variant4.jsx
+design-handoff/playster/project/editorial/app.jsx
+design-handoff/playster/project/editorial/data.jsx
+design-handoff/playster/project/editorial/screens-1.jsx
+design-handoff/playster/project/editorial/screens-2.jsx
+design-handoff/playster/project/editorial/theme.jsx
+Playster - Editorial Reader.html
+Playster-handoff.zip
+
+# study-sources scratch (read-only upstream, never committed)
+.scratch/

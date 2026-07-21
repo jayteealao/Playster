@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- networkSecurityConfig: debug builds may speak cleartext HTTP to the
+         local Firebase emulator host (10.0.2.2) only — see
+         res/xml/network_security_config.xml. Merged into debug builds only. -->
+    <application android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Debug-only forced-crash trigger for crash-reporting smoke tests.
+             exported=true is acceptable here: this manifest is merged into
+             debug builds only, which are never shipped. -->
+        <receiver
+            android:name=".debug.CrashSmokeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.DEBUG_CRASH" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only palette pref writer for cold-start theme recordings.
+             Same exported=true rationale as above: debug builds only. -->
+        <receiver
+            android:name=".debug.ThemePrefReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_PALETTE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only Firebase-emulator flag writer for verification drives.
+             Same exported=true rationale as above: debug builds only. -->
+        <receiver
+            android:name=".debug.EmulatorPrefReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_FIREBASE_EMULATOR" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only fixture sign-in against the local Auth emulator so
+             navigation flows can run signed-in without a human Google
+             session. Same exported=true rationale as above. -->
+        <receiver
+            android:name=".debug.DebugAuthReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SIGN_IN" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only progress-write fault injector so a drive can force the
+             progress_sync_write_failed emit path once (one-shot flag). Same
+             exported=true rationale as above. -->
+        <receiver
+            android:name=".debug.ProgressFaultReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.jayteealao.playster.debug.SET_PROGRESS_FAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Debug-only cold-startable host for the editorial token sample
+             sheet; exercises the production no-flash theme gate. -->
+        <activity
+            android:name=".debug.TokenSampleSheetActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Playster.Editorial.Cream" />
+
+        <!-- Debug-only cold-startable host for the editorial component
+             galleries; same no-flash gate as the sample sheet. -->
+        <activity
+            android:name=".debug.ComponentGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Playster.Editorial.Cream" />
+    </application>
+
+</manifest>

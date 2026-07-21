@@ -1,0 +1,78 @@
+appId: com.github.jayteealao.playster
+# NOTE: no "/" in flow names — Maestro report filenames break on Windows (maestro #2017).
+name: editorial-settings (settings-screen AC1-AC2-AC4-AC5-AC6)
+# Drives the Settings screen over the seeded corpus + Firebase emulator:
+#   AC1 — selecting each of the four papers re-themes the whole app live (no
+#         restart); force-stop + relaunch keeps the choice with NO wrong-theme
+#         flash frame (reviewed frame-by-frame off the screen recording; Night
+#         must render dark system bars).
+#   AC2 — selecting a display face / type size re-renders text across screens
+#         (open Home/Player after the switch and screencap; Cormorant body falls
+#         back to Source Serif 4).
+#   AC3 — the masthead stats (streak / hours-this-week / avg-speed / highlights)
+#         equal the documented formulas over the seeded progress/highlight docs
+#         (the arithmetic is JVM-proven; this is the render spot-check).
+#   AC4 — sign-out clears the session and lands on Auth; relaunch lands on Auth
+#         (no ghost session).
+#   AC5 — setting a non-1× default speed makes it the Player's starting speed
+#         (set here, then open a Player and read the speed indicator).
+#   AC6 — the rendered screen pixel-matches the mock at 412×892 with the
+#         enumerated deviations (Background-play / Skip-silences / Library /
+#         Highlights rows absent, Account section added) — adb screencap + diff.
+#
+# Selector convention: Compose testTags surface as resource-ids via
+# testTagsAsResourceId on the scaffold root, so surfaces match with `id:`.
+#
+# Prerequisites (run from android/ BEFORE `maestro test`):
+#   1. firebase emulators:start --only auth,firestore,functions
+#   2. bash maestro/helpers/seed-auth-emulator.sh
+#   3. bash maestro/helpers/seed-editorial-corpus.sh   (carries the Settings-stats spread)
+#   4. ./gradlew :app:installDebug
+#   5. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
+---
+- launchApp
+# Reach Settings from the bottom nav (the "You" tab).
+- tapOn:
+    text: "You"
+- assertVisible:
+    id: "settings-content"
+- assertVisible:
+    id: "settings-stats"
+
+# AC1 — live paper switch. Each pick re-themes the whole tree; Night flips dark.
+- tapOn:
+    id: "settings-row-paper"
+- tapOn:
+    id: "settings-option-paper-night"
+# The re-theme is visual: the paper background + system bars flip immediately —
+# read off the screen recording (Maestro cannot assert a Color).
+- tapOn:
+    id: "settings-option-paper-cream"
+
+# AC2 — live face + size switch. The re-render is cross-screen: pick, then open
+# a reading surface and screencap (Cormorant body → Source Serif 4).
+- tapOn:
+    id: "settings-row-face"
+- tapOn:
+    id: "settings-option-face-cormorant"
+- tapOn:
+    id: "settings-row-size"
+- tapOn:
+    id: "settings-option-size-l"
+
+# AC5 — default speed. Set a non-1× default; a Player opened next starts at it.
+- tapOn:
+    id: "settings-row-speed"
+- tapOn:
+    id: "settings-option-speed-1.25"
+
+# AC4 — sign-out returns to Auth; the relaunch-lands-on-Auth leg is a second
+# `maestro test` invocation after this one with the emulator session cleared.
+- scrollUntilVisible:
+    element:
+      id: "settings-sign-out"
+    direction: DOWN
+- tapOn:
+    id: "settings-sign-out"
+- assertVisible:
+    id: "auth-cover"

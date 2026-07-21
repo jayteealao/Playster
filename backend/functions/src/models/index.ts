@@ -42,6 +42,21 @@ export type SummaryStatus =
   | "failed-transient"
   | "failed-permanent";
 
+/**
+ * One chapter entry parsed from the summarizer's "Key moments" section.
+ * Canonical units are seconds — clients format display strings themselves.
+ */
+export interface SummaryChapter {
+  /** Chapter start time in seconds. */
+  t: number;
+  label: string;
+  /**
+   * Chapter duration in seconds (`next.t - t`). `null` for the final chapter
+   * when no transcript is available to bound it.
+   */
+  dur: number | null;
+}
+
 export interface SummaryDocument {
   videoId: string;
   status: SummaryStatus;
@@ -63,6 +78,14 @@ export interface SummaryDocument {
    * removing the video from the retry queue permanently.
    */
   degradedAttempts?: number;
+  /**
+   * Structured chapters parsed from the summarizer's "Key moments" section.
+   * Absent on summaries produced before chapters landed and on summaries
+   * whose output carried no parseable section — consumers must treat the
+   * field as optional. When present, `content` holds the prose with the
+   * Key moments section stripped (the same information lives here, losslessly).
+   */
+  chapters?: SummaryChapter[];
   requestedAt: FieldValue | Date;
   dispatchedAt?: FieldValue | Date;
   completedAt?: FieldValue | Date;
@@ -110,6 +133,63 @@ export interface TranscriptSegment {
   /** Segment start time in seconds (float). */
   start: number;
   text: string;
+}
+
+/**
+ * Per-user reading/watching progress at `users/{uid}/progress/{docId}`.
+ * One collection holds both data kinds behind the `kind` discriminator:
+ *
+ * - `kind: "video"` — doc id is the videoId. Tracks playback position.
+ * - `kind: "playlist"` — doc id is the playlistId. Tracks last-opened time
+ *   (the Home shelf's ordering key).
+ *
+ * Deterministic doc ids make writes idempotent upserts — no duplicate-doc
+ * races between devices; last write wins.
+ */
+export interface ProgressDocument {
+  kind: "video" | "playlist";
+  /** Present when kind == "video". */
+  videoId?: string;
+  /** Present on both kinds: the playlist context of the progress. */
+  playlistId?: string;
+  /** Playback position in seconds (kind == "video"). */
+  positionSeconds?: number;
+  /** Full video duration in seconds (kind == "video"). */
+  durationSeconds?: number;
+  /** Last time the playlist was opened (kind == "playlist"). */
+  lastOpenedAt?: FieldValue | Date;
+  updatedAt: FieldValue | Date;
+}
+
+/**
+ * A timestamped user note at `users/{uid}/notes/{autoId}`, anchored to a
+ * moment in a video. Queried by videoId (player/transcript margin notes,
+ * ordered by `t`) and by playlistId (playlist Notes tab, newest first).
+ */
+export interface NoteDocument {
+  videoId: string;
+  playlistId: string;
+  /** Anchor time in the video, seconds. */
+  t: number;
+  /** Note body. Rules cap this at 5000 chars. */
+  text: string;
+  createdAt: FieldValue | Date;
+  updatedAt: FieldValue | Date;
+}
+
+/**
+ * A saved transcript highlight at `users/{uid}/highlights/{autoId}`.
+ * References a transcript segment by its start time; queried by videoId
+ * ordered by `segmentStart` so the transcript view can merge highlights
+ * into its paragraph stream in one pass.
+ */
+export interface HighlightDocument {
+  videoId: string;
+  /** Start time (seconds) of the highlighted transcript segment. */
+  segmentStart: number;
+  /** The highlighted text, denormalized for list rendering. */
+  text: string;
+  createdAt: FieldValue | Date;
 }
 
 export interface TranscriptDocument {

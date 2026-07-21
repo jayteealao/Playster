@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 31+ overlay of the per-palette editorial window styles: same window
+     background, plus a palette-true system splash. The splash surface is
+     paper-only (transparent icon) — the design's cover page is the paper
+     tone itself, and the placeholder launcher icon the splash would
+     otherwise center is not part of the design.
+
+     EditorialThemeGate.syncSplashTheme() persists the saved palette's style
+     as this app's splash theme on every launch (the platform persists it by
+     resolved style NAME — keep these names stable). windowDisablePreview is
+     deliberately absent here: Android 12+ ignores it, and these styles own
+     the splash instead. -->
+<resources>
+    <style name="Theme.Playster.Editorial.Cream" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_cream</item>
+        <item name="android:windowSplashScreenBackground">@color/editorial_paper_cream</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/editorial_splash_icon_transparent</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Vellum" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_vellum</item>
+        <item name="android:windowSplashScreenBackground">@color/editorial_paper_vellum</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/editorial_splash_icon_transparent</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Newsprint" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_newsprint</item>
+        <item name="android:windowSplashScreenBackground">@color/editorial_paper_newsprint</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/editorial_splash_icon_transparent</item>
+    </style>
+    <style name="Theme.Playster.Editorial.Night" parent="Theme.Playster">
+        <item name="android:windowBackground">@color/editorial_paper_night</item>
+        <item name="android:windowSplashScreenBackground">@color/editorial_paper_night</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/editorial_splash_icon_transparent</item>
+    </style>
+</resources>

@@ -1,42 +1,36 @@
-// Seed quota/openrouter at requestCount === dailyLimit so the QuotaBanner is
-// visible and all Summarize CTAs disable. AC-10 fixture.
-const admin = require("firebase-admin");
+// Seed quota/openrouter at requestCount === dailyLimit so the re-skinned quota
+// notice appears on the Playlist Summary tab. Seeds ONLY the quota doc — the
+// playlists/videos/summary it renders against come from write-editorial-corpus.js
+// (run seed-editorial-corpus.sh first). Writes under the app's OWN project id
+// (playster-406121) so the Android Firestore SDK actually reads it back — the
+// legacy playster-dev target was unreadable by the app.
+const path = require("node:path");
+const admin = require(
+  path.join(
+    __dirname,
+    "..",
+    "..",
+    "..",
+    "backend",
+    "functions",
+    "node_modules",
+    "firebase-admin",
+  ),
+);
+
+const PROJECT_ID = process.env.FIRESTORE_PROJECT_ID || "playster-406121";
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
-  process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+  process.env.FIRESTORE_EMULATOR_HOST =
+    process.env.FIRESTORE_EMULATOR || "127.0.0.1:8080";
 }
-admin.initializeApp({ projectId: "playster-dev" });
+
+admin.initializeApp({ projectId: PROJECT_ID });
 const db = admin.firestore();
 
 const today = new Date().toISOString().slice(0, 10);
 
 async function main() {
-  await db.collection("playlists").doc("PL_TEST_1").set({
-    id: "PL_TEST_1",
-    playlistId: "PL_TEST_1",
-    title: "Test Playlist",
-    channelTitle: "Test Channel",
-    videoCount: 1,
-    thumbnailUrl: "",
-  });
-  await db
-    .collection("playlists")
-    .doc("PL_TEST_1")
-    .collection("videos")
-    .doc("VID_ANY")
-    .set({
-      videoId: "VID_ANY",
-      playlistId: "PL_TEST_1",
-      title: "Fixture video for AC-10",
-      channelTitle: "Test Channel",
-      channelId: "UC_TEST",
-      duration: "PT5M",
-      thumbnailUrl: "",
-      publishedAt: "2026-01-01T00:00:00Z",
-      viewCount: 100,
-      position: 0,
-      addedAt: "2026-01-01T00:00:00Z",
-    });
   await db.collection("quota").doc("openrouter").set({
     date: today,
     requestCount: 1000,
@@ -45,7 +39,7 @@ async function main() {
     recentTimestamps: [],
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-  console.log("seed-quota-exhausted OK");
+  console.log(`seed-quota-exhausted OK: project=${PROJECT_ID} quota/openrouter exhausted`);
 }
 
 main().catch((err) => {

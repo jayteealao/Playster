@@ -1,0 +1,216 @@
+package com.github.jayteealao.playster.data.firestore
+
+import android.content.Context
+import android.util.Log
+import com.github.jayteealao.playster.data.ProgressFaultGate
+import com.github.jayteealao.playster.data.auth.FirebaseAuthBridge
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
+import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private const val TAG = "playster.progress"
+private const val HEX_RADIX = 16
+
+/**
+ * Read side of the reading-progress collection (`users/{uid}/progress`), the
+ * Home slice's hybrid-placement deliverable: Home is the first consumer, so it
+ * builds the repository. The Player writes these documents in a later slice;
+ * until then Home reads the seeded verification corpus.
+ *
+ * Runs exactly the two indexed queries backend-schema deployed:
+ *  - Q1 `kind == "playlist"` ordered by `lastOpenedAt` desc — the shelf order.
+ *  - Q2 `kind == "video"` ordered by `updatedAt` desc, limit 1 — the continue
+ *    headliner.
+ * A third un-ordered `kind == "video"` read feeds per-playlist progress
+ * aggregation. Each flow reuses [FirestoreRepository]'s shared
+ * `asCollectionFlow` snapshot-listener helper (a listener error closes the
+ * flow with the exception so a collector sees a terminal error rather than a
+ * frozen screen). A missing uid short-circuits to an empty emission — the
+ * signed-out window before the session gate redirects.
+ */
+@Singleton
+class ProgressRepository
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context,
+        private val firestore: FirebaseFirestore,
+        private val authBridge: FirebaseAuthBridge,
+    ) {
+        /**
+         * DI-1's client-side monotonic guard: the capture instant of the most
+         * recent write accepted per videoId, in-process/session-lifetime only
+         * (no cross-device coordination). Keyed on the write's own capture
+         * time rather than `positionSeconds` so a deliberate rewind — captured
+         * "now", same as any other live tick — is never mistaken for a stale
+         * write; only a write whose capture predates one already accepted for
+         * the same video (a network-delayed out-of-order completion) is
+         * skipped.
+         */
+        private val lastWriteCaptureMillis = ConcurrentHashMap<String, Long>()
+
+        private fun progressCollection(): CollectionReference? {
+            val uid = authBridge.currentUid.value?.takeIf { it.isNotBlank() } ?: return null
+            return firestore.collection("users").document(uid).collection("progress")
+        }
+
+        /** [progressCollection], or `null` for a blank [videoId] — the shared guard both write paths need. */
+        private fun progressCollectionFor(videoId: String): CollectionReference? {
+            if (videoId.isBlank()) return null
+            return progressCollection()
+        }
+
+        /** Q1: playlist-kind progress, newest last-opened first — the shelf order. */
+        fun shelfProgressFlow(): Flow<List<ProgressDoc>> {
+            val collection = progressCollection() ?: return flowOf(emptyList())
+            return collection
+                .whereEqualTo("kind", "playlist")
+                .orderBy("lastOpenedAt", Query.Direction.DESCENDING)
+                .progressListFlow("shelfProgressFlow")
+        }
+
+        /** Q2: the single most-recently-touched video-kind progress doc, or null. */
+        fun continueVideoFlow(): Flow<ProgressDoc?> {
+            val collection = progressCollection() ?: return flowOf(null)
+            return collection
+                .whereEqualTo("kind", "video")
+                .orderBy("updatedAt", Query.Direction.DESCENDING)
+                .limit(1)
+                .progressListFlow("continueVideoFlow")
+                .map { it.firstOrNull() }
+        }
+
+        /** Every video-kind progress doc — grouped by playlist for shelf-row progress. */
+        fun videoProgressFlow(): Flow<List<ProgressDoc>> {
+            val collection = progressCollection() ?: return flowOf(emptyList())
+            return collection
+                .whereEqualTo("kind", "video")
+                .progressListFlow("videoProgressFlow")
+        }
+
+        /**
+         * Write side (Player slice): upsert the reading position for [videoId]
+         * into `users/{uid}/progress/{videoId}` — a deterministic doc-id so
+         * every write idempotently overwrites the resume point. Conforms to
+         * `isValidProgress` (kind `video`, non-negative position/duration,
+         * `updatedAt` server timestamp); `playlistId` is included so Home can
+         * attribute the progress to a shelf row. The *caller* (the ViewModel)
+         * owns the throttle — this method just performs one write.
+         *
+         * A write failure is a `progress_sync_write_failed` dark path
+         * (04b-instrument §player): a silent failure loses the reader's place,
+         * so it is mirrored to logcat and recorded to Crashlytics with the
+         * hashed videoId — never a crash, the loop degrades quietly.
+         *
+         * [capturedAtMillis] is the wall-clock instant the *caller* captured
+         * this position (the throttle tick time), not the moment this suspend
+         * function happens to run — DI-1's guard: if a write for the same
+         * [videoId] with a newer capture has already been accepted this
+         * session, a late-arriving older-captured write (delayed on the
+         * network, completing out of order) is dropped rather than allowed to
+         * regress `positionSeconds`. A deliberate seek-back is captured "now"
+         * like any other tick, so it always carries the newest capture and is
+         * never mistaken for a stale write.
+         */
+        suspend fun upsertVideoProgress(
+            videoId: String,
+            playlistId: String,
+            positionSeconds: Long,
+            durationSeconds: Long,
+            capturedAtMillis: Long = System.currentTimeMillis(),
+        ) {
+            val collection = progressCollectionFor(videoId) ?: return
+            val previousCapture = lastWriteCaptureMillis[videoId]
+            if (previousCapture != null && capturedAtMillis < previousCapture) {
+                Log.d(TAG, "staleWriteSkipped{collection=progress,kind=video}")
+                return
+            }
+            lastWriteCaptureMillis[videoId] = capturedAtMillis
+            val data =
+                mapOf(
+                    "kind" to "video",
+                    "videoId" to videoId,
+                    "playlistId" to playlistId,
+                    "positionSeconds" to positionSeconds.coerceAtLeast(0L),
+                    "durationSeconds" to durationSeconds.coerceAtLeast(0L),
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                )
+            try {
+                // Debug-only fault seam (release twin is always false): an armed
+                // gate throws HERE so the real failure branch below fires once
+                // under a live drive — the only way to exercise this dark path,
+                // since a conforming client can never provoke a rules denial.
+                check(!ProgressFaultGate.consumeArmed(context)) {
+                    "debug progress-fault injection: forced write failure"
+                }
+                collection.document(videoId).set(data, SetOptions.merge()).await()
+            } catch (e: Exception) {
+                val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
+                Log.w(TAG, "writeFailed{collection=progress,videoId=$vidHash}", e)
+                Firebase.crashlytics.apply {
+                    setCustomKey("collection", "progress")
+                    setCustomKey("op", "write")
+                    setCustomKey("video_id_hash", vidHash)
+                    recordException(e)
+                }
+            }
+        }
+
+        /**
+         * Write side (DI-2): mark [playlistId] as opened just now, feeding Q1
+         * (`shelfProgressFlow`'s `kind == "playlist"` order-by-`lastOpenedAt`
+         * shelf read) — previously fed only by the maestro seed corpus, never
+         * by the shipped app, so the shelf order was always empty for a real
+         * account. Deterministic doc id (`users/{uid}/progress/{playlistId}`),
+         * same idempotent merge-write pattern as [upsertVideoProgress].
+         * Conforms to `isValidProgress`'s `kind == "playlist"` branch
+         * (`playlistId` string + `lastOpenedAt` timestamp); `updatedAt` is
+         * included too since it's required unconditionally by the validator.
+         */
+        suspend fun upsertPlaylistOpened(playlistId: String) {
+            if (playlistId.isBlank()) return
+            val collection = progressCollection() ?: return
+            val data =
+                mapOf(
+                    "kind" to "playlist",
+                    "playlistId" to playlistId,
+                    "lastOpenedAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                )
+            try {
+                collection.document(playlistId).set(data, SetOptions.merge()).await()
+            } catch (e: Exception) {
+                val plHash = playlistId.hashCode().toUInt().toString(HEX_RADIX)
+                Log.w(TAG, "writeFailed{collection=progress,playlistIdHash=$plHash}", e)
+                Firebase.crashlytics.apply {
+                    setCustomKey("collection", "progress")
+                    setCustomKey("op", "write")
+                    setCustomKey("playlist_id_hash", plHash)
+                    recordException(e)
+                }
+            }
+        }
+
+        private fun Query.progressListFlow(logLabel: String): Flow<List<ProgressDoc>> =
+            asCollectionFlow(TAG, logLabel) { snap ->
+                // ESTIMATE (not the SDK default NONE): a just-written, not-yet-acked
+                // `updatedAt`/`lastOpenedAt` serverTimestamp() would otherwise
+                // deserialize null and silently drop out of the streak/hours-this-week
+                // stats (CR-4) and Home's continue-video ordering until the ack lands.
+                snap.documents.mapNotNull {
+                    it.toObject(ProgressDoc::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                }
+            }
+    }

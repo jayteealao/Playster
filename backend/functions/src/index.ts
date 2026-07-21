@@ -38,6 +38,9 @@ export {
   transcriptBackfillCron,
 } from "./transcript/index";
 
+// --- Transcript full-text search ---
+export { searchTranscripts } from "./search/transcriptSearch";
+
 async function autoEnqueueSafe(videoIds: string[] | undefined): Promise<void> {
   if (!videoIds || !videoIds.length) return;
   try {

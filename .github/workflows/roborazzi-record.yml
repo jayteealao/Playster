@@ -1,0 +1,57 @@
+# CI-2 recovery path (see pr-quality.yml's android-screenshot-test job comments
+# for the full writeup). If the first real PR run of `verifyRoborazziDebug`
+# false-fails from Windows-recorded-vs-Linux-verified rendering drift — and a
+# maintainer has looked at the uploaded android-screenshot-diffs artifact and
+# confirmed the deltas are environmental noise, not a real regression — this
+# workflow re-records the ~116 Roborazzi goldens *inside the same pinned CI
+# environment* (ubuntu-24.04, temurin 21.0.9+10.0.LTS) that verify now runs in, and
+# uploads the result as a build artifact.
+#
+# This workflow never commits anything on its own. Recovery is: run it by hand,
+# download the `roborazzi-recorded-snapshots` artifact, diff it locally against
+# `android/app/src/test/snapshots/`, and commit the accepted PNGs yourself.
+name: Roborazzi Re-record (manual)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  record-goldens:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21.0.9+10.0.LTS' # matches pr-quality.yml's android-screenshot-test pin
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - name: Fix gradlew perms & line endings
+        working-directory: android
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+      - name: Decode google-services.json
+        working-directory: android
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | tr -d '\r\n\t ' | base64 -d > app/google-services.json
+      # Overwrites the local snapshot PNGs under android/app/src/test/snapshots/
+      # from this run's renders. Deliberately not committed here — see header.
+      - name: Record Roborazzi goldens
+        working-directory: android
+        run: ./gradlew --no-daemon recordRoborazziDebug
+      - name: Upload recorded snapshots
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: roborazzi-recorded-snapshots
+          path: android/app/src/test/snapshots/
+          retention-days: 14

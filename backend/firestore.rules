@@ -23,6 +23,52 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == "XLGNnIxqCwSckmrErKIdWftK9Vg2";
     }
 
+    // Owner gate for per-user collections: the path's {userId} segment must
+    // be the caller's own uid, AND the caller must still be allowlisted
+    // (single-tenant posture — same as every other collection). The owner
+    // check is deliberately independent so a future multi-tenant migration
+    // only needs to relax isAllowlisted().
+    function isOwner(userId) {
+      return isAllowlisted() && request.auth.uid == userId;
+    }
+
+    function isNonNegativeNumber(value) {
+      return value is number && value >= 0;
+    }
+
+    // users/{uid}/progress: one collection, two data kinds behind the `kind`
+    // discriminator (video position / playlist last-opened). Doc ids are
+    // deterministic (videoId / playlistId) so writes are idempotent upserts.
+    function isValidProgress() {
+      let d = request.resource.data;
+      return d.kind in ['video', 'playlist']
+        && d.updatedAt is timestamp
+        && (d.kind != 'video'
+            || (d.videoId is string
+                && isNonNegativeNumber(d.positionSeconds)
+                && isNonNegativeNumber(d.durationSeconds)))
+        && (d.kind != 'playlist'
+            || (d.playlistId is string && d.lastOpenedAt is timestamp));
+    }
+
+    function isValidNote() {
+      let d = request.resource.data;
+      return d.videoId is string
+        && d.playlistId is string
+        && isNonNegativeNumber(d.t)
+        && d.text is string && d.text.size() <= 5000
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+
+    function isValidHighlight() {
+      let d = request.resource.data;
+      return d.videoId is string
+        && isNonNegativeNumber(d.segmentStart)
+        && d.text is string && d.text.size() <= 5000
+        && d.createdAt is timestamp;
+    }
+
     match /playlists/{document=**}                     { allow read: if isAllowlisted(); allow write: if false; }
     match /playlists/{playlistId}/videos/{videoId}     { allow read: if isAllowlisted(); allow write: if false; }
     match /videos/{document=**}                        { allow read: if isAllowlisted(); allow write: if false; }
@@ -37,6 +83,25 @@ service cloud.firestore {
     match /quota/{document=**}                         { allow read: if isAllowlisted(); allow write: if false; }
     match /transcripts/{document=**}                   { allow read: if isAllowlisted(); allow write: if false; }
     match /webhook_secrets/{document=**}               { allow read: if false;            allow write: if false; }
+
+    // Per-user collections: the only client-writable surface. Owner + the
+    // single-tenant allowlist on every path; writes validated above; deletes
+    // allowed (note/highlight removal, progress account-reset).
+    match /users/{userId}/progress/{docId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidProgress();
+      allow delete: if isOwner(userId);
+    }
+    match /users/{userId}/notes/{noteId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidNote();
+      allow delete: if isOwner(userId);
+    }
+    match /users/{userId}/highlights/{highlightId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidHighlight();
+      allow delete: if isOwner(userId);
+    }
 
     match /{document=**}                               { allow read, write: if false; }
   }

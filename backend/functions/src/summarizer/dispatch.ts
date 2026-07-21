@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { allowlistedCall } from "../auth/verify.js";
@@ -120,8 +121,7 @@ export async function dispatchSummary(
       videoId,
       status: "pending",
       model: dispatchModel,
-      requestedAt:
-        prior?.requestedAt ?? admin.firestore.FieldValue.serverTimestamp(),
+      requestedAt: prior?.requestedAt ?? FieldValue.serverTimestamp(),
     };
     // Reserve doc: transactional read-then-set keeps auto-enqueue,
     // dispatcher, and the manual callable collision-safe.
@@ -130,7 +130,7 @@ export async function dispatchSummary(
     tx.set(summaryRef, next);
     const secretDoc: WebhookSecretDocument = {
       secret: webhookSecret,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     };
     tx.set(secretRef, secretDoc);
   });
@@ -148,7 +148,14 @@ export async function dispatchSummary(
   const doFetch = opts.fetchImpl ?? fetch;
   const body = {
     url: `https://www.youtube.com/watch?v=${videoId}`,
-    options: { model: dispatchModel, format: "markdown" as const },
+    // timestamps: the daemon feeds the timed transcript to the model and
+    // guarantees a "Key moments" section on its final output — the webhook
+    // parses it into the summary doc's structured `chapters` field.
+    options: {
+      model: dispatchModel,
+      format: "markdown" as const,
+      timestamps: true,
+    },
     webhook_url: webhookUrl(),
     webhook_secret: webhookSecret,
     client_job_id: videoId,
@@ -230,7 +237,7 @@ export async function dispatchSummary(
     {
       status: "running",
       summarizerJobId: summarizerJobId ?? null,
-      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      dispatchedAt: FieldValue.serverTimestamp(),
     },
     { merge: true },
   );

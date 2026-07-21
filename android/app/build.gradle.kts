@@ -1,13 +1,17 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlinComposeCompiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -44,7 +48,7 @@ android {
         }
     }
     namespace = "com.github.jayteealao.playster"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.github.jayteealao.playster"
@@ -77,17 +81,30 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+    testOptions {
+        unitTests {
+            // JVM screenshot tests render the app's actual resources (fonts,
+            // colors, themes) under Robolectric.
+            isIncludeAndroidResources = true
+            all { test ->
+                // Robolectric resolves androidx.activity.ComponentActivity from the
+                // variant's merged app manifest, and only the debug manifest carries
+                // it (injected by the debugImplementation ui-test-manifest fixture).
+                // The release variant cannot declare it without shipping a test
+                // activity, so release unit-test EXECUTION is debug-owned; the
+                // release unit-test sources still COMPILE (that gate stays), and
+                // debug runs every suite.
+                if (test.name == "testReleaseUnitTest") {
+                    test.enabled = false
+                }
+            }
+        }
     }
     packaging {
         resources {
@@ -100,6 +117,26 @@ android {
             exclude(module = "httpclient")
             exclude(module = "commons-logging")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
+    }
+}
+
+// Hilt 2.58 (the last release compatible with AGP 8.x) bundles
+// kotlin-metadata-jvm 2.3, which rejects classpath libraries compiled by
+// Kotlin 2.4 ("Provided Metadata instance has version 2.4.0, while maximum
+// supported version is 2.3.0" from :app:hiltJavaCompileDebug — repro: build
+// with the 2026.06.01 Compose / 34.16.0 Firebase BOMs). Pin the metadata
+// reader to a version that understands 2.4 metadata until the eventual
+// AGP 9 + Hilt 2.59+ upgrade retires this.
+// sdlc-debt: remove this force when AGP 9 / Hilt >= 2.59 lands.
+configurations.configureEach {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-metadata-jvm:2.4.0")
     }
 }
 
@@ -147,17 +184,22 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.identity)
-    implementation(libs.one.tap.sign.`in`)
 
     // Firebase (BOM 34+ — KTX rolled into main modules; no `-ktx` suffix needed)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.kotlinx.coroutines.play.services)
 
     // Markdown rendering for summaries (slice 4)
     implementation(libs.compose.markdown)
+
+    // YouTube playback — the ToS-compliant IFrame embed wrapper (core module
+    // only; the library's custom-ui module is not taken, editorial controls
+    // are ours).
+    implementation(libs.android.youtube.player)
 
     // hilt
     implementation(libs.hilt.android)
@@ -167,10 +209,23 @@ dependencies {
     ksp(libs.hilt.compiler)
     ksp(libs.hilt.compilerx)
 
-//    coil
+//    coil (Coil 3 unbundles networking — coil-network-okhttp is required for remote images)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
+    // OkHttp — declared directly (matches the version Coil already pulls transitively)
+    // so callers outside coil-network-okhttp don't rely on an implicit transitive edge.
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.navigation.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.ui.test.junit4)
+    testImplementation(libs.ui.test.manifest)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))

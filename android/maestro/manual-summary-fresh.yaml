@@ -1,20 +1,53 @@
 appId: com.github.jayteealao.playster
-name: manual-summary-fresh (AC-5)
+name: manual-summary-fresh (AC11 — player summary generation)
+# The fresh-summary regression, rewritten off the deleted Material VideoDetail
+# screen onto the editorial Player. Opening an episode with no summary yet makes
+# the Player reuse the app's summary machinery — it requests a summary once on
+# open (auto-dispatch) — and the Summary tab shows the editorial in-progress
+# state ("The summary is being written."), never a Material spinner. This is the
+# owed half of the old manual-summary flow the playlist slice deferred here.
+#
+# Selector convention: Compose testTags surface as resource-ids (`id:`).
+#
+# Fixture: a seeded episode with NO `summaries/{videoId}` doc (fresh state).
+#
+# Prerequisites (run from android/ BEFORE `maestro test`; runScript is JS-only):
+#   1. Summarizer secrets + a mock dispatch target. requestVideoSummary declares
+#      secrets: [SUMMARIZER_URL, SUMMARIZER_API_KEY]; without local values the
+#      callable dies INTERNAL before the reservation transaction ever runs.
+#        a. Copy backend/functions/.secret.local.example to
+#           backend/functions/.secret.local (gitignored) — it points
+#           SUMMARIZER_URL at the local mock below.
+#        b. Start the mock dispatch target (any 200 {"id": ...} satisfies the
+#           dispatch; this flow only asserts the in-progress state):
+#             node -e "require('http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'application/json'});s.end(JSON.stringify({id:'mock-job-1'}))}).listen(18080)"
+#      NOTE: the emulator binds secret values at suite START (no hot reload —
+#      probe-proven 2026-07-19; upstream docs are silent). Restart the suite
+#      after creating or editing .secret.local.
+#   2. (from backend/) firebase emulators:start --only auth,firestore,functions --project playster-406121
+#   3. bash maestro/helpers/seed-auth-emulator.sh
+#   4. bash maestro/helpers/seed-fresh-state.sh   (full corpus seeded, then the
+#      featured summary + quota docs DELETED against the running suite)
+#   5. ./gradlew :app:installDebug
+#   6. adb ... SET_FIREBASE_EMULATOR enabled true ; force-stop ; DebugAuthReceiver SIGN_IN
 ---
-- runScript: helpers/seed-fresh-state.sh
 - launchApp
-- runFlow: helpers/signin-helper.yaml
 - tapOn:
-    testTag: "playlist-tile-PL_TEST_1"
-- tapOn:
-    testTag: "summarize-button-enabled"
-# AC-5: in-progress UI within 500ms of tap.
+    id: "home-headliner"
 - assertVisible:
-    testTag: "summary-tab"
-    timeout: 500
+    id: "player-content"
+# The Summary tab is the default; opening the fresh episode auto-dispatches the
+# summary request, so the editorial in-progress notice appears (no CTA needed).
+# `assertVisible` takes no `timeout` on Maestro 2.2.0 (it rejects the property);
+# `extendedWaitUntil` is the supported timed wait for a slice that appears after
+# the async summary dispatch resolves.
 - assertVisible:
-    testTag: "summary-in-progress-spinner"
-    timeout: 500
-- assertVisible:
-    text: "Generating summary"
-    timeout: 500
+    id: "player-summary"
+- extendedWaitUntil:
+    visible:
+      id: "summary-in-progress"
+    timeout: 3000
+- extendedWaitUntil:
+    visible:
+      text: "The summary is being written."
+    timeout: 3000

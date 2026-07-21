@@ -15,6 +15,23 @@ export const STRANGER_UID = "stranger-uid";
 
 let testEnv: RulesTestEnvironment | null = null;
 
+/**
+ * Resolve the Firestore emulator address. Honors FIRESTORE_EMULATOR_HOST
+ * (`host:port`) so suites can target an alternate port when 8080 is taken;
+ * falls back to the firebase.json default.
+ */
+export function firestoreEmulatorAddress(): { host: string; port: number } {
+  const fromEnv = process.env.FIRESTORE_EMULATOR_HOST;
+  if (fromEnv) {
+    const [host, rawPort] = fromEnv.split(":");
+    const port = Number(rawPort);
+    if (host && Number.isInteger(port) && port > 0) {
+      return { host, port };
+    }
+  }
+  return { host: "127.0.0.1", port: 8080 };
+}
+
 export async function getTestEnv(): Promise<RulesTestEnvironment> {
   if (testEnv) return testEnv;
 
@@ -24,12 +41,13 @@ export async function getTestEnv(): Promise<RulesTestEnvironment> {
     .replaceAll("__BOOTSTRAP_UID__", ALLOWLISTED_UID)
     .replaceAll("XLGNnIxqCwSckmrErKIdWftK9Vg2", ALLOWLISTED_UID);
 
+  const { host, port } = firestoreEmulatorAddress();
   testEnv = await initializeTestEnvironment({
     projectId: "playster-rules-test",
     firestore: {
       rules,
-      host: "127.0.0.1",
-      port: 8080,
+      host,
+      port,
     },
   });
 
