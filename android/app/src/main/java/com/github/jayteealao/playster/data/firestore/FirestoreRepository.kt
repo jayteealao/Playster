@@ -16,6 +16,22 @@ private const val SUMMARY_TAG = "playster.summary"
 private const val HEX_RADIX = 16
 
 /**
+ * Deterministic tie-break for a candidate set that share a lookup key (e.g.
+ * every `videos` doc across playlists matching the same `videoId` in
+ * [FirestoreRepository.videoContextFlow]). Firestore does not guarantee
+ * snapshot order for a `limit`-less multi-match query, so picking
+ * `firstOrNull()` would flip arbitrarily between listens and silently swap
+ * the context (playlist id, episode count, next-episode) a caller depends
+ * on. Sorting on [pathOf] — the full document path — and taking the
+ * lexicographically smallest pins the choice to one value, stable for as
+ * long as the docs exist.
+ */
+internal fun <T> pickDeterministic(
+    candidates: List<T>,
+    pathOf: (T) -> String,
+): T? = candidates.minByOrNull(pathOf)
+
+/**
  * Shared helper: attaches a snapshot listener to a [Query], maps each
  * [QuerySnapshot] via [map], and propagates listener errors by closing the
  * flow with the exception (so downstream collectors see a terminal error
@@ -131,7 +147,10 @@ class FirestoreRepository
                 val listener =
                     firestore.collectionGroup("videos")
                         .whereEqualTo("videoId", videoId)
-                        .limit(1)
+                        // No limit(1): the same video can live under more than
+                        // one playlist, so this can match several docs.
+                        // pickDeterministic (not firstOrNull on an arbitrarily
+                        // ordered snapshot) picks the same one every time.
                         .addSnapshotListener { snapshot, error ->
                             if (error != null) {
                                 val vidHash = videoId.hashCode().toUInt().toString(HEX_RADIX)
@@ -139,7 +158,8 @@ class FirestoreRepository
                                 close(error)
                                 return@addSnapshotListener
                             }
-                            val doc = snapshot?.documents?.firstOrNull()
+                            val doc =
+                                pickDeterministic(snapshot?.documents.orEmpty()) { it.reference.path }
                             val video = doc?.toObject(VideoDoc::class.java)
                             trySend(
                                 video?.let {
