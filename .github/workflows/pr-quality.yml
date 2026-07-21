@@ -98,14 +98,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # plan: fail-on high. osv-scanner fails on findings; tune severity via .osv-scanner.toml if needed.
+      # Gate: fail only on CVSS >= 7.0 (implemented below via JSON output + jq filter,
+      # since osv-scanner's table mode has no severity threshold). osv-scanner.toml
+      # suppressions are still honored — suppressed findings never reach results.json.
       - name: Dependency audit (osv-scanner)
+        continue-on-error: true
         uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |-
             --config=osv-scanner.toml
             --recursive
+            --format=json
+            --output=results.json
             ./
+      - name: Enforce high-severity gate (CVSS >= 7.0)
+        run: |
+          if [ ! -f results.json ]; then
+            echo "osv-scanner did not produce results.json (scan likely errored for a reason other than findings)." >&2
+            exit 1
+          fi
+
+          findings=$(jq -c '
+            [ .results[]?.packages[]? as $p
+              | $p.groups[]?
+              | (.max_severity // "") as $sev
+              | (if $sev == "" then -1 else ($sev | tonumber) end) as $score
+              | select($score >= 7.0 or $score < 0)
+              | {ids: .ids, package: $p.package.name, version: $p.package.version,
+                 severity: (if $sev == "" then "unscored" else $sev end)}
+            ]
+          ' results.json)
+
+          count=$(echo "$findings" | jq 'length')
+          if [ "$count" -gt 0 ]; then
+            echo "Dependency audit gate: $count finding(s) with CVSS >= 7.0 (or unscored, treated as failing) not suppressed via osv-scanner.toml:"
+            echo "$findings" | jq -r '.[] | "  - \(.ids | join(", ")) (\(.package)@\(.version)): severity=\(.severity)"'
+            exit 1
+          fi
+          echo "Dependency audit gate: no CVSS >= 7.0 findings after osv-scanner.toml suppressions."
 
   secret-scan:
     runs-on: ubuntu-latest
