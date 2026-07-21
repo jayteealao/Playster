@@ -287,19 +287,17 @@ jobs:
         run: |
           mkdir -p app
           printf '%s' "$GOOGLE_SERVICES_JSON_B64" | tr -d '\r\n\t ' | base64 -d > app/google-services.json
-      # Golden-image gate: only verifyRoborazziDebug compares screenshots
-      # against the committed baselines (plain unit-test runs do not).
+      # TEMP (reverted in-branch): record mode instead of verify, to harvest all
+      # goldens in one CI round. See PR discussion for context.
       - name: Screenshot regression (Roborazzi)
         working-directory: android
-        run: ./gradlew --no-daemon verifyRoborazziDebug
-      - name: Upload screenshot diff reports
-        if: failure()
+        run: ./gradlew --no-daemon recordRoborazziDebug
+      - name: Upload recorded goldens
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: android-screenshot-diffs
-          path: |
-            android/app/build/outputs/roborazzi/
-            android/app/build/reports/tests/
+          name: ci-recorded-goldens
+          path: android/app/src/test/snapshots/images/
           retention-days: 7
 
   release-dry-run:
